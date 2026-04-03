@@ -108,7 +108,7 @@ impl Perlin {
         let y_vec = ArchSimd::splat(y_start);
         let lane_increment = ArchSimd::splat(ArchSimd::<f32>::LANES as i32);
 
-        let mut front_grad_array = SimdArray::<u32, ROW_SIZE>::new_uninit();
+        let mut front_grad_array = SimdArray::<u32, 64>::new_uninit();
         let mut z_vec = ArchSimd::splat(z_start) + iota_vec;
         let grad: ArchSimd<u32> = self.random_gen.mix_i32_simd_triple(x_front_vec, y_vec, z_vec) & ArchSimd::splat(15);
         front_grad_array.store_simd(0, grad);
