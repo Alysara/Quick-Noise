@@ -145,7 +145,7 @@ impl Perlin {
             z_next_index_exact += z_scale;
         }
 
-        let mut back_grad_array = SimdArray::<u32, ROW_SIZE>::new_uninit();
+        let mut back_grad_array = SimdArray::<u32, 64>::new_uninit();
         let mut z_vec = ArchSimd::splat(z_start) + iota_vec;
         let grad: ArchSimd<u32> = self.random_gen.mix_i32_simd_triple(x_back_vec, y_vec, z_vec) & ArchSimd::splat(15);
         back_grad_array.store_simd(0, grad);
