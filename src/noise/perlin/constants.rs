@@ -9,8 +9,8 @@ pub const VOL_SIZE: usize = 32768;
 // pub const LO_EPSILON: f64 = 1e-4;
 // pub const HI_EPSILON: f64 = 1.0 - 1e-4;
 
-pub const LO_EPSILON: f64 = 1e-5;
-pub const HI_EPSILON: f64 = 1.0 - 1e-5;
+pub const LO_EPSILON: f64 = 0.0;
+pub const HI_EPSILON: f64 = 1.0 - 0.0;
 
 pub type PerlinVec = SimdArray<f32, ROW_SIZE>;
 pub type PerlinMap = SimdArray<f32, MAP_SIZE>;
