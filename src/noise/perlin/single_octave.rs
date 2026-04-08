@@ -99,7 +99,7 @@ impl Perlin {
         let weight: f32 = octave.weight * weight_coef;
 
         // Get the starting gradient coordinates and how far the first sample is to the next one.
-        let grid_start: Vec3<i32> = ((block_pos + 1).as_f32() * increment + LO_EPSILON as f32).floor().as_i32();
+        let grid_start: Vec3<i32> = (block_pos.as_f32() * increment + LO_EPSILON as f32).floor().as_i32();
         let frac_start: Vec3<f32> = (block_pos.as_f32() * increment - grid_start.as_f32()).float_max(Vec3::splat(0.0));
 
         // Get the distances from the gradient gridpoints.
@@ -124,7 +124,6 @@ impl Perlin {
         let num_loops: Vec3<u32> = (frac_start + increment * ROW_SIZE as f32).ceil().as_u32();
 
         // Get the amount that next index fraction needs to increase by each iteration.
-        // println!("frac_start: {}", frac_start.x);
         let next_index_offset: Vec3<f32> = (1.0 - frac_start) * octave.scale + HI_EPSILON as f32;
 
         // Initialize gradient vectors.
