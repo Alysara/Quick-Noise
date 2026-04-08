@@ -1,6 +1,6 @@
 // TODO: Potentially make this a wrapper for simd_array under the hood.
 
-use std::ops::{Add, AddAssign, Sub, SubAssign, Mul, MulAssign, Div, DivAssign, Rem, RemAssign};
+use std::ops::{Add, AddAssign, Sub, SubAssign, Mul, MulAssign, Div, DivAssign, Rem, RemAssign, Index, IndexMut};
 use num_traits::float::*;
 use std::cmp::PartialOrd;
 
@@ -66,6 +66,54 @@ impl<T: Copy> From<T> for Vec2<T> {
 impl<T: Copy> From<T> for Vec3<T> {
     fn from(val: T) -> Self {
         Self::splat(val)
+    }
+}
+
+// === Indexing ===
+
+impl<T> IndexMut<usize> for Vec2<T> {
+    fn index_mut(&mut self, i: usize) -> &mut T {
+        match i {
+            0 => &mut self.x,
+            1 => &mut self.y,
+            _ => panic!("Vec2 index out of bounds: {i}"),
+        }
+    }
+}
+
+impl<T> IndexMut<usize> for Vec3<T> {
+    fn index_mut(&mut self, i: usize) -> &mut T {
+        match i {
+            0 => &mut self.x,
+            1 => &mut self.y,
+            2 => &mut self.z,
+            _ => panic!("Vec3 index out of bounds: {i}"),
+        }
+    }
+}
+
+impl<T> Index<usize> for Vec2<T> {
+    type Output = T;
+
+    fn index(&self, i: usize) -> &T {
+        match i {
+            0 => &self.x,
+            1 => &self.y,
+            _ => panic!("Vec2 index out of bounds: {i}"),
+        }
+    }
+}
+
+impl<T> Index<usize> for Vec3<T> {
+    type Output = T;
+
+    fn index(&self, i: usize) -> &T {
+        match i {
+            0 => &self.x,
+            1 => &self.y,
+            2 => &self.z,
+            _ => panic!("Vec3 index out of bounds: {i}"),
+        }
     }
 }
 

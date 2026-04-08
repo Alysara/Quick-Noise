@@ -96,7 +96,7 @@ impl Perlin {
         x_start: i32,
         y_start: i32,
         z_start: i32,
-        z_next_index_offset: f32,
+        z_grid_indices: &SimdArray<u32, ROW_SIZE>,
         z_scale: f32,
         z_num_loops: u32,
         z_distances: &PerlinVec,
@@ -124,10 +124,8 @@ impl Perlin {
         ];
 
         let mut z_cur_index: u32 = 0;
-        let mut z_next_index_exact: f32 = z_next_index_offset;
         for z_it in 0..z_num_loops {
-            debug_assert!(z_next_index_exact >= 0.0 && z_next_index_exact.is_finite());
-            let z_next_index: u32 = unsafe { z_next_index_exact.to_int_unchecked::<u32>().min(ROW_SIZE as u32) };
+            let z_next_index: u32 = z_grid_indices[z_it as usize];
             let set_amount: u32 = z_next_index - z_cur_index;
             unsafe {
                 let lf_grad = front_grad_array.get_unchecked(z_it as usize) as usize;
@@ -142,7 +140,6 @@ impl Perlin {
             }
             if z_next_index == 32 { break; }
             z_cur_index = z_next_index;
-            z_next_index_exact += z_scale;
         }
 
         let mut back_grad_array = SimdArray::<u32, 64>::new_uninit();
@@ -161,10 +158,8 @@ impl Perlin {
         ];
 
         let mut z_cur_index: u32 = 0;
-        let mut z_next_index_exact: f32 = z_next_index_offset;
         for z_it in 0..z_num_loops {
-            debug_assert!(z_next_index_exact >= 0.0 && z_next_index_exact.is_finite());
-            let z_next_index: u32 = unsafe { z_next_index_exact.to_int_unchecked::<u32>().min(ROW_SIZE as u32) };
+            let z_next_index: u32 = z_grid_indices[z_it as usize];
             let set_amount: u32 = z_next_index - z_cur_index;
             unsafe {
                 let lb_grad = back_grad_array.get_unchecked(z_it as usize) as usize;
@@ -179,7 +174,6 @@ impl Perlin {
             }
             if z_next_index == 32 { break; }
             z_cur_index = z_next_index;
-            z_next_index_exact += z_scale;
         }
 
         lf.z *= *z_distances;
