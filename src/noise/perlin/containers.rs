@@ -51,6 +51,24 @@ impl Octave3D {
     }
 }
 
+impl From<(f32, f32)> for Octave3D {
+    fn from((scale, weight): (f32, f32)) -> Self {
+        Octave3D::new((scale, scale, scale).into(), weight)
+    }
+}
+
+impl From<((f32, f32, f32), f32)> for Octave3D {
+    fn from(((x_scale, y_scale, z_scale), weight): ((f32, f32, f32), f32)) -> Self {
+        Octave3D::new((x_scale, y_scale, z_scale).into(), weight)
+    }
+}
+
+impl From<&Octave3D> for Octave3D {
+    fn from(octave: &Octave3D) -> Self {
+        octave.clone()
+    }
+}
+
 pub struct PerlinContainer2D {
     vecs: [PerlinVecPair; 4],
     tl: usize, // Top left.

@@ -135,6 +135,7 @@ pub fn write_perlin_height_map_3d(
     pixels.resize(dimension * dimension * MAP_SIZE, 0);
 
     let mut array = PerlinVol::new_uninit();
+
     for x in 0..dimension {
         let x_offset = x * dimension * MAP_SIZE;
         for y in 0..dimension {
@@ -150,6 +151,56 @@ pub fn write_perlin_height_map_3d(
                 persistence,
                 1,
                 0.0,
+            );
+
+            array = (array + PerlinVol::new(1.0)) * PerlinVol::new(127.5);
+
+            for dx in 0..ROW_SIZE {
+                let offset = x_offset + y_offset + dx * ROW_SIZE * dimension;
+                for dy in 0..ROW_SIZE {
+                    pixels[offset + dy] = array[dx * ROW_SIZE + dy] as u8;
+                }
+            }
+        }
+    }
+
+    let pixel_dimension = (dimension * ROW_SIZE) as u32;
+    image::save_buffer(
+        &path,
+        &pixels,
+        pixel_dimension,
+        pixel_dimension,
+        image::ColorType::L8,
+    )
+    .expect("Failed to write height map!");
+
+    println!("Wrote height map to {path}!");
+}
+
+
+pub fn write_perlin_height_map_3d_octaves(
+    path: &str,
+    dimension: usize,
+    octaves: impl IntoIterator<Item = impl Into<Octave3D>>,
+    channel: i32,
+) {
+    let mut perlin = Perlin::new(0);
+
+    let mut pixels = Vec::<u8>::new();
+    pixels.resize(dimension * dimension * MAP_SIZE, 0);
+
+    let octaves_vec: Vec<Octave3D> = octaves.into_iter().map(Into::into).collect();
+    for x in 0..dimension {
+        let x_offset = x * dimension * MAP_SIZE;
+        for y in 0..dimension {
+            let y_offset = y * ROW_SIZE;
+
+            let mut array = perlin.uniform_grid_3d_octaves(
+                (0, x as i32, y as i32).into(),
+                &octaves_vec,
+                1.,
+                channel,
+                0.
             );
 
             array = (array + PerlinVol::new(1.0)) * PerlinVol::new(127.5);
