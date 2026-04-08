@@ -384,6 +384,38 @@ impl<T: SimdFloat, const N: usize> SimdArray<T, N> {
 
         result
     }
+
+    pub fn max(&self, val: T) -> Self {
+        let max_vec = ArchSimd::<T>::splat(val);
+        let mut result = Self::new_uninit();
+        for i in (0..Self::TAIL_START).step_by(ArchSimd::<T>::LANES) {
+            let data = self.load_simd(i);
+            result.store_simd(i, data.max(max_vec));
+        }
+
+        if Self::HAS_TAIL {
+            let data = self.load_simd(Self::TAIL_START);
+            result.partial_store_simd(Self::TAIL_START, data.max(max_vec), Self::TAIL_SIZE);
+        }
+
+        result
+    }
+
+    pub fn min(&self, val: T) -> Self {
+        let min_vec = ArchSimd::<T>::splat(val);
+        let mut result = Self::new_uninit();
+        for i in (0..Self::TAIL_START).step_by(ArchSimd::<T>::LANES) {
+            let data = self.load_simd(i);
+            result.store_simd(i, data.min(min_vec));
+        }
+
+        if Self::HAS_TAIL {
+            let data = self.load_simd(Self::TAIL_START);
+            result.partial_store_simd(Self::TAIL_START, data.min(min_vec), Self::TAIL_SIZE);
+        }
+
+        result
+    }
 }
 
 impl<T: SimdFloat, const N: usize> SimdArray<T, N> {
