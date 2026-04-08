@@ -190,12 +190,14 @@ pub fn write_perlin_height_map_3d_octaves(
     pixels.resize(dimension * dimension * MAP_SIZE, 0);
 
     let octaves_vec: Vec<Octave3D> = octaves.into_iter().map(Into::into).collect();
+    let mut array = PerlinVol::new_uninit();
     for x in 0..dimension {
         let x_offset = x * dimension * MAP_SIZE;
         for y in 0..dimension {
             let y_offset = y * ROW_SIZE;
 
-            let mut array = perlin.uniform_grid_3d_octaves(
+            perlin.uniform_grid_3d_octaves(
+                &mut array,
                 (0, x as i32, y as i32).into(),
                 &octaves_vec,
                 1.,

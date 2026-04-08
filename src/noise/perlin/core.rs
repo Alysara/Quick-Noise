@@ -164,14 +164,13 @@ impl Perlin {
 
     pub fn uniform_grid_3d_octaves(
         &mut self,
+        result: &mut PerlinVol,
         pos: Vec3<i32>,
         octaves: impl IntoIterator<Item = impl Into<Octave3D>>,
         amplitude: f32,
         channel: i32,
         octave_offset: f32,
-    ) -> PerlinVol {
-        let mut result: PerlinVol = PerlinVol::new_uninit();
-
+    ) {
         // Get the channel seed for gradient generation.
         let octaves_vec: Vec<Octave3D> = octaves.into_iter().map(Into::into).collect();
         let channel_seed: u64 = Random::static_mix_u64(channel as u64);
@@ -185,7 +184,7 @@ impl Perlin {
 
         // Add each noise pass to result. Slight performance boost for initialize on the first pass.
         self.uniform_grid_octave_3d::<true>(
-            &mut result,
+            result,
             pos,
             &octaves_vec[0],
             weight_coef,
@@ -194,7 +193,7 @@ impl Perlin {
         );
         for i in 1..octaves_vec.len() {
             self.uniform_grid_octave_3d::<false>(
-                &mut result,
+                result,
                 pos,
                 &octaves_vec[i],
                 weight_coef,
@@ -202,7 +201,5 @@ impl Perlin {
                 octave_offset,
             );
         }
-
-        result
     }
 }
