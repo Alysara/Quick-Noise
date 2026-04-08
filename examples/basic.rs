@@ -36,7 +36,7 @@ fn main() {
         "noise_images/perlin_3d_custom.png",
         32,
         [
-            (1024.0, 1.0)
+            (32.0, 1.0)
         ],
         0
     );
