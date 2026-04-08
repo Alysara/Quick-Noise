@@ -148,10 +148,10 @@ impl Perlin {
             let mut x_next_index: u32 = unsafe { x_next_index_exact.to_int_unchecked::<u32>().min(ROW_SIZE as u32) as u32 };
             let x_cur_frac_start = unsafe { distances.x.get_unchecked(x_cur_index as usize) };
 
-            let x_last_frac = unsafe { distances.y.get_unchecked(x_next_index as usize - 1 as usize) };
-            if x_cur_frac_start > x_last_frac { 
-                x_next_index -= 1;
-            }
+            // let x_last_frac = unsafe { distances.y.get_unchecked(x_next_index as usize - 1 as usize) };
+            // if x_cur_frac_start > x_last_frac { 
+            //     x_next_index -= 1;
+            // }
 
             // Iterate through single x chunks but full y chunks.
             let mut y_cur_index: u32 = 0;
@@ -172,10 +172,10 @@ impl Perlin {
                 let mut y_next_index: u32 = unsafe { y_next_index_exact.to_int_unchecked::<u32>().min(ROW_SIZE as u32) as u32 };
                 let y_cur_frac_start = unsafe { distances.y.get_unchecked(y_cur_index as usize) };
 
-                let y_last_frac = unsafe { distances.y.get_unchecked(y_next_index as usize - 1 as usize) };
-                if y_cur_frac_start > y_last_frac { 
-                    y_next_index -= 1;
-                }
+                // let y_last_frac = unsafe { distances.y.get_unchecked(y_next_index as usize - 1 as usize) };
+                // if y_cur_frac_start > y_last_frac { 
+                //     y_next_index -= 1;
+                // }
 
                 // println!("y_cur_index: {y_cur_index}, y_next_index: {y_next_index}, y_cur_frac_start: {y_cur_frac_start}, y_last_frac: {y_last_frac}");
 
