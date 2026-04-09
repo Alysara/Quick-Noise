@@ -84,12 +84,14 @@ pub fn write_perlin_octaves_height_map(
     let mut pixels = Vec::<u8>::new();
     pixels.resize(dimension * dimension * MAP_SIZE, 0);
 
+    let mut noise = PerlinMap::new_uninit();
     for x in 0..dimension {
         let x_offset = x * dimension * MAP_SIZE;
         for y in 0..dimension {
             let y_offset = y * ROW_SIZE;
 
-            let mut noise: PerlinMap = perlin.uniform_grid_2d_octaves(
+            perlin.uniform_grid_2d_octaves(
+                &mut noise,
                 (x as i32, y as i32).into(),
                 &octaves_vec,
                 1.0,
@@ -141,9 +143,12 @@ pub fn write_perlin_height_map_3d(
         for y in 0..dimension {
             let y_offset = y * ROW_SIZE;
 
+            let x_adj = x as i32 - (dimension / 2) as i32;
+            let y_adj = y as i32 - (dimension / 2) as i32;
+
             perlin.uniform_grid_3d(
                 &mut array,
-                (0, x as i32, y as i32).into(),
+                (0, x_adj, y_adj).into(),
                 octaves,
                 scale,
                 1.0,
@@ -196,9 +201,11 @@ pub fn write_perlin_height_map_3d_octaves(
         for y in 0..dimension {
             let y_offset = y * ROW_SIZE;
 
+            let x_adj = x as i32 - (dimension / 2) as i32;
+            let y_adj = y as i32 - (dimension / 2) as i32;
             perlin.uniform_grid_3d_octaves(
                 &mut array,
-                (0, x as i32, y as i32).into(),
+                (0, x_adj, y_adj).into(),
                 &octaves_vec,
                 1.,
                 channel,

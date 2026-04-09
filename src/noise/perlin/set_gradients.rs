@@ -12,7 +12,7 @@ impl Perlin {
         right: &mut PerlinVecPair,
         x_start: i32,
         y_start: i32,
-        y_next_index_offset: f32,
+        y_grid_indices: &SimdArray<u32, ROW_SIZE>,
         y_scale: f32,
         y_num_loops: u32,
         y_distances: &PerlinVec,
@@ -52,14 +52,12 @@ impl Perlin {
         ];
 
         // Loop through the y chunks.
-        let mut cur_index: u32 = 0;
-        let mut y_next_index_exact: f32 = y_next_index_offset;
+        let mut y_cur_index: u32 = 0;
         for y_it in 0..y_num_loops {
+            let y_next_index: u32 = y_grid_indices[y_it as usize];
 
             // Find range of gradients to set.
-            debug_assert!(y_next_index_exact >= 0.0 && y_next_index_exact.is_finite());
-            let y_next_index: u32 = unsafe { y_next_index_exact.to_int_unchecked::<u32>().min(ROW_SIZE as u32) }; // Never negative or NaN.
-            let set_amount: u32 = y_next_index - cur_index;
+            let set_amount: u32 = y_next_index - y_cur_index;
 
             unsafe {
                 let l = grad_array.get_unchecked(y_it as usize) as usize;
@@ -72,13 +70,10 @@ impl Perlin {
                     GRADIENTS_2D.get_unchecked(r).x, GRADIENTS_2D.get_unchecked(r).y,
                 ];
 
-                PerlinVec::multiset_many::<4>(&mut arrays, &values, cur_index as usize, set_amount as isize);
+                PerlinVec::multiset_many::<4>(&mut arrays, &values, y_cur_index as usize, set_amount as isize);
             }
 
-            if y_next_index == 32 { break; }
-
-            cur_index = y_next_index;
-            y_next_index_exact += y_scale;
+            y_cur_index = y_next_index;
         }
 
         // Compute y dot products (Better to do here since these dot products get reused and operate per element).
@@ -138,7 +133,6 @@ impl Perlin {
                 ];
                 PerlinVec::multiset_many::<6>(&mut front_arrays, &values, z_cur_index as usize, set_amount as isize);
             }
-            if z_next_index == 32 { break; }
             z_cur_index = z_next_index;
         }
 
