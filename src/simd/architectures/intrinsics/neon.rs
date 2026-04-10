@@ -178,7 +178,7 @@ impl SimdGatherImpl for Neon {
             temp[i] = ptr[temp[i] as usize];
         }
 
-        Self::load_unaligned(temp.as_ptr());
+        Self::load_unaligned(temp.as_ptr())
     }}
 
     #[inline(always)] fn gather_64_from_64<T, const B: i32>(self, ptr: *const T) -> Self { unsafe {
@@ -190,7 +190,7 @@ impl SimdGatherImpl for Neon {
             temp[i] = ptr[temp[i] as usize];
         }
 
-        Self::load_unaligned(temp.as_ptr());
+        Self::load_unaligned(temp.as_ptr())
     }}
 }
 
