@@ -100,17 +100,17 @@ pub fn profile_perlin_3d_call(octaves: u32, scale: f32, lacunarity: f32, persist
 pub fn bench_perlin_2d() {
     println!("-+-+- Perlin 2D Noise Bench -+-+-");
 
-    profile_perlin_2d_call_internal(1, 64.0, 1000);
-    profile_perlin_2d_call_internal(1, 48.0, 1000);
-    profile_perlin_2d_call_internal(1, 32.0, 1000);
-    profile_perlin_2d_call_internal(1, 24.0, 1000);
-    profile_perlin_2d_call_internal(1, 16.0, 1000);
-    profile_perlin_2d_call_internal(1, 12.0, 750);
-    profile_perlin_2d_call_internal(1, 8.0, 500);
-    profile_perlin_2d_call_internal(1, 6.0, 500);
-    profile_perlin_2d_call_internal(1, 4.0, 250);
-    profile_perlin_2d_call_internal(1, 3.0, 250);
-    profile_perlin_2d_call_internal(1, 2.0, 100);
+    profile_perlin_2d_call_internal(1, 64.0, 100000);
+    profile_perlin_2d_call_internal(1, 48.0, 100000);
+    profile_perlin_2d_call_internal(1, 32.0, 100000);
+    profile_perlin_2d_call_internal(1, 24.0, 100000);
+    profile_perlin_2d_call_internal(1, 16.0, 100000);
+    profile_perlin_2d_call_internal(1, 12.0, 75000);
+    profile_perlin_2d_call_internal(1, 8.0, 50000);
+    profile_perlin_2d_call_internal(1, 6.0, 50000);
+    profile_perlin_2d_call_internal(1, 4.0, 25000);
+    profile_perlin_2d_call_internal(1, 3.0, 25000);
+    profile_perlin_2d_call_internal(1, 2.0, 10000);
 
     println!("-+-+- Completed Perlin 2D Bench -+-+-");
 }
