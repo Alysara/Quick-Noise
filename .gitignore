@@ -28,3 +28,4 @@ target
 
 Cargo.lock
 noise_images/
+.DS_Store
