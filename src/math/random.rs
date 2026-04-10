@@ -1,9 +1,6 @@
 // Primitive but fast module for generating random-looking outputs.
 
 use crate::simd::arch_simd::ArchSimd;
-use crate::simd::array_trait::Array;
-use crate::simd::simd_vec::core::SimdVec;
-use crate::simd::architectures::families::Avx2Family;
 use crate::simd::simd_traits::*;
 
 pub struct Random {
