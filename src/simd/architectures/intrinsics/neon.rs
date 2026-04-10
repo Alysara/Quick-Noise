@@ -175,7 +175,7 @@ impl SimdGatherImpl for Neon {
         self.store_unaligned(temp.as_mut_ptr());
 
         for i in 0..4 {
-            temp[i] = ptr[temp[i] as usize];
+            temp[i] = ptr.add(temp[i] as usize);
         }
 
         Self::load_unaligned(temp.as_ptr())
@@ -187,7 +187,7 @@ impl SimdGatherImpl for Neon {
         self.store_unaligned(temp.as_mut_ptr());
 
         for i in 0..2 {
-            temp[i] = ptr[temp[i] as usize];
+            temp[i] = ptr.add(temp[i] as usize);
         }
 
         Self::load_unaligned(temp.as_ptr())
@@ -202,8 +202,8 @@ impl SimdSqrtImpl for Neon {
 
 impl SimdAllBitsImpl for Neon {
     #[inline(always)]
-    fn all_zero(self) -> bool {
+    fn all_zero(self) -> bool { unsafe {
         let or = self_from_op!(vorrq_u8, self, self);
         vmaxvq_u8(or) == 0
-    }
+    }}
 }
