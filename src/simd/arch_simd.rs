@@ -30,16 +30,16 @@ cfg_if::cfg_if! {
     }
 
     // aarch64
-    else if #[cfg(all(target_arch = "aarch64", target_feature = "sve"))] {
-        pub const SIMD_WIDTH: usize = 32;
-        pub const NUM_SIMD_REG: usize = 32;
-        pub type ArchSimd<T> = SimdVec<T, SseFamily>;
-        pub type ArchMask<T> = SimdMask<T, SseFamily>;
-    } else if #[cfg(all(target_arch = "aarch64", target_feature = "neon"))] {
+    // else if #[cfg(all(target_arch = "aarch64", target_feature = "sve"))] {
+    //     pub const SIMD_WIDTH: usize = 32;
+    //     pub const NUM_SIMD_REG: usize = 32;
+    //     pub type ArchSimd<T> = SimdVec<T, SseFamily>;
+    //     pub type ArchMask<T> = SimdMask<T, SseFamily>;
+    else if #[cfg(all(target_arch = "aarch64", target_feature = "neon"))] {
         pub const SIMD_WIDTH: usize = 16;
         pub const NUM_SIMD_REG: usize = 32;
-        pub type ArchSimd<T> = SimdVec<T, SseFamily>;
-        pub type ArchMask<T> = SimdMask<T, SseFamily>;
+        pub type ArchSimd<T> = SimdVec<T, NeonFamily>;
+        pub type ArchMask<T> = SimdMask<T, NeonFamily>;
     }
 
     // wasm
