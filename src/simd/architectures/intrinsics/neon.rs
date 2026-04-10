@@ -49,14 +49,14 @@ impl SimdBitwiseImpl for Neon {
 
 impl SimdShiftImpl for Neon {
     #[inline(always)] fn sllv_64(self, rhs: Self) -> Self { self_from_op!(vshlq_s64, self, rhs) }
-    #[inline(always)] fn srlv_64(self, rhs: Self) -> Self { self_from_op!(vshlq_u64, self, rhs) }
-    #[inline(always)] fn srav_64(self, rhs: Self) -> Self { self_from_op!(vshlq_s64, self, rhs) }
+    #[inline(always)] fn srlv_64(self, rhs: Self) -> Self { self_from_op!(vshlq_u64, self, self_from_op!(vnegq_s64, rhs)) }
+    #[inline(always)] fn srav_64(self, rhs: Self) -> Self { self_from_op!(vshlq_s64, self, self_from_op!(vnegq_s64, rhs)) }
     #[inline(always)] fn sllv_32(self, rhs: Self) -> Self { self_from_op!(vshlq_s32, self, rhs) }
-    #[inline(always)] fn srlv_32(self, rhs: Self) -> Self { self_from_op!(vshlq_u32, self, rhs) }
-    #[inline(always)] fn srav_32(self, rhs: Self) -> Self { self_from_op!(vshlq_s32, self, rhs) }
+    #[inline(always)] fn srlv_32(self, rhs: Self) -> Self { self_from_op!(vshlq_u32, self, self_from_op!(vnegq_s32, rhs)) }
+    #[inline(always)] fn srav_32(self, rhs: Self) -> Self { self_from_op!(vshlq_s32, self, self_from_op!(vnegq_s32, rhs)) }
     #[inline(always)] fn sllv_16(self, rhs: Self) -> Self { self_from_op!(vshlq_s16, self, rhs) }
-    #[inline(always)] fn srlv_16(self, rhs: Self) -> Self { self_from_op!(vshlq_u16, self, rhs) }
-    #[inline(always)] fn srav_16(self, rhs: Self) -> Self { self_from_op!(vshlq_s16, self, rhs) }
+    #[inline(always)] fn srlv_16(self, rhs: Self) -> Self { self_from_op!(vshlq_u16, self, self_from_op!(vnegq_s16, rhs)) }
+    #[inline(always)] fn srav_16(self, rhs: Self) -> Self { self_from_op!(vshlq_s16, self, self_from_op!(vnegq_s16, rhs)) }
 }
 
 impl SimdLoadImpl for Neon {
