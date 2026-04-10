@@ -1,24 +1,24 @@
-use std::{fs, path::Path};
+use image::ImageResult;
 
-use crate::worley::Worley;
-use crate::{noise::perlin::*, simd::simd_array::SimdArray};
+use crate::noise::perlin::*;
 use crate::noise::simplex::Simplex;
 use crate::noise::value::Value;
+use crate::worley::Worley;
 
-pub fn write_perlin_height_map(
-    path: impl AsRef<Path>,
+pub type GrayscaleWriteResult<T> = ImageResult<T>;
+
+fn create_image(path: &str, pixels: &[u8], width: u32, height: u32) -> GrayscaleWriteResult<()> {
+    image::save_buffer(&path, &pixels, width, height, image::ColorType::L8)
+}
+
+pub fn write_perlin_heightmap(
+    path: &str,
     dimension: usize,
     octaves: u32,
     scale: f32,
     lacunarity: f32,
     persistence: f32,
-) {
-    if let Some(parent) = path.as_ref().parent()
-        && !parent.exists()
-    {
-        fs::create_dir_all(parent).expect("Failed to create parent");
-    }
-
+) -> GrayscaleWriteResult<()> {
     let mut perlin = Perlin::new(0);
 
     let mut pixels = Vec::<u8>::new();
@@ -54,30 +54,16 @@ pub fn write_perlin_height_map(
     }
 
     let pixel_dimension = (dimension * ROW_SIZE) as u32;
-    image::save_buffer(
-        &path,
-        &pixels,
-        pixel_dimension,
-        pixel_dimension,
-        image::ColorType::L8,
-    )
-    .expect("Failed to write height map!");
 
-    println!("Wrote height map to {}!", path.as_ref().display());
+    create_image(path, &pixels, pixel_dimension, pixel_dimension)
 }
 
-pub fn write_perlin_octaves_height_map(
-    path: impl AsRef<Path>,
+pub fn write_perlin_octaves_heightmap(
+    path: &str,
     dimension: usize,
     octaves: impl IntoIterator<Item = impl Into<Octave2D>>,
     channel: i32,
-) {
-    if let Some(parent) = path.as_ref().parent()
-        && !parent.exists()
-    {
-        fs::create_dir_all(parent).expect("Failed to create parent");
-    }
-
+) -> GrayscaleWriteResult<()> {
     let mut perlin = Perlin::new(0);
 
     let octaves_vec: Vec<Octave2D> = octaves.into_iter().map(Into::into).collect();
@@ -111,26 +97,18 @@ pub fn write_perlin_octaves_height_map(
     }
 
     let pixel_dimension = (dimension * ROW_SIZE) as u32;
-    image::save_buffer(
-        &path,
-        &pixels,
-        pixel_dimension,
-        pixel_dimension,
-        image::ColorType::L8,
-    )
-    .expect("Failed to write height map!");
 
-    println!("Wrote height map to {}!", path.as_ref().display());
+    create_image(path, &pixels, pixel_dimension, pixel_dimension)
 }
 
-pub fn write_perlin_height_map_3d(
+pub fn write_perlin_heightmap_3d(
     path: &str,
     dimension: usize,
     octaves: u32,
     scale: f32,
     lacunarity: f32,
     persistence: f32,
-) {
+) -> GrayscaleWriteResult<()> {
     let mut perlin = Perlin::new(0);
 
     let mut pixels = Vec::<u8>::new();
@@ -170,25 +148,16 @@ pub fn write_perlin_height_map_3d(
     }
 
     let pixel_dimension = (dimension * ROW_SIZE) as u32;
-    image::save_buffer(
-        &path,
-        &pixels,
-        pixel_dimension,
-        pixel_dimension,
-        image::ColorType::L8,
-    )
-    .expect("Failed to write height map!");
 
-    println!("Wrote height map to {path}!");
+    create_image(path, &pixels, pixel_dimension, pixel_dimension)
 }
 
-
-pub fn write_perlin_height_map_3d_octaves(
+pub fn write_perlin_heightmap_3d_octaves(
     path: &str,
     dimension: usize,
     octaves: impl IntoIterator<Item = impl Into<Octave3D>>,
     channel: i32,
-) {
+) -> GrayscaleWriteResult<()> {
     let mut perlin = Perlin::new(0);
 
     let mut pixels = Vec::<u8>::new();
@@ -209,7 +178,7 @@ pub fn write_perlin_height_map_3d_octaves(
                 &octaves_vec,
                 1.,
                 channel,
-                0.
+                0.,
             );
 
             array = (array + PerlinVol::new(1.0)) * PerlinVol::new(127.5);
@@ -224,32 +193,15 @@ pub fn write_perlin_height_map_3d_octaves(
     }
 
     let pixel_dimension = (dimension * ROW_SIZE) as u32;
-    image::save_buffer(
-        &path,
-        &pixels,
-        pixel_dimension,
-        pixel_dimension,
-        image::ColorType::L8,
-    )
-    .expect("Failed to write height map!");
 
-    println!("Wrote height map to {path}!");
+    create_image(path, &pixels, pixel_dimension, pixel_dimension)
 }
 
-pub fn write_perlin_height_map_batched(
-    path: impl AsRef<Path>,
+pub fn write_perlin_heightmap_batched(
+    path: &str,
     dimension: usize,
-    octaves: u32,
     scale: f32,
-    lacunarity: f32,
-    persistence: f32,
-) {
-    if let Some(parent) = path.as_ref().parent()
-        && !parent.exists()
-    {
-        fs::create_dir_all(parent).expect("Failed to create parent");
-    }
-
+) -> GrayscaleWriteResult<()> {
     let mut perlin = Perlin::new(0);
 
     let mut pixels = Vec::<u8>::new();
@@ -276,15 +228,7 @@ pub fn write_perlin_height_map_batched(
 
             let octave = Octave2D::splat(scale, 1.0);
 
-            perlin.batched_2d(
-                &mut noise,
-                &x_array,
-                &y_array,
-                &octave,
-                1.0,
-                1,
-                0.0,
-            );
+            perlin.batched_2d(&mut noise, &x_array, &y_array, &octave, 1.0, 1, 0.0);
 
             noise = (noise + PerlinMap::new(1.0)) * PerlinMap::new(127.5);
 
@@ -298,33 +242,15 @@ pub fn write_perlin_height_map_batched(
     }
 
     let pixel_dimension = (dimension * ROW_SIZE) as u32;
-    image::save_buffer(
-        &path,
-        &pixels,
-        pixel_dimension,
-        pixel_dimension,
-        image::ColorType::L8,
-    )
-    .expect("Failed to write height map!");
 
-    println!("Wrote height map to {}!", path.as_ref().display());
+    create_image(path, &pixels, pixel_dimension, pixel_dimension)
 }
 
-
-pub fn write_simplex_height_map_batched(
-    path: impl AsRef<Path>,
+pub fn write_simplex_heightmap_batched(
+    path: &str,
     dimension: usize,
-    octaves: u32,
     scale: f32,
-    lacunarity: f32,
-    persistence: f32,
-) {
-    if let Some(parent) = path.as_ref().parent()
-        && !parent.exists()
-    {
-        fs::create_dir_all(parent).expect("Failed to create parent");
-    }
-
+) -> GrayscaleWriteResult<()> {
     let mut simplex = Simplex::new(2);
 
     let mut pixels = Vec::<u8>::new();
@@ -349,15 +275,7 @@ pub fn write_simplex_height_map_batched(
                 }
             }
 
-            simplex.batched_2d(
-                &mut noise,
-                &x_array,
-                &y_array,
-                scale,
-                1.0,
-                1,
-                0.0,
-            );
+            simplex.batched_2d(&mut noise, &x_array, &y_array, scale, 1.0, 1, 0.0);
 
             noise = (noise + PerlinMap::new(1.0)) * PerlinMap::new(127.5);
 
@@ -371,33 +289,15 @@ pub fn write_simplex_height_map_batched(
     }
 
     let pixel_dimension = (dimension * ROW_SIZE) as u32;
-    image::save_buffer(
-        &path,
-        &pixels,
-        pixel_dimension,
-        pixel_dimension,
-        image::ColorType::L8,
-    )
-    .expect("Failed to write height map!");
 
-    println!("Wrote height map to {}!", path.as_ref().display());
+    create_image(path, &pixels, pixel_dimension, pixel_dimension)
 }
 
-
-pub fn write_value_height_map_batched(
-    path: impl AsRef<Path>,
+pub fn write_value_heightmap_batched(
+    path: &str,
     dimension: usize,
-    octaves: u32,
     scale: f32,
-    lacunarity: f32,
-    persistence: f32,
-) {
-    if let Some(parent) = path.as_ref().parent()
-        && !parent.exists()
-    {
-        fs::create_dir_all(parent).expect("Failed to create parent");
-    }
-
+) -> GrayscaleWriteResult<()> {
     let mut value = Value::new(0);
 
     let mut pixels = Vec::<u8>::new();
@@ -422,15 +322,7 @@ pub fn write_value_height_map_batched(
                 }
             }
 
-            value.batched_2d(
-                &mut noise,
-                &x_array,
-                &y_array,
-                scale,
-                1.0,
-                1,
-                0.0,
-            );
+            value.batched_2d(&mut noise, &x_array, &y_array, scale, 1.0, 1, 0.0);
 
             noise = (noise + PerlinMap::new(1.0)) * PerlinMap::new(127.5);
 
@@ -444,32 +336,15 @@ pub fn write_value_height_map_batched(
     }
 
     let pixel_dimension = (dimension * ROW_SIZE) as u32;
-    image::save_buffer(
-        &path,
-        &pixels,
-        pixel_dimension,
-        pixel_dimension,
-        image::ColorType::L8,
-    )
-    .expect("Failed to write height map!");
 
-    println!("Wrote height map to {}!", path.as_ref().display());
+    create_image(path, &pixels, pixel_dimension, pixel_dimension)
 }
 
-pub fn write_worley_height_map_batched(
-    path: impl AsRef<Path>,
+pub fn write_worley_heightmap_batched(
+    path: &str,
     dimension: usize,
-    octaves: u32,
     scale: f32,
-    lacunarity: f32,
-    persistence: f32,
-) {
-    if let Some(parent) = path.as_ref().parent()
-        && !parent.exists()
-    {
-        fs::create_dir_all(parent).expect("Failed to create parent");
-    }
-
+) -> GrayscaleWriteResult<()> {
     let mut worley = Worley::new(0);
 
     let mut pixels = Vec::<u8>::new();
@@ -494,15 +369,7 @@ pub fn write_worley_height_map_batched(
                 }
             }
 
-            worley.batched_2d(
-                &mut noise,
-                &x_array,
-                &y_array,
-                scale,
-                1.0,
-                1,
-                0.0,
-            );
+            worley.batched_2d(&mut noise, &x_array, &y_array, scale, 1.0, 1, 0.0);
 
             noise = noise * PerlinMap::new(256.0);
 
@@ -516,32 +383,15 @@ pub fn write_worley_height_map_batched(
     }
 
     let pixel_dimension = (dimension * ROW_SIZE) as u32;
-    image::save_buffer(
-        &path,
-        &pixels,
-        pixel_dimension,
-        pixel_dimension,
-        image::ColorType::L8,
-    )
-    .expect("Failed to write height map!");
 
-    println!("Wrote height map to {}!", path.as_ref().display());
+    create_image(path, &pixels, pixel_dimension, pixel_dimension)
 }
 
-pub fn write_perlin_height_map_batched_3d(
-    path: impl AsRef<Path>,
+pub fn write_perlin_heightmap_batched_3d(
+    path: &str,
     dimension: usize,
-    octaves: u32,
     scale: f32,
-    lacunarity: f32,
-    persistence: f32,
-) {
-    if let Some(parent) = path.as_ref().parent()
-        && !parent.exists()
-    {
-        fs::create_dir_all(parent).expect("Failed to create parent");
-    }
-
+) -> GrayscaleWriteResult<()> {
     let mut perlin = Perlin::new(1);
 
     let mut pixels = Vec::<u8>::new();
@@ -573,14 +423,7 @@ pub fn write_perlin_height_map_batched_3d(
             let octave = Octave3D::splat(scale, 1.0);
 
             perlin.batched_3d(
-                &mut noise,
-                &x_array,
-                &y_array,
-                &z_array,
-                &octave,
-                1.0,
-                1,
-                0.0,
+                &mut noise, &x_array, &y_array, &z_array, &octave, 1.0, 1, 0.0,
             );
 
             noise = (noise + PerlinVol::new(1.0)) * PerlinVol::new(127.5);
@@ -595,32 +438,15 @@ pub fn write_perlin_height_map_batched_3d(
     }
 
     let pixel_dimension = (dimension * ROW_SIZE) as u32;
-    image::save_buffer(
-        &path,
-        &pixels,
-        pixel_dimension,
-        pixel_dimension,
-        image::ColorType::L8,
-    )
-    .expect("Failed to write height map!");
 
-    println!("Wrote height map to {}!", path.as_ref().display());
+    create_image(path, &pixels, pixel_dimension, pixel_dimension)
 }
 
-pub fn write_value_height_map_batched_3d(
-    path: impl AsRef<Path>,
+pub fn write_value_heightmap_batched_3d(
+    path: &str,
     dimension: usize,
-    octaves: u32,
     scale: f32,
-    lacunarity: f32,
-    persistence: f32,
-) {
-    if let Some(parent) = path.as_ref().parent()
-        && !parent.exists()
-    {
-        fs::create_dir_all(parent).expect("Failed to create parent");
-    }
-
+) -> GrayscaleWriteResult<()> {
     let mut value = Value::new(1);
 
     let mut pixels = Vec::<u8>::new();
@@ -649,16 +475,7 @@ pub fn write_value_height_map_batched_3d(
                 }
             }
 
-            value.batched_3d(
-                &mut noise,
-                &x_array,
-                &y_array,
-                &z_array,
-                scale,
-                1.0,
-                1,
-                0.0,
-            );
+            value.batched_3d(&mut noise, &x_array, &y_array, &z_array, scale, 1.0, 1, 0.0);
 
             noise = (noise + PerlinVol::new(1.0)) * PerlinVol::new(127.5);
 
@@ -672,33 +489,15 @@ pub fn write_value_height_map_batched_3d(
     }
 
     let pixel_dimension = (dimension * ROW_SIZE) as u32;
-    image::save_buffer(
-        &path,
-        &pixels,
-        pixel_dimension,
-        pixel_dimension,
-        image::ColorType::L8,
-    )
-    .expect("Failed to write height map!");
 
-    println!("Wrote height map to {}!", path.as_ref().display());
+    create_image(path, &pixels, pixel_dimension, pixel_dimension)
 }
 
-
-pub fn write_simplex_height_map_batched_3d(
-    path: impl AsRef<Path>,
+pub fn write_simplex_heightmap_batched_3d(
+    path: &str,
     dimension: usize,
-    octaves: u32,
     scale: f32,
-    lacunarity: f32,
-    persistence: f32,
-) {
-    if let Some(parent) = path.as_ref().parent()
-        && !parent.exists()
-    {
-        fs::create_dir_all(parent).expect("Failed to create parent");
-    }
-
+) -> GrayscaleWriteResult<()> {
     let mut simplex = Simplex::new(1);
 
     let mut pixels = Vec::<u8>::new();
@@ -727,16 +526,7 @@ pub fn write_simplex_height_map_batched_3d(
                 }
             }
 
-            simplex.batched_3d(
-                &mut noise,
-                &x_array,
-                &y_array,
-                &z_array,
-                scale,
-                1.0,
-                1,
-                0.0,
-            );
+            simplex.batched_3d(&mut noise, &x_array, &y_array, &z_array, scale, 1.0, 1, 0.0);
 
             noise = (noise + PerlinVol::new(1.0)) * PerlinVol::new(127.5);
 
@@ -750,29 +540,15 @@ pub fn write_simplex_height_map_batched_3d(
     }
 
     let pixel_dimension = (dimension * ROW_SIZE) as u32;
-    image::save_buffer(
-        &path,
-        &pixels,
-        pixel_dimension,
-        pixel_dimension,
-        image::ColorType::L8,
-    )
-    .expect("Failed to write height map!");
 
-    println!("Wrote height map to {}!", path.as_ref().display());
+    create_image(path, &pixels, pixel_dimension, pixel_dimension)
 }
 
-pub fn write_cellular_height_map_batched_3d(
-    path: impl AsRef<Path>,
+pub fn write_cellular_heightmap_batched_3d(
+    path: &str,
     dimension: usize,
     scale: f32,
-) {
-    if let Some(parent) = path.as_ref().parent()
-        && !parent.exists()
-    {
-        fs::create_dir_all(parent).expect("Failed to create parent");
-    }
-
+) -> GrayscaleWriteResult<()> {
     let mut cellular = Worley::new(1);
 
     let mut pixels = Vec::<u8>::new();
@@ -801,16 +577,7 @@ pub fn write_cellular_height_map_batched_3d(
                 }
             }
 
-            cellular.batched_3d(
-                &mut noise,
-                &x_array,
-                &y_array,
-                &z_array,
-                scale,
-                1.0,
-                1,
-                0.0,
-            );
+            cellular.batched_3d(&mut noise, &x_array, &y_array, &z_array, scale, 1.0, 1, 0.0);
 
             noise = noise * PerlinVol::new(256.0);
 
@@ -824,15 +591,6 @@ pub fn write_cellular_height_map_batched_3d(
     }
 
     let pixel_dimension = (dimension * ROW_SIZE) as u32;
-    image::save_buffer(
-        &path,
-        &pixels,
-        pixel_dimension,
-        pixel_dimension,
-        image::ColorType::L8,
-    )
-    .expect("Failed to write height map!");
 
-    println!("Wrote height map to {}!", path.as_ref().display());
+    create_image(path, &pixels, pixel_dimension, pixel_dimension)
 }
-
