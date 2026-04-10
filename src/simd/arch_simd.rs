@@ -5,7 +5,13 @@ use std::f32::consts::SQRT_2;
 use std::arch::x86_64::*;
 use crate::simd::simd_vec::core::SimdVec;
 use crate::simd::simd_mask::core::SimdMask;
+
+#[cfg(target_arch = "x86_64")]
 use crate::simd::architectures::families::{SseFamily, Avx2Family, Avx512Family};
+
+#[cfg(target_arch = "aarch64")]
+use crate::simd::architectures::families::{NeonFamily};
+
 // Static dispatch for identifying lane sizes and number of simd registers.
 
 cfg_if::cfg_if! {
