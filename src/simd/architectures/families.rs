@@ -1,7 +1,12 @@
 use crate::simd::architectures::arch_impl::SimdFamily;
+#[cfg(target_arch = "x86_64")]
 use crate::simd::architectures::intrinsics::avx2::Avx2;
+#[cfg(target_arch = "x86_64")]
 use crate::simd::architectures::intrinsics::avx512::{Avx512, Avx512Mask};
+#[cfg(target_arch = "x86_64")]
 use crate::simd::architectures::intrinsics::sse::Sse;
+#[cfg(target_arch = "aarch64")]
+use crate::simd::architectures::intrinsics::neon::Neon;
 use std::fmt::Debug;
 
 #[derive(Copy, Clone)]
