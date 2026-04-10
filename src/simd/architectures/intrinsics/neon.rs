@@ -95,9 +95,9 @@ impl SimdPermuteImpl for Neon {
 
 impl SimdVariableBlendImpl for Neon {
     type MaskType = Self;
-    #[inline(always)] fn vblend_64(self, other: Self, mask: Self::MaskType) -> Self { self_from_op!(vbslq_f64, mask, self, other) }
-    #[inline(always)] fn vblend_32(self, other: Self, mask: Self::MaskType) -> Self { self_from_op!(vbslq_f32, mask, self, other) }
-    #[inline(always)] fn vblend_8(self, other: Self, mask: Self::MaskType) -> Self { self_from_op!(vbslq_u8, mask, self, other) }
+    #[inline(always)] fn vblend_64(self, other: Self, mask: Self::MaskType) -> Self { self_from_op!(vbslq_f64, mask, other, self) }
+    #[inline(always)] fn vblend_32(self, other: Self, mask: Self::MaskType) -> Self { self_from_op!(vbslq_f32, mask, other, self) }
+    #[inline(always)] fn vblend_8(self, other: Self, mask: Self::MaskType) -> Self { self_from_op!(vbslq_u8, mask, other, self) }
 }
 
 impl SimdMulAddImpl for Neon {
