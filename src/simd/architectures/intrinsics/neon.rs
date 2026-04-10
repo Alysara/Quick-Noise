@@ -203,7 +203,6 @@ impl SimdSqrtImpl for Neon {
 impl SimdAllBitsImpl for Neon {
     #[inline(always)]
     fn all_zero(self) -> bool { unsafe {
-        let or = self_from_op!(vorrq_u8, self, self);
-        self_from_ap!(vmaxvq_u8, or).0 == 0
+        vmaxvq_u8(transmute_copy(&self.0)) == 0
     }}
 }
