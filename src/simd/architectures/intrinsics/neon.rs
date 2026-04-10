@@ -169,29 +169,29 @@ impl SimdSplatImpl for Neon {
 }
 
 impl SimdGatherImpl for Neon {
-    #[inline(always)] fn gather_32_from_32<T, const B: i32>(self, ptr: *const T) -> Self { unsafe {
-        let idx: int32x4_t = transmute(self.0);
-        let mut temp = [0u32; 4];
-        self.store_unaligned(temp.as_mut_ptr());
-
-        for i in 0..4 {
-            temp[i] = ptr.add(temp[i] as usize);
+    fn gather_32_from_32<T, const B: i32>(self, ptr: *const T) -> Self {
+        unsafe {
+            let ptr_32 = ptr as *const u32;
+            let mut temp = [0u32; 4];
+            self.store_unaligned(temp.as_mut_ptr());
+            for i in 0..4 {
+                temp[i] = *ptr_32.add(temp[i] as usize);
+            }
+            Self::load_unaligned(temp.as_ptr())
         }
+    }
 
-        Self::load_unaligned(temp.as_ptr())
-    }}
-
-    #[inline(always)] fn gather_64_from_64<T, const B: i32>(self, ptr: *const T) -> Self { unsafe {
-        let idx: int64x2_t = transmute(self.0);
-        let mut temp = [0u64; 2];
-        self.store_unaligned(temp.as_mut_ptr());
-
-        for i in 0..2 {
-            temp[i] = ptr.add(temp[i] as usize);
+    #[inline(always)] fn gather_64_from_64<T, const B: i32>(self, ptr: *const T) -> Self { 
+        unsafe {
+            let ptr_64 = ptr as *const u64;
+            let mut temp = [0u64; 2];
+            self.store_unaligned(temp.as_mut_ptr());
+            for i in 0..2 {
+                temp[i] = *ptr.add(temp[i] as usize);
+            }
+            Self::load_unaligned(temp.as_ptr())
         }
-
-        Self::load_unaligned(temp.as_ptr())
-    }}
+    }
 }
 
 impl SimdSqrtImpl for Neon {
@@ -204,6 +204,6 @@ impl SimdAllBitsImpl for Neon {
     #[inline(always)]
     fn all_zero(self) -> bool { unsafe {
         let or = self_from_op!(vorrq_u8, self, self);
-        vmaxvq_u8(or) == 0
+        vmaxvq_u8(or.0) == 0
     }}
 }
