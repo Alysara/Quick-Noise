@@ -1,8 +1,4 @@
 // use std::simd::{Simd, SimdElement, StdFloat};
-use std::ops::{Mul, Neg};
-use num_traits::{Float, NumCast};
-use std::f32::consts::SQRT_2;
-use std::arch::x86_64::*;
 use crate::simd::simd_vec::core::SimdVec;
 use crate::simd::simd_mask::core::SimdMask;
 
