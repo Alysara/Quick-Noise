@@ -200,7 +200,7 @@ impl SimdSqrtImpl for Neon {
     #[inline(always)] fn rsqrt_f32(self) -> Self { self_from_op!(vrsqrteq_f32, self) }
 }
 
-impl SimdHorizontalImpl for Avx2 {
+impl SimdAllBitsImpl for Avx2 {
     #[inline(always)]
     fn all_zero(self) -> bool {
         let or = self_from_op!(vorrq_u8, self, self);

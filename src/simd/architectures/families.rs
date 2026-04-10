@@ -21,8 +21,8 @@ impl SimdFamily for SseFamily {
 
 #[cfg(target_arch = "x86_64")]
 #[derive(Copy, Clone)]
-#[cfg(target_arch = "x86_64")]
 pub struct Avx2Family;
+#[cfg(target_arch = "x86_64")]
 impl SimdFamily for Avx2Family {
     const SIMD_WIDTH: usize = 32;
     type Vec = Avx2;
@@ -36,8 +36,8 @@ impl SimdFamily for Avx2Family {
 
 #[cfg(target_arch = "x86_64")]
 #[derive(Copy, Clone)]
-#[cfg(target_arch = "x86_64")]
 pub struct Avx512Family;
+#[cfg(target_arch = "x86_64")]
 impl SimdFamily for Avx512Family {
     const SIMD_WIDTH: usize = 64;
     type Vec = Avx512;
