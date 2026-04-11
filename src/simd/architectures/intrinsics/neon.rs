@@ -107,13 +107,13 @@ impl SimdVariableBlendImpl for Neon {
 
 impl SimdMulAddImpl for Neon {
     #[inline(always)] fn mul_add_f64(self, mult: Self, add: Self) -> Self { self_from_op!(vfmaq_f64, add, self, mult) }
-    #[inline(always)] fn mul_sub_f64(self, mult: Self, sub: Self) -> Self { self_from_op!(vfmsq_f64, sub.negate_f64(), self, mult) }
+    #[inline(always)] fn mul_sub_f64(self, mult: Self, sub: Self) -> Self { self_from_op!(vfmsq_f64, sub, self, mult).negate_f64() }
     #[inline(always)] fn negated_mul_add_f64(self, mult: Self, add: Self) -> Self { self_from_op!(vfmsq_f64, add, self, mult) }
-    #[inline(always)] fn negated_mul_sub_f64(self, mult: Self, sub: Self) -> Self { self_from_op!(vfmaq_f64, sub.negate_f64(), self, mult) }
+    #[inline(always)] fn negated_mul_sub_f64(self, mult: Self, sub: Self) -> Self { self_from_op!(vfmaq_f64, sub, self, mult).negate_f64() }
     #[inline(always)] fn mul_add_f32(self, mult: Self, add: Self) -> Self { self_from_op!(vfmaq_f32, add, self, mult) }
-    #[inline(always)] fn mul_sub_f32(self, mult: Self, sub: Self) -> Self { self_from_op!(vfmsq_f32, sub.negate_f32(), self, mult) }
+    #[inline(always)] fn mul_sub_f32(self, mult: Self, sub: Self) -> Self { self_from_op!(vfmsq_f32, sub, self, mult).negate_f32() }
     #[inline(always)] fn negated_mul_add_f32(self, mult: Self, add: Self) -> Self { self_from_op!(vfmsq_f32, add, self, mult) }
-    #[inline(always)] fn negated_mul_sub_f32(self, mult: Self, sub: Self) -> Self { self_from_op!(vfmaq_f32, sub.negate_f32(), self, mult) }
+    #[inline(always)] fn negated_mul_sub_f32(self, mult: Self, sub: Self) -> Self { self_from_op!(vfmaq_f32, sub, self, mult).negate_f32() }
 }
 
 impl SimdRoundImpl for Neon {
