@@ -105,10 +105,6 @@ impl SimdVariableBlendImpl for Neon {
     #[inline(always)] fn vblend_8(self, other: Self, mask: Self::MaskType) -> Self { self_from_op!(vbslq_u8, mask, other, self) }
 }
 
-impl SimdNegate for Neon {
-
-}
-
 impl SimdMulAddImpl for Neon {
     #[inline(always)] fn mul_add_f64(self, mult: Self, add: Self) -> Self { self_from_op!(vfmaq_f64, add, self, mult) }
     #[inline(always)] fn mul_sub_f64(self, mult: Self, sub: Self) -> Self { self_from_op!(vfmsq_f64, sub.negate_f64(), self, mult) }

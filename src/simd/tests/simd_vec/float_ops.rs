@@ -100,27 +100,6 @@ fn gather_32_test() {
     }
 }
 
-// fn gather_64_test_func<F: SimdFamily>(x: SimdVec<u64, F>) -> SimdVec<f64, F> {
-//     let array: [f64; 32] = std::array::from_fn(|i| i as f64 * 10.0);
-//     let mask = SimdVec::<u64, F>::splat(32 - 1);
-//     (x & mask).gather(&array)
-// }
-
-// #[test]
-// fn gather_64_test() {
-//     for (simd, scalar) in itertools::izip!(
-//         test_vecs!(ArchSimd, u64),
-//         test_vecs!(ScalarSimd, u64),
-//     ) {
-//         let simd_result = gather_64_test_func(simd);
-//         let scalar_result = gather_64_test_func(scalar);
-//         assert_simd_eq!(
-//             inputs: [(stringify!(x), simd)],
-//             output: (simd_result, scalar_result)
-//         );
-//     }
-// }
-
 // === Arithmetic ===
 simd_vec_tests!(add_test, [u8, u16, u32, u64, i8, i16, i32, i64, f32, f64], |x, y| x + y);
 simd_vec_tests!(sub_test, [u8, u16, u32, u64, i8, i16, i32, i64, f32, f64], |x, y| x - y);
