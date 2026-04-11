@@ -1,6 +1,7 @@
 // use std::simd::{Simd, SimdElement, StdFloat};
 use crate::simd::simd_vec::core::SimdVec;
 use crate::simd::simd_mask::core::SimdMask;
+use crate::simd::architectures::arch_impl::SimdFamily;
 
 #[cfg(target_arch = "x86_64")]
 use crate::simd::architectures::families::{SseFamily, Avx2Family, Avx512Family};
@@ -17,16 +18,19 @@ cfg_if::cfg_if! {
         pub const NUM_SIMD_REG: usize = 32;
         pub type ArchSimd<T> = SimdVec<T, Avx512Family>;
         pub type ArchMask<T> = SimdMask<T, Avx512Family>;
+        pub type ArchFamily = Avx512Family;
     } else if #[cfg(all(target_arch = "x86_64", target_feature = "avx2"))] {
         pub const SIMD_WIDTH: usize = 32;
         pub const NUM_SIMD_REG: usize = 16;
         pub type ArchSimd<T> = SimdVec<T, Avx2Family>;
         pub type ArchMask<T> = SimdMask<T, Avx2Family>;
+        pub type ArchFamily = Avx2Family;
     } else if #[cfg(all(target_arch = "x86_64", target_feature = "sse2"))] {
         pub const SIMD_WIDTH: usize = 16;
         pub const NUM_SIMD_REG: usize = 16;
         pub type ArchSimd<T> = SimdVec<T, SseFamily>;
         pub type ArchMask<T> = SimdMask<T, SseFamily>;
+        pub type ArchFamily = SseFamily;
     }
 
     // aarch64
@@ -35,11 +39,14 @@ cfg_if::cfg_if! {
     //     pub const NUM_SIMD_REG: usize = 32;
     //     pub type ArchSimd<T> = SimdVec<T, SseFamily>;
     //     pub type ArchMask<T> = SimdMask<T, SseFamily>;
+    //     pub type ArchFamily = SseFamily;
+
     else if #[cfg(all(target_arch = "aarch64", target_feature = "neon"))] {
         pub const SIMD_WIDTH: usize = 16;
         pub const NUM_SIMD_REG: usize = 32;
         pub type ArchSimd<T> = SimdVec<T, NeonFamily>;
         pub type ArchMask<T> = SimdMask<T, NeonFamily>;
+        pub type ArchFamily = NeonFamily;
     }
 
     // wasm
@@ -48,6 +55,7 @@ cfg_if::cfg_if! {
         pub const NUM_SIMD_REG: usize = 16;
         pub type ArchSimd<T> = SimdVec<T, SseFamily>;
         pub type ArchMask<T> = SimdMask<T, SseFamily>;
+        pub type ArchFamily = SseFamily;
     }
 
     // riscv
@@ -56,6 +64,7 @@ cfg_if::cfg_if! {
         pub const NUM_SIMD_REG: usize = 32;
         pub type ArchSimd<T> = SimdVec<T, SseFamily>;
         pub type ArchMask<T> = SimdMask<T, SseFamily>;
+        pub type ArchFamily = SseFamily;
     }
 
     // fallback
@@ -64,8 +73,12 @@ cfg_if::cfg_if! {
         pub const NUM_SIMD_REG: usize = 8;
         pub type ArchSimd<T> = SimdVec<T, SseFamily>;
         pub type ArchMask<T> = SimdMask<T, SseFamily>;
+        pub type ArchFamily = SseFamily;
     }
 }
+
+pub type ScalarSimd<T> = SimdVec<T, <ArchFamily as SimdFamily>::ScalarFamily>;
+pub type ScalarMask<T> = SimdMask<T, <ArchFamily as SimdFamily>::ScalarFamily>;
 
 
 // pub type ArchSimd<T: SimdInfo> = Simd<T, { T::LANES }>;

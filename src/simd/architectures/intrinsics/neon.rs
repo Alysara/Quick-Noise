@@ -89,7 +89,12 @@ impl SimdIntCastsImpl for Neon {
 }
 
 impl SimdPermuteImpl for Neon {
-    #[inline(always)] fn permute_32(self, rhs: Self) -> Self { self_from_op!(vqtbl1q_u8, self, rhs) }
+    #[inline(always)] fn permute_32(self, rhs: Self) -> Self {
+        let mult = Self::splat_32(0x04040404);
+        let add = Self::splat_32(0x03020100);
+        let byte_indices = rhs.i32_mul(mult).i32_add(add);
+        self_from_op!(vqtbl1q_u8, self, byte_indices)
+    }
     #[inline(always)] fn permute_8(self, rhs: Self) -> Self { self_from_op!(vqtbl1q_u8, self, rhs) }
 }
 

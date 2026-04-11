@@ -1,4 +1,5 @@
 use crate::simd::architectures::arch_impl::SimdFamily;
+
 #[cfg(target_arch = "x86_64")]
 use crate::simd::architectures::intrinsics::avx2::Avx2;
 #[cfg(target_arch = "x86_64")]
@@ -7,6 +8,8 @@ use crate::simd::architectures::intrinsics::avx512::{Avx512, Avx512Mask};
 use crate::simd::architectures::intrinsics::sse::Sse;
 #[cfg(target_arch = "aarch64")]
 use crate::simd::architectures::intrinsics::neon::Neon;
+
+use crate::simd::architectures::intrinsics::scalar::{Scalar, ScalarMask};
 use std::fmt::Debug;
 
 #[derive(Copy, Clone)]
@@ -17,6 +20,7 @@ impl SimdFamily for SseFamily {
     const SIMD_WIDTH: usize = 16;
     type Vec = Sse;
     type Mask = Sse;
+    type ScalarFamily = ScalarFamily128;
 
     type Array64<T: Debug + Copy> = [T; 2];
     type Array32<T: Debug + Copy> = [T; 4];
@@ -32,6 +36,7 @@ impl SimdFamily for Avx2Family {
     const SIMD_WIDTH: usize = 32;
     type Vec = Avx2;
     type Mask = Avx2;
+    type ScalarFamily = ScalarFamily256;
 
     type Array64<T: Debug + Copy> = [T; 4];
     type Array32<T: Debug + Copy> = [T; 8];
@@ -47,6 +52,7 @@ impl SimdFamily for Avx512Family {
     const SIMD_WIDTH: usize = 64;
     type Vec = Avx512;
     type Mask = Avx512Mask;
+    type ScalarFamily = ScalarFamily512;
 
     type Array64<T: Debug + Copy> = [T; 8];
     type Array32<T: Debug + Copy> = [T; 16];
@@ -62,9 +68,52 @@ impl SimdFamily for NeonFamily {
     const SIMD_WIDTH: usize = 16;
     type Vec = Neon;
     type Mask = Neon;
+    type ScalarFamily = ScalarFamily128;
 
     type Array64<T: Debug + Copy> = [T; 2];
     type Array32<T: Debug + Copy> = [T; 4];
     type Array16<T: Debug + Copy> = [T; 8];
     type Array8<T: Debug + Copy> = [T; 16];
+}
+
+#[derive(Copy, Clone)]
+pub struct ScalarFamily128;
+impl SimdFamily for ScalarFamily128 {
+    const SIMD_WIDTH: usize = 16;
+    type Vec = Scalar<16>;
+    type Mask = ScalarMask<16>;
+    type ScalarFamily = Self;
+
+    type Array64<T: Debug + Copy> = [T; 2];
+    type Array32<T: Debug + Copy> = [T; 4];
+    type Array16<T: Debug + Copy> = [T; 8];
+    type Array8<T: Debug + Copy> = [T; 16];
+}
+
+#[derive(Copy, Clone)]
+pub struct ScalarFamily256;
+impl SimdFamily for ScalarFamily256 {
+    const SIMD_WIDTH: usize = 32;
+    type Vec = Scalar<32>;
+    type Mask = ScalarMask<32>;
+    type ScalarFamily = Self;
+
+    type Array64<T: Debug + Copy> = [T; 4];
+    type Array32<T: Debug + Copy> = [T; 8];
+    type Array16<T: Debug + Copy> = [T; 16];
+    type Array8<T: Debug + Copy> = [T; 32];
+}
+
+#[derive(Copy, Clone)]
+pub struct ScalarFamily512;
+impl SimdFamily for ScalarFamily512 {
+    const SIMD_WIDTH: usize = 64;
+    type Vec = Scalar<64>;
+    type Mask = ScalarMask<64>;
+    type ScalarFamily = Self;
+
+    type Array64<T: Debug + Copy> = [T; 8];
+    type Array32<T: Debug + Copy> = [T; 16];
+    type Array16<T: Debug + Copy> = [T; 32];
+    type Array8<T: Debug + Copy> = [T; 64];
 }

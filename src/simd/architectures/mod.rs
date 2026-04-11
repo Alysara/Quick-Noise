@@ -8,6 +8,8 @@ pub mod intrinsics {
 
     #[cfg(target_arch = "aarch64")]
     pub mod neon;
+
+    pub mod scalar;
 }
 
 #[macro_use]

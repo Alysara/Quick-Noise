@@ -29,3 +29,6 @@ target
 Cargo.lock
 noise_images/
 .DS_Store
+asm
+perf.data
+perf.data.old

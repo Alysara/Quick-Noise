@@ -185,3 +185,4 @@ impl SimdSqrtImpl for Avx2 {
 impl SimdAllBitsImpl for Avx2 {
     #[inline(always)] fn all_zero(self) -> bool { execute_intrinsic!(_mm256_testz_si256, self, self) != 0}
 }
+    

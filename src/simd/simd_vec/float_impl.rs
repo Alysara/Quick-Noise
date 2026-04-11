@@ -9,6 +9,7 @@ use std::marker::PhantomData;
 use crate::simd::simd_vec::core::SimdVec;
 use crate::simd::simd_mask::core::SimdMask;
 use crate::simd::simd_traits::*;
+use std::mem::transmute_copy;
 
 impl<T: SimdFloat, F: SimdFamily> SimdVec<T, F> {
     #[inline(always)]
@@ -205,6 +206,8 @@ impl<T: SimdFloat, F: SimdFamily> SimdVec<T, F> {
     pub fn cast_int_round(self) -> SimdVec<T::Signed, F> {
         SimdVec::new(self.data.float_to_int_round())
     }
+
+    // TODO: INCORRECT for edge cases.
     #[inline(always)]
     pub fn cast_uint_trunc(self) -> SimdVec<T::Unsigned, F> {
         SimdVec::new(self.data.float_to_int_trunc())
@@ -213,14 +216,14 @@ impl<T: SimdFloat, F: SimdFamily> SimdVec<T, F> {
     pub fn cast_uint_round(self) -> SimdVec<T::Unsigned, F> {
         SimdVec::new(self.data.float_to_int_round())
     }
-    #[inline(always)]
-    pub fn cast_int_raw(self) -> SimdVec<T::Signed, F> {
-        SimdVec::new(self.data)
-    }
-    #[inline(always)]
-    pub fn cast_uint_raw(self) -> SimdVec<T::Unsigned, F> {
-        SimdVec::new(self.data)
-    }
+    // #[inline(always)]
+    // pub fn cast_int_raw(self) -> SimdVec<T::Signed, F> {
+    //     unsafe { SimdVec::new(transmute_copy(&self.data)) }
+    // }
+    // #[inline(always)]
+    // pub fn cast_uint_raw(self) -> SimdVec<T::Unsigned, F> {
+    //     unsafe { SimdVec::new(transmute_copy(&self.data)) }
+    // }
 
     // TODO: Move this into quick-noise later.
     #[inline(always)]
@@ -244,7 +247,7 @@ impl<T: SimdFloat, F: SimdFamily> SimdSqrt for SimdVec<T, F> {
 }
 
 impl<T: SimdFloat, F: SimdFamily> SimdVec<T, F> {
-    fn abs(self) -> Self {
+    pub fn abs(self) -> Self {
         Self::new(match T::TYPE {
             SimdType::F64 => SimdVec::<u64, F>::splat(T::SIGN_MASK as u64).data.and_not(self.data),
             SimdType::F32 => SimdVec::<u32, F>::splat(T::SIGN_MASK as u32).data.and_not(self.data),

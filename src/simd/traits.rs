@@ -94,6 +94,7 @@ impl BitWidth for B8 { const BIT_SIZE: usize = 8; }
 // Need both enum and associated type for matching and bounds.
 pub trait SimdElement: 
     private::SealedTypes +
+    PartialEq +
     Sized +
     Default +
     Copy +

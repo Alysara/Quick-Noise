@@ -11,6 +11,7 @@ pub trait SimdFamily: Clone + Copy {
         SimdPartialOrdImpl<MaskType = Self::Mask>;
         // SimdPermuteImpl<BlockVec = <Self::BlockFamily as SimdFamily>::Vec>;
     type Mask: MaskArch + Copy + Clone;
+    type ScalarFamily: SimdFamily;
 
     type Array64<T: Debug + Copy>: Debug + Copy + Array<T>;
     type Array32<T: Debug + Copy>: Debug + Copy + Array<T>;

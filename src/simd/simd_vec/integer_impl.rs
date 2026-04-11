@@ -4,6 +4,7 @@ use std::ops::*;
 use num_traits::NumCast;
 use crate::simd::simd_vec::core::SimdVec;
 use crate::simd::simd_traits::*;
+use crate::simd::arch_simd::{ArchFamily, ArchSimd, ArchMask};
 
 
 // === Operations based on bit size ===
@@ -213,3 +214,13 @@ impl<T: SimdInteger + HasFloat, F: SimdFamily> SimdVec<T, F> {
         SimdVec::new(self.data.int_to_float())
     }
 }
+
+// === Clamp ===
+// impl<T: SimdElement, F: SimdFamily> SimdVec<T, F> {
+//     #[inline(always)]
+//     pub fn clamp(self, min: T, max: T) -> Self {
+//         let min_vec = Self::splat(min);
+//         let max_vec = Self::splat(max);
+//         self.blendself.simd_lt(min_vec)
+//     }
+// }

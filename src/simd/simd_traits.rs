@@ -35,6 +35,8 @@ pub trait SimdVecFloat:
     SimdMulAdd +
     SimdPartialOrd +
     SimdEq +
+    SimdSqrt +
+    SimdRecipSqrt +
 {}
 
 pub trait SimdContext {
