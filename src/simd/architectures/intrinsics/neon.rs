@@ -44,7 +44,7 @@ impl SimdBitwiseImpl for Neon {
     #[inline(always)] fn or(self, rhs: Self) -> Self { self_from_op!(vorrq_u32, self, rhs) }
     #[inline(always)] fn xor(self, rhs: Self) -> Self { self_from_op!(veorq_u32, self, rhs) }
     #[inline(always)] fn not(self) -> Self { Self(self.xor(Self::splat_32(!0u32)).0) }
-    #[inline(always)] fn and_not(self, rhs: Self) -> Self { self_from_op!(vbicq_u32, self, rhs) }
+    #[inline(always)] fn and_not(self, rhs: Self) -> Self { self_from_op!(vbicq_u32, rhs, self) }
 }
 
 impl SimdShiftImpl for Neon {
@@ -105,15 +105,19 @@ impl SimdVariableBlendImpl for Neon {
     #[inline(always)] fn vblend_8(self, other: Self, mask: Self::MaskType) -> Self { self_from_op!(vbslq_u8, mask, other, self) }
 }
 
+impl SimdNegate for Neon {
+
+}
+
 impl SimdMulAddImpl for Neon {
     #[inline(always)] fn mul_add_f64(self, mult: Self, add: Self) -> Self { self_from_op!(vfmaq_f64, add, self, mult) }
-    #[inline(always)] fn mul_sub_f64(self, mult: Self, sub: Self) -> Self { self_from_op!(vfmsq_f64, sub, self, mult) }
+    #[inline(always)] fn mul_sub_f64(self, mult: Self, sub: Self) -> Self { self_from_op!(vfmsq_f64, sub.negate_f64(), self, mult) }
     #[inline(always)] fn negated_mul_add_f64(self, mult: Self, add: Self) -> Self { self_from_op!(vfmsq_f64, add, self, mult) }
-    #[inline(always)] fn negated_mul_sub_f64(self, mult: Self, sub: Self) -> Self { self_from_op!(vfmaq_f64, sub, self, mult) }
+    #[inline(always)] fn negated_mul_sub_f64(self, mult: Self, sub: Self) -> Self { self_from_op!(vfmaq_f64, sub.negate_f64(), self, mult) }
     #[inline(always)] fn mul_add_f32(self, mult: Self, add: Self) -> Self { self_from_op!(vfmaq_f32, add, self, mult) }
-    #[inline(always)] fn mul_sub_f32(self, mult: Self, sub: Self) -> Self { self_from_op!(vfmsq_f32, sub, self, mult) }
+    #[inline(always)] fn mul_sub_f32(self, mult: Self, sub: Self) -> Self { self_from_op!(vfmsq_f32, sub.negate_f32(), self, mult) }
     #[inline(always)] fn negated_mul_add_f32(self, mult: Self, add: Self) -> Self { self_from_op!(vfmsq_f32, add, self, mult) }
-    #[inline(always)] fn negated_mul_sub_f32(self, mult: Self, sub: Self) -> Self { self_from_op!(vfmaq_f32, sub, self, mult) }
+    #[inline(always)] fn negated_mul_sub_f32(self, mult: Self, sub: Self) -> Self { self_from_op!(vfmaq_f32, sub.negate_f32(), self, mult) }
 }
 
 impl SimdRoundImpl for Neon {
@@ -210,4 +214,9 @@ impl SimdAllBitsImpl for Neon {
     fn all_zero(self) -> bool { unsafe {
         vmaxvq_u8(transmute_copy(&self.0)) == 0
     }}
+}
+
+impl SimdNegateImpl for Neon {
+    #[inline(always)] fn negate_f64(self) -> Self { self_from_op!(vnegq_f64, self) }
+    #[inline(always)] fn negate_f32(self) -> Self { self_from_op!(vnegq_f32, self) }
 }

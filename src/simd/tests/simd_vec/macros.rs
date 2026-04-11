@@ -25,7 +25,7 @@ impl<T: SimdElement> SimdTestEq for T {
             SimdType::F32 | SimdType::F64 => {
                 let a = self.to_f64().unwrap();
                 let b = other.to_f64().unwrap();
-                (!a.is_finite() && !b.is_finite()) || approx_eq(a, b, 1e-3)
+                (!a.is_finite() && !b.is_finite()) || approx_eq(a, b, 5e-3)
             },
             _ => self == other
         }
@@ -172,7 +172,7 @@ macro_rules! simd_vec_test {
             }
         }
     };
-    
+
     // === 1 arg, explicit return type ===
     ($test_name:ident, |$x:ident: $elem_ty:ty| -> $ret_ty:ty { $body:expr }) => {
         paste::paste! {

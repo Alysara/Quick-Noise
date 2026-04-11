@@ -441,3 +441,8 @@ impl<const N: usize> SimdBitwiseImpl for ScalarMask<N> {
     #[inline(always)] fn not(self) -> Self { Self(std::array::from_fn(|i| !self.0[i])) }
     #[inline(always)] fn and_not(self, rhs: Self) -> Self { self.and(rhs.not()) }
 }
+
+impl<const N: usize> SimdNegateImpl for Scalar<N> {
+    #[inline(always)] fn negate_f64(self) -> Self { Self::splat_64(-0.0f64).xor(self) }
+    #[inline(always)] fn negate_f32(self) -> Self { Self::splat_32(-0.0f64).xor(self) }
+}

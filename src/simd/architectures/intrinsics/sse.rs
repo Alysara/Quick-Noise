@@ -185,3 +185,8 @@ impl SimdSqrtImpl for Sse {
 impl SimdAllBitsImpl for Sse {
     #[inline(always)] fn all_zero(self) -> bool { execute_intrinsic!(_mm_testz_si128, self, self) == 0 }
 }
+
+impl SimdNegateImpl for Sse {
+    #[inline(always)] fn negate_f64(self) -> Self { Self::splat_64(-0.0f64).xor(self) }
+    #[inline(always)] fn negate_f32(self) -> Self { Self::splat_32(-0.0f64).xor(self) }
+}

@@ -200,3 +200,8 @@ impl SimdSqrtImpl for Avx512 {
 impl SimdAllBitsImpl for Avx512Mask {
     #[inline(always)] fn all_zero(self) -> bool { self.0 == 0 }
 }
+
+impl SimdNegateImpl for Avx512 {
+    #[inline(always)] fn negate_f64(self) -> Self { Self::splat_64(-0.0f64).xor(self) }
+    #[inline(always)] fn negate_f32(self) -> Self { Self::splat_32(-0.0f64).xor(self) }
+}

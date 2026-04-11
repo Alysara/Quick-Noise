@@ -127,6 +127,7 @@ pub trait SimdArch:
     SimdSplatImpl +
     SimdGatherImpl +
     SimdSqrtImpl +
+    SimdNegateImpl +
 {}
 
 pub trait MaskArch:
@@ -329,4 +330,9 @@ pub trait SimdSqrtImpl {
 
 pub trait SimdAllBitsImpl {
     fn all_zero(self) -> bool;
+}
+
+pub trait SimdNegateImpl {
+    fn negate_f64(self) -> Self;
+    fn negate_f32(self) -> Self;
 }
