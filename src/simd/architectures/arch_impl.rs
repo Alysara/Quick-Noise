@@ -10,7 +10,7 @@ pub trait SimdFamily: Clone + Copy {
         SimdStoreImpl<MaskType = Self::Mask> +
         SimdPartialOrdImpl<MaskType = Self::Mask>;
         // SimdPermuteImpl<BlockVec = <Self::BlockFamily as SimdFamily>::Vec>;
-    type Mask: MaskArch + Copy + Clone;
+    type Mask: MaskArch + Copy + Clone + SimdVariableBlendImpl<VecType = Self::Vec>;
     type ScalarFamily: SimdFamily;
 
     type Array64<T: Debug + Copy>: Debug + Copy + Array<T>;
@@ -120,7 +120,6 @@ pub trait SimdArch:
     SimdFloatCastsImpl +
     SimdIntCastsImpl +
     SimdPermuteImpl +
-    SimdVariableBlendImpl +
     SimdMulAddImpl +
     SimdRoundImpl +
     SimdPartialOrdImpl +
@@ -135,6 +134,7 @@ pub trait MaskArch:
     Clone +
     SimdBitwiseImpl +
     SimdAllBitsImpl +
+    SimdVariableBlendImpl +
 {}
 
 // === Arithmetic ===
@@ -240,10 +240,10 @@ pub trait SimdPermuteImpl {
 }
 
 pub trait SimdVariableBlendImpl {
-    type MaskType;
-    fn vblend_64(self, other: Self, mask: Self::MaskType) -> Self;
-    fn vblend_32(self, other: Self, mask: Self::MaskType) -> Self;
-    fn vblend_8(self, other: Self, mask: Self::MaskType) -> Self;
+    type VecType;
+    fn vblend_64(self, true_values: Self::VecType, false_values: Self::VecType) -> Self::VecType;
+    fn vblend_32(self, true_values: Self::VecType, false_values: Self::VecType) -> Self::VecType;
+    fn vblend_8(self, true_values: Self::VecType, false_values: Self::VecType) -> Self::VecType;
 }
 
 pub trait SimdMulAddImpl {

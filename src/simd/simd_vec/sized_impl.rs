@@ -78,16 +78,6 @@ impl<T: SimdElement, F: SimdFamily> SimdVec<T, F> {
     }
 }
 
-// TODO: Resolve this bound.
-impl<T: SimdElement + SimdElement<BitWidthType = B32>, F: SimdFamily> SimdBlend for SimdVec<T, F> 
-where
-    F::Vec: SimdVariableBlendImpl<MaskType = F::Mask>
-{
-    fn blend_32(self, other: Self, mask: SimdMask<T, F>) -> Self {
-        Self::new(self.data.vblend_32(other.data, mask.data))
-    }
-}
-
 // TODO: Super early version gather.
 impl<F: SimdFamily> SimdVec<u32, F> {
     pub fn gather<S: SimdElement + SimdElement<BitWidthType = B32>, const N: usize>(self, slice: &[S; N]) -> SimdVec<S, F> {

@@ -2,7 +2,6 @@ use crate::simd::architectures::arch_impl::*;
 use crate::simd::traits::*;
 use std::marker::PhantomData;
 use crate::simd::simd_traits::*;
-use crate::simd::simd_mask::core::SimdMask;
 
 #[derive(Clone, Copy)]
 #[repr(transparent)]

@@ -94,8 +94,8 @@ impl Simplex {
             let y_dist_lo = y_scaled - y_grid + unskew_sub;
             let triangle_mask = x_dist_lo.simd_gt(y_dist_lo);
 
-            let x_dist_mi_offset = unskew.blend_32(subbed_unskew, triangle_mask);
-            let y_dist_mi_offset = subbed_unskew.blend_32(unskew, triangle_mask);
+            let x_dist_mi_offset = triangle_mask.select(subbed_unskew, unskew);
+            let y_dist_mi_offset = triangle_mask.select(unskew, subbed_unskew);
             let x_dist_mi = x_dist_lo + x_dist_mi_offset;
             let y_dist_mi = y_dist_lo + y_dist_mi_offset;
             
@@ -116,8 +116,8 @@ impl Simplex {
             let mix_lo = (x1_shuf * y1_shuf) ^ x1_shuf;
             let mix_hi = (x2_shuf * y2_shuf) ^ x2_shuf;
 
-            let x_shuf_mi = x1_shuf.blend_32(x2_shuf, triangle_mask.raw_cast());
-            let y_shuf_mi = y2_shuf.blend_32(y1_shuf, triangle_mask.raw_cast());
+            let x_shuf_mi = triangle_mask.raw_cast().select(x2_shuf, x1_shuf);
+            let y_shuf_mi = triangle_mask.raw_cast().select(y1_shuf, y2_shuf);
             let mix_mi = (x_shuf_mi * y_shuf_mi) ^ x_shuf_mi;
 
             // Gradient lookup: 9
@@ -242,13 +242,13 @@ impl Simplex {
             let j2 = nx_gt_y | y_gt_z;
             let k2 = nx_gt_z | ny_gt_z;
 
-            let x_dist_mi1 = x_dist_lo + unskew.blend_32(subbed_unskew, i1);
-            let y_dist_mi1 = y_dist_lo + unskew.blend_32(subbed_unskew, j1);
-            let z_dist_mi1 = z_dist_lo + unskew.blend_32(subbed_unskew, k1);
+            let x_dist_mi1 = x_dist_lo + i1.select(subbed_unskew, unskew);
+            let y_dist_mi1 = y_dist_lo + j1.select(subbed_unskew, unskew);
+            let z_dist_mi1 = z_dist_lo + k1.select(subbed_unskew, unskew);
 
-            let x_dist_mi2 = x_dist_lo + two_unskew.blend_32(mi2_skew_offset, i2);
-            let y_dist_mi2 = y_dist_lo + two_unskew.blend_32(mi2_skew_offset, j2);
-            let z_dist_mi2 = z_dist_lo + two_unskew.blend_32(mi2_skew_offset, k2);
+            let x_dist_mi2 = x_dist_lo + i2.select(mi2_skew_offset, two_unskew);
+            let y_dist_mi2 = y_dist_lo + j2.select(mi2_skew_offset, two_unskew);
+            let z_dist_mi2 = z_dist_lo + k2.select(mi2_skew_offset, two_unskew);
                         
             let x_dist_hi = x_dist_lo + hi_skew_offset;
             let y_dist_hi = y_dist_lo + hi_skew_offset;
@@ -270,13 +270,13 @@ impl Simplex {
             let y2_shuf = y2.permute_8(shuffle_indices) ^ prime;
             let z2_shuf = z2.permute_8(shuffle_indices) ^ prime;
 
-            let x_mi1_shuf = x1_shuf.blend_32(x2_shuf, i1.raw_cast());
-            let y_mi1_shuf = y1_shuf.blend_32(y2_shuf, j1.raw_cast());
-            let z_mi1_shuf = z1_shuf.blend_32(z2_shuf, k1.raw_cast());
+            let x_mi1_shuf = i1.raw_cast().select(x2_shuf, x1_shuf);
+            let y_mi1_shuf = j1.raw_cast().select(y2_shuf, y1_shuf);
+            let z_mi1_shuf = k1.raw_cast().select(z2_shuf, z1_shuf);
 
-            let x_mi2_shuf = x1_shuf.blend_32(x2_shuf, i2.raw_cast());
-            let y_mi2_shuf = y1_shuf.blend_32(y2_shuf, j2.raw_cast());
-            let z_mi2_shuf = z1_shuf.blend_32(z2_shuf, k2.raw_cast());
+            let x_mi2_shuf = i2.raw_cast().select(x2_shuf, x1_shuf);
+            let y_mi2_shuf = j2.raw_cast().select(y2_shuf, y1_shuf);
+            let z_mi2_shuf = k2.raw_cast().select(z2_shuf, z1_shuf);
 
             let mix_lo = x1_shuf * y1_shuf * z1_shuf;
             let mix_hi = x2_shuf * y2_shuf * z2_shuf;

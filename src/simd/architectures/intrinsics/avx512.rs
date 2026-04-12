@@ -100,11 +100,17 @@ impl SimdPermuteImpl for Avx512 {
     #[inline(always)] fn permute_8(self, rhs: Self) -> Self { self_from_op!(_mm512_shuffle_epi8, self, rhs) }
 }
 
-impl SimdVariableBlendImpl for Avx512 {
-    type MaskType = Avx512Mask;
-    #[inline(always)] fn vblend_64(self, other: Self, mask: Self::MaskType) -> Self { self_from_op!(_mm512_mask_blend_pd, mask, self, other) }
-    #[inline(always)] fn vblend_32(self, other: Self, mask: Self::MaskType) -> Self { self_from_op!(_mm512_mask_blend_ps, mask, self, other) }
-    #[inline(always)] fn vblend_8(self, other: Self, mask: Self::MaskType) -> Self { self_from_op!(_mm512_mask_blend_epi8, mask, self, other) }
+impl SimdVariableBlendImpl for Avx512Mask {
+    type VecType = Avx512;
+    #[inline(always)] fn vblend_64(self, true_values: Self::VecType, false_values: Self::VecType) -> Self::VecType {
+        unsafe { Avx512(transmute(execute_intrinsic!(_mm512_mask_blend_pd, self, false_values, true_values))) }
+    }
+    #[inline(always)] fn vblend_32(self, true_values: Self::VecType, false_values: Self::VecType) -> Self::VecType {
+        unsafe { Avx512(transmute(execute_intrinsic!(_mm512_mask_blend_ps, self, false_values, true_values))) }
+    }
+    #[inline(always)] fn vblend_8(self, true_values: Self::VecType, false_values: Self::VecType) -> Self::VecType {
+        unsafe { Avx512(transmute(execute_intrinsic!(_mm512_mask_blend_epi8, self, false_values, true_values))) }
+    }
 }
 
 impl SimdMulAddImpl for Avx512 {

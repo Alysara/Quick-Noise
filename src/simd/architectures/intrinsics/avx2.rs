@@ -94,10 +94,10 @@ impl SimdPermuteImpl for Avx2 {
 }
 
 impl SimdVariableBlendImpl for Avx2 {
-    type MaskType = Self;
-    #[inline(always)] fn vblend_64(self, other: Self, mask: Self::MaskType) -> Self { self_from_op!(_mm256_blendv_pd, self, other, mask) }
-    #[inline(always)] fn vblend_32(self, other: Self, mask: Self::MaskType) -> Self { self_from_op!(_mm256_blendv_ps, self, other, mask) }
-    #[inline(always)] fn vblend_8(self, other: Self, mask: Self::MaskType) -> Self { self_from_op!(_mm256_blendv_epi8, self, other, mask) }
+    type VecType = Self;
+    #[inline(always)] fn vblend_64(self, true_values: Self::VecType, false_values: Self::VecType) -> Self::VecType { self_from_op!(_mm256_blendv_pd, false_values, true_values, self) }
+    #[inline(always)] fn vblend_32(self, true_values: Self::VecType, false_values: Self::VecType) -> Self::VecType { self_from_op!(_mm256_blendv_ps, false_values, true_values, self) }
+    #[inline(always)] fn vblend_8(self, true_values: Self::VecType, false_values: Self::VecType) -> Self::VecType { self_from_op!(_mm256_blendv_epi8, false_values, true_values, self) }
 }
 
 impl SimdMulAddImpl for Avx2 {

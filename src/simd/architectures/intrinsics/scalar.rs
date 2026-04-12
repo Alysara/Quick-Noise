@@ -284,40 +284,40 @@ impl<const N: usize> SimdPermuteImpl for Scalar<N> {
     }
 }
 
-impl<const N: usize> SimdVariableBlendImpl for Scalar<N> {
-    type MaskType = ScalarMask<N>;
-    #[inline(always)] fn vblend_64(self, other: Self, mask: Self::MaskType) -> Self {
+impl<const N: usize> SimdVariableBlendImpl for ScalarMask<N> {
+    type VecType = Scalar<N>;
+    #[inline(always)] fn vblend_64(self, true_values: Self::VecType, false_values: Self::VecType) -> Scalar<N> {
         unsafe {
-            let mut new = Self([0; N]);
+            let mut new = Scalar::<N>([0; N]);
             let new_ptr = new.0.as_mut_ptr() as *mut u64;
-            let false_ptr = self.0.as_ptr() as *const u64;
-            let true_ptr = other.0.as_ptr() as *const u64;
+            let false_ptr = false_values.0.as_ptr() as *const u64;
+            let true_ptr = true_values.0.as_ptr() as *const u64;
             for i in 0..(N / 8) {
-                *new_ptr.add(i) = if mask.0[i] { *true_ptr.add(i) } else { *false_ptr.add(i) };
+                *new_ptr.add(i) = if self.0[i] { *true_ptr.add(i) } else { *false_ptr.add(i) };
             }
             new
         }
     }
-    #[inline(always)] fn vblend_32(self, other: Self, mask: Self::MaskType) -> Self {
+    #[inline(always)] fn vblend_32(self, true_values: Self::VecType, false_values: Self::VecType) -> Scalar<N> {
         unsafe {
-            let mut new = Self([0; N]);
+            let mut new = Scalar::<N>([0; N]);
             let new_ptr = new.0.as_mut_ptr() as *mut u32;
-            let false_ptr = self.0.as_ptr() as *const u32;
-            let true_ptr = other.0.as_ptr() as *const u32;
+            let false_ptr = false_values.0.as_ptr() as *const u32;
+            let true_ptr = true_values.0.as_ptr() as *const u32;
             for i in 0..(N / 4) {
-                *new_ptr.add(i) = if mask.0[i] { *true_ptr.add(i) } else { *false_ptr.add(i) };
+                *new_ptr.add(i) = if self.0[i] { *true_ptr.add(i) } else { *false_ptr.add(i) };
             }
             new
         }
     }
-    #[inline(always)] fn vblend_8(self, other: Self, mask: Self::MaskType) -> Self {
+    #[inline(always)] fn vblend_8(self, true_values: Self::VecType, false_values: Self::VecType) -> Scalar<N> {
         unsafe {
-            let mut new = Self([0; N]);
+            let mut new = Scalar::<N>([0; N]);
             let new_ptr = new.0.as_mut_ptr();
-            let false_ptr = self.0.as_ptr();
-            let true_ptr = other.0.as_ptr();
+            let false_ptr = false_values.0.as_ptr();
+            let true_ptr = true_values.0.as_ptr();
             for i in 0..N {
-                *new_ptr.add(i) = if mask.0[i] { *true_ptr.add(i) } else { *false_ptr.add(i) };
+                *new_ptr.add(i) = if self.0[i] { *true_ptr.add(i) } else { *false_ptr.add(i) };
             }
             new
         }

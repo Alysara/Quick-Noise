@@ -108,8 +108,11 @@ pub trait SimdPartialOrd: SimdContext {
     fn min(self, rhs: Self) -> Self;
 }
 
-pub trait SimdBlend: SimdContext {
-    fn blend_32(self, other: Self, mask: SimdMask<Self::Element, Self::Family>) -> Self;
+pub trait SimdSelect: SimdContext {
+    fn select(self,
+        true_values: SimdVec<Self::Element, Self::Family>,
+        false_values: SimdVec<Self::Element, Self::Family>
+    ) -> SimdVec<Self::Element,Self::Family>;
 }
 
 pub trait SimdSqrt {
@@ -118,6 +121,12 @@ pub trait SimdSqrt {
 
 pub trait SimdRecipSqrt {
     fn rsqrt(self) -> Self;
+}
+
+pub trait SimdClamp: SimdContext {
+    fn clamp(self, min_value: Self::Element, max_value: Self::Element) -> Self;
+    fn clamp_min(self, min_value: Self::Element) -> Self;
+    fn clamp_max(self, max_value: Self::Element) -> Self;
 }
 
 // pub trait SimdGather<T>: SimdContext {

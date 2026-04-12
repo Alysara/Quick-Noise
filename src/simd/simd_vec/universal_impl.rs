@@ -79,7 +79,7 @@ impl<T: SimdElement, F: SimdFamily> SimdToArray<T, F> for SimdVec<T, F> {
 impl<T: SimdElement, F: SimdFamily> SimdIota<T> for SimdVec<T, F> {
     #[inline(always)]
     fn iota(offset: T) -> Self {
-        let iota_array = T::Array::<F>::from_fn(|i| <T as NumCast>::from(i).unwrap() + offset);
+        let iota_array = T::Array::<F>::from_fn(|i| <T as NumCast>::from(i).unwrap() + (offset));
         Self::load(iota_array.as_slice())
     }
 }
@@ -189,7 +189,25 @@ impl<T: SimdElement, F: SimdFamily> SimdVec<T, F> {
 }
 
 impl<T: SimdElement, F: SimdFamily> Default for SimdVec<T, F> {
+    #[inline(always)]
     fn default() -> Self {
         Self::splat(<T as NumCast>::from(T::default()).unwrap())
+    }
+}
+
+impl<T: SimdElement, F: SimdFamily> SimdClamp for SimdVec<T, F> {
+    #[inline(always)]
+    fn clamp(self, min_value: T, max_value: T) -> Self {
+        self.clamp_min(min_value).clamp_max(max_value)
+    }
+    #[inline(always)]
+    fn clamp_max(self, max_value: Self::Element) -> Self {
+        let max_vec = Self::splat(max_value);
+        self.simd_gt(max_vec).select(max_vec, self)
+    }
+    #[inline(always)]
+    fn clamp_min(self, min_value: Self::Element) -> Self {
+        let min_vec = Self::splat(min_value);
+        self.simd_lt(min_vec).select(min_vec, self)
     }
 }
