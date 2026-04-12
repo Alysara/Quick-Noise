@@ -28,7 +28,7 @@ impl<T: SimdElement> SimdTestEq for T {
             SimdType::F32 | SimdType::F64 => {
                 let a = self.to_f64().unwrap();
                 let b = other.to_f64().unwrap();
-                (!a.is_finite() && !b.is_finite()) || approx_eq(a, b, 5e-3)
+                (!a.is_finite() && !b.is_finite()) || approx_eq(a, b, 0.)
             },
             _ => self == other
         }
