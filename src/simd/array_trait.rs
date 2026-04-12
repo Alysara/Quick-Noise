@@ -83,6 +83,10 @@ pub trait Array<T>:
     fn is_sorted(&self) -> bool where T: PartialOrd      { self.as_slice().is_sorted() }
     fn is_sorted_by(&self, mut f: impl FnMut(&T, &T) -> bool) -> bool { self.as_slice().is_sorted_by(|a, b| f(a, b)) }
     fn is_sorted_by_key<K: PartialOrd>(&self, f: impl FnMut(&T) -> K) -> bool { self.as_slice().is_sorted_by_key(f) }
+
+    // ---- Pointers ----
+    fn as_ptr(&self) -> *const T { self.as_slice().as_ptr() }
+    fn as_mut_ptr(&mut self) -> *mut T { self.as_mut_slice().as_mut_ptr() }
 }
 
 impl<const N: usize, T> Array<T> for [T; N]

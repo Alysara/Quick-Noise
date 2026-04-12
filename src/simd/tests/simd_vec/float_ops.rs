@@ -4,10 +4,14 @@ use crate::simd::simd_traits::*;
 use crate::simd::arch_simd::{ArchSimd, ArchMask, ScalarSimd, ScalarMask};
 use crate::simd::tests::simd_vec::generator::{test_vecs};
 use crate::simd::tests::simd_vec::macros::{assert_simd_eq, simd_vec_test, simd_vec_tests};
-
+use crate::simd::array_trait::Array;
 
 // === Basic ===
 simd_vec_tests!(splat_test, [u8, u16, u32, u64, i8, i16, i32, i64, f32, f64], |x| { x });
+simd_vec_tests!(load_store_test, [u8, u16, u32, u64, i8, i16, i32, i64, f32, f64], |x| {
+    let array = x.to_array();
+    SimdVec::load(array.as_slice())
+});
 
 // === Permutes ===
 simd_vec_tests!(blend_32_test, [[f32, f32 -> f32]], |x, y| {
