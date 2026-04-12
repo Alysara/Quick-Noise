@@ -49,6 +49,18 @@ simd_vec_tests!(or_test, [u8, u16, u32, u64], |x, y| { x | y });
 simd_vec_tests!(xor_test, [u8, u16, u32, u64], |x, y| { x ^ y });
 simd_vec_tests!(andnot_test, [u8, u16, u32, u64], |x, y| { x.andnot(y) });
 
+// TODO: VARIABLE SHIFTS DO NOT WORK ON SSE!
+simd_vec_tests!(shl_scalar_test, [u32, i32], |x| { x << 10 });
+simd_vec_tests!(shr_scalar_test, [u32, i32], |x| { x >> 10 });
+simd_vec_tests!(shl_variable_test,
+    [[u32, u32 -> u32], [i32, u32 -> i32]],
+    |x, y| { x << (y.raw_cast() & SimdVec::splat(15))
+});
+simd_vec_tests!(shr_variable_test,
+    [[u32, u32 -> u32], [i32, u32 -> i32]],
+    |x, y| { x >> (y.raw_cast() & SimdVec::splat(15))
+});
+
 // === Clamp ===
 // TODO: Add integer clamps.
 simd_vec_tests!(clamp_min_test, [f32, f64], |x| { x.clamp_min(0.) });

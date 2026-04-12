@@ -29,6 +29,24 @@ macro_rules! scalar_token_op {
     }
 }
 
+macro_rules! scalar_token_op_usize_rhs {
+    ($type:ty, $op:tt, $self:ident, $rhs:ident, $size:expr) => {
+        unsafe {
+            let mut new = Scalar::<$size>([0; $size]);
+
+            let self_ptr: *const $type = $self.0.as_ptr() as *const $type;
+            let rhs_ptr: *const $type = $rhs.0.as_ptr() as *const $type;
+            let new_ptr: *mut $type = new.0.as_mut_ptr() as *mut $type;
+            
+            for i in 0..($size / size_of::<$type>()) {
+                *new_ptr.add(i) = *self_ptr.add(i) $op (*rhs_ptr.add(i) as usize);
+            }
+
+            new
+        }
+    }
+}
+
 macro_rules! scalar_func_op {
     ($type:ty, $op:ident, $self:ident, $rhs:ident, $size:expr) => {
         unsafe {
@@ -134,15 +152,15 @@ impl<const N: usize> SimdBitwiseImpl for Scalar<N> {
 }
 
 impl<const N: usize> SimdShiftImpl for Scalar<N> {
-    #[inline(always)] fn sllv_64(self, rhs: Self) -> Self { scalar_token_op!(u64, <<, self, rhs, N) }
-    #[inline(always)] fn srlv_64(self, rhs: Self) -> Self { scalar_token_op!(u64, >>, self, rhs, N) }
-    #[inline(always)] fn srav_64(self, rhs: Self) -> Self { scalar_token_op!(i64, >>, self, rhs, N) }
-    #[inline(always)] fn sllv_32(self, rhs: Self) -> Self { scalar_token_op!(u32, <<, self, rhs, N) }
-    #[inline(always)] fn srlv_32(self, rhs: Self) -> Self { scalar_token_op!(u32, >>, self, rhs, N) }
-    #[inline(always)] fn srav_32(self, rhs: Self) -> Self { scalar_token_op!(i32, >>, self, rhs, N) }
-    #[inline(always)] fn sllv_16(self, rhs: Self) -> Self { scalar_token_op!(u16, <<, self, rhs, N) }
-    #[inline(always)] fn srlv_16(self, rhs: Self) -> Self { scalar_token_op!(u16, >>, self, rhs, N) }
-    #[inline(always)] fn srav_16(self, rhs: Self) -> Self { scalar_token_op!(i16, >>, self, rhs, N) }
+    #[inline(always)] fn sllv_64(self, rhs: Self) -> Self { scalar_token_op_usize_rhs!(u64, <<, self, rhs, N) }
+    #[inline(always)] fn srlv_64(self, rhs: Self) -> Self { scalar_token_op_usize_rhs!(u64, >>, self, rhs, N) }
+    #[inline(always)] fn srav_64(self, rhs: Self) -> Self { scalar_token_op_usize_rhs!(i64, >>, self, rhs, N) }
+    #[inline(always)] fn sllv_32(self, rhs: Self) -> Self { scalar_token_op_usize_rhs!(u32, <<, self, rhs, N) }
+    #[inline(always)] fn srlv_32(self, rhs: Self) -> Self { scalar_token_op_usize_rhs!(u32, >>, self, rhs, N) }
+    #[inline(always)] fn srav_32(self, rhs: Self) -> Self { scalar_token_op_usize_rhs!(i32, >>, self, rhs, N) }
+    #[inline(always)] fn sllv_16(self, rhs: Self) -> Self { scalar_token_op_usize_rhs!(u16, <<, self, rhs, N) }
+    #[inline(always)] fn srlv_16(self, rhs: Self) -> Self { scalar_token_op_usize_rhs!(u16, >>, self, rhs, N) }
+    #[inline(always)] fn srav_16(self, rhs: Self) -> Self { scalar_token_op_usize_rhs!(i16, >>, self, rhs, N) }
 }
 
 impl<const N: usize> SimdLoadImpl for Scalar<N> {

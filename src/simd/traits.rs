@@ -201,16 +201,50 @@ pub struct Unsigned;
 
 pub trait SimdInteger: SimdElement {
     type Type;
+    type Unsigned: SimdElement;
+    type Signed: SimdElement;
 }
 
-impl SimdInteger for i64 { type Type = Signed; }
-impl SimdInteger for i32 { type Type = Signed; }
-impl SimdInteger for i16 { type Type = Signed; }
-impl SimdInteger for i8 { type Type = Signed; }
-impl SimdInteger for u64 { type Type = Unsigned; }
-impl SimdInteger for u32 { type Type = Unsigned; }
-impl SimdInteger for u16 { type Type = Unsigned; }
-impl SimdInteger for u8 { type Type = Unsigned; }
+impl SimdInteger for i64 {
+    type Type = Signed;
+    type Unsigned = u64;
+    type Signed = i64;
+}
+impl SimdInteger for i32 {
+    type Type = Signed;
+    type Unsigned = u32;
+    type Signed = i32;
+}
+impl SimdInteger for i16 {
+    type Type = Signed;
+    type Unsigned = u16;
+    type Signed = i16;
+}
+impl SimdInteger for i8 {
+    type Type = Signed;
+    type Unsigned = u8;
+    type Signed = i8;
+}
+impl SimdInteger for u64 {
+    type Type = Unsigned;
+    type Unsigned = u64;
+    type Signed = i64;
+}
+impl SimdInteger for u32 {
+    type Type = Unsigned;
+    type Unsigned = u32;
+    type Signed = i32;
+}
+impl SimdInteger for u16 {
+    type Type = Unsigned;
+    type Unsigned = u16;
+    type Signed = i16;
+}
+impl SimdInteger for u8 {
+    type Type = Unsigned;
+    type Unsigned = u8;
+    type Signed = i8;
+}
 
 pub trait SimdFloat: SimdElement + HasSigned + HasUnsigned + SimdMulType {
     const SIGN_MASK: usize;
@@ -227,7 +261,7 @@ impl SimdWideType for i32 {}
 impl SimdWideType for u64 {}
 impl SimdWideType for u32 {}
 
-pub trait SimdIntegerNotByte: SimdElement {}
+pub trait SimdIntegerNotByte: SimdInteger {}
 impl SimdIntegerNotByte for i64 {}
 impl SimdIntegerNotByte for i32 {}
 impl SimdIntegerNotByte for u64 {}
