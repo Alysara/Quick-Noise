@@ -73,9 +73,7 @@ macro_rules! simd_vec_test {
     // === 1 arg, inferred return type ===
     ($test_name:ident, |$x:ident: $elem_ty:ty| $body:expr) => {
         paste::paste! {
-            fn [<$test_name _func>]<F: SimdFamily>($x: SimdVec<$elem_ty, F>) -> SimdVec<$elem_ty, F> {
-                $body
-            }
+            fn [<$test_name _func>]<F: SimdFamily>($x: SimdVec<$elem_ty, F>) -> SimdVec<$elem_ty, F> $body
             #[test]
             fn $test_name() {
                 for (simd, scalar) in itertools::izip!(
@@ -99,9 +97,7 @@ macro_rules! simd_vec_test {
             fn [<$test_name _func>]<F: SimdFamily>(
                 $x1: SimdVec<$elem_ty1, F>,
                 $x2: SimdVec<$elem_ty2, F>
-            ) -> SimdVec<$elem_ty1, F> {
-                $body
-            }
+            ) -> SimdVec<$elem_ty1, F> $body
             #[test]
             fn $test_name() {
                 let pairs1: Vec<_> = itertools::izip!(
@@ -136,9 +132,7 @@ macro_rules! simd_vec_test {
                 $x1: SimdVec<$elem_ty1, F>,
                 $x2: SimdVec<$elem_ty2, F>,
                 $x3: SimdVec<$elem_ty3, F>
-            ) -> SimdVec<$elem_ty1, F> {
-                $body
-            }
+            ) -> SimdVec<$elem_ty1, F> $body
             #[test]
             fn $test_name() {
                 let pairs1: Vec<_> = itertools::izip!(
@@ -281,7 +275,7 @@ pub use crate::simd_vec_test;
 #[macro_export]
 macro_rules! simd_vec_tests {
     // 1 arg
-    ($name:ident, [$($ty:ty),+], |$x:ident| $body:expr) => {
+    ($name:ident, [$($ty:tt),+], |$x:ident| $body:block) => {
         paste::paste! {
             $(
                 crate::simd::tests::simd_vec::macros::simd_vec_test!([<$name _ $ty>], |$x: $ty| $body);
@@ -289,7 +283,7 @@ macro_rules! simd_vec_tests {
         }
     };
     // 2 args
-    ($name:ident, [$($ty:ty),+], |$x1:ident, $x2:ident| $body:expr) => {
+    ($name:ident, [$($ty:tt),+], |$x1:ident, $x2:ident| $body:block) => {
         paste::paste! {
             $(
                 crate::simd::tests::simd_vec::macros::simd_vec_test!([<$name _ $ty>], |$x1: $ty, $x2: $ty| $body);
@@ -297,7 +291,7 @@ macro_rules! simd_vec_tests {
         }
     };
     // 3 args
-    ($name:ident, [$($ty:ty),+], |$x1:ident, $x2:ident, $x3:ident| $body:expr) => {
+    ($name:ident, [$($ty:tt),+], |$x1:ident, $x2:ident, $x3:ident| $body:block) => {
         paste::paste! {
             $(
                 crate::simd::tests::simd_vec::macros::simd_vec_test!([<$name _ $ty>], |$x1: $ty, $x2: $ty, $x3: $ty| $body);
@@ -305,42 +299,42 @@ macro_rules! simd_vec_tests {
         }
     };
     // 1 arg, explicit return
-    ($name:ident, [$([$arg_ty:ty; $ret_ty:ty]),+], |$x:ident| -> { $body:expr }) => {
+    ($name:ident, [$([$arg_ty:tt -> $ret_ty:ty]),+], |$x:ident| -> $body:block) => {
         paste::paste! {
             $(
-                crate::simd::tests::simd_vec::macros::simd_vec_test!([<$name _ $arg_ty>], |$x: $arg_ty| -> $ret_ty { $body });
+                crate::simd::tests::simd_vec::macros::simd_vec_test!([<$name _ $arg_ty>], |$x: $arg_ty| -> $ret_ty $body);
             )+
         }
     };
-    // 2 args same type, explicit return
-    ($name:ident, [$([$ty:ty; $ret_ty:ty]),+], |$x1:ident, $x2:ident| -> { $body:expr }) => {
-        paste::paste! {
-            $(
-                crate::simd::tests::simd_vec::macros::simd_vec_test!([<$name _ $ty>], |$x1: $ty, $x2: $ty| -> $ret_ty { $body });
-            )+
-        }
-    };
-    // 3 args same type, explicit return
-    ($name:ident, [$([$ty:ty; $ret_ty:ty]),+], |$x1:ident, $x2:ident, $x3:ident| -> { $body:expr }) => {
-        paste::paste! {
-            $(
-                crate::simd::tests::simd_vec::macros::simd_vec_test!([<$name _ $ty>], |$x1: $ty, $x2: $ty, $x3: $ty| -> $ret_ty { $body });
-            )+
-        }
-    };
+    // // 2 args same type, explicit return
+    // ($name:ident, [$([$ty:tt -> $ret_ty:ty]),+], |$x1:ident, $x2:ident| -> $body:block) => {
+    //     paste::paste! {
+    //         $(
+    //             crate::simd::tests::simd_vec::macros::simd_vec_test!([<$name _ $ty>], |$x1: $ty, $x2: $ty| -> $ret_ty $body);
+    //         )+
+    //     }
+    // };
+    // // 3 args same type, explicit return
+    // ($name:ident, [$([$ty:tt -> $ret_ty:ty]),+], |$x1:ident, $x2:ident, $x3:ident| -> $body:block) => {
+    //     paste::paste! {
+    //         $(
+    //             crate::simd::tests::simd_vec::macros::simd_vec_test!([<$name _ $ty>], |$x1: $ty, $x2: $ty, $x3: $ty| -> $ret_ty $body);
+    //         )+
+    //     }
+    // };
     // 2 args different types, explicit return
-    ($name:ident, [$([$ty1:ty, $ty2:ty; $ret_ty:ty]),+], |$x1:ident, $x2:ident| -> { $body:expr }) => {
+    ($name:ident, [$([$ty1:tt, $ty2:tt -> $ret_ty:ty]),+], |$x1:ident, $x2:ident| $body:block) => {
         paste::paste! {
             $(
-                crate::simd::tests::simd_vec::macros::simd_vec_test!([<$name _ $ty1 _ $ty2>], |$x1: $ty1, $x2: $ty2| -> $ret_ty { $body });
+                crate::simd::tests::simd_vec::macros::simd_vec_test!([<$name _ $ty1 _ $ty2>], |$x1: $ty1, $x2: $ty2| -> $ret_ty $body);
             )+
         }
     };
     // 3 args different types, explicit return
-    ($name:ident, [$([$ty1:ty, $ty2:ty, $ty3:ty; $ret_ty:ty]),+], |$x1:ident, $x2:ident, $x3:ident| -> { $body:expr }) => {
+    ($name:ident, [$([$ty1:tt, $ty2:tt, $ty3:tt -> $ret_ty:ty]),+], |$x1:ident, $x2:ident, $x3:ident| -> $body:block) => {
         paste::paste! {
             $(
-                crate::simd::tests::simd_vec::macros::simd_vec_test!([<$name _ $ty1 _ $ty2 _ $ty3>], |$x1: $ty1, $x2: $ty2, $x3: $ty3| -> $ret_ty { $body });
+                crate::simd::tests::simd_vec::macros::simd_vec_test!([<$name _ $ty1 _ $ty2 _ $ty3>], |$x1: $ty1, $x2: $ty2, $x3: $ty3| -> $ret_ty $body);
             )+
         }
     };
