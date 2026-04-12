@@ -44,9 +44,9 @@ cfg_if::cfg_if! {
     else if #[cfg(all(target_arch = "aarch64", target_feature = "neon"))] {
         pub const SIMD_WIDTH: usize = 16;
         pub const NUM_SIMD_REG: usize = 32;
-        pub type ArchSimd<T> = SimdVec<T, Scalar128>;
-        pub type ArchMask<T> = SimdMask<T, Scalar128>;
-        pub type ArchFamily = Scalar128;
+        pub type ArchSimd<T> = SimdVec<T, ScalarFamily128>;
+        pub type ArchMask<T> = SimdMask<T, ScalarFamily128>;
+        pub type ArchFamily = ScalarFamily128;
     }
 
     // wasm
