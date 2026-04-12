@@ -18,6 +18,7 @@ macro_rules! test_vecs {
             $simd_vec::<u8>::iota(24),
             $simd_vec::<u8>::iota(100),
             $simd_vec::<u8>::iota(222),
+            $simd_vec::<u8>::iota(12) ^ $simd_vec::<u8>::iota(7),
         ]
     };
     ($simd_vec:ident, u16) => {
@@ -40,6 +41,8 @@ macro_rules! test_vecs {
             $simd_vec::<u16>::iota(0xB32E) * $simd_vec::<u16>::iota(0x2B51),
             $simd_vec::<u16>::iota(0xF018) * $simd_vec::<u16>::iota(0x0EF2),
             $simd_vec::<u16>::iota(0x9AD3) * $simd_vec::<u16>::iota(0xFF00),
+            $simd_vec::<u16>::iota(0xF018) ^ $simd_vec::<u16>::iota(0x0EF2),
+            ($simd_vec::<u16>::iota(0xF018) * $simd_vec::<u16>::iota(0x0EF2)) & $simd_vec::<u16>::splat(0x000F),
         ]
     };
     ($simd_vec:ident, u32) => {
@@ -64,6 +67,8 @@ macro_rules! test_vecs {
             $simd_vec::<u32>::iota(0xB32EF311) * $simd_vec::<u32>::iota(0x2B51A61E),
             $simd_vec::<u32>::iota(0xF018B023) * $simd_vec::<u32>::iota(0x0EF2932F),
             $simd_vec::<u32>::iota(0x9AD392BC) * $simd_vec::<u32>::iota(0xFFFFFF00),
+            $simd_vec::<u32>::iota(0xF018B023) ^ $simd_vec::<u32>::iota(0x0EF2932F),
+            ($simd_vec::<u32>::iota(0xF018B023) * $simd_vec::<u32>::iota(0x0EF2932F)) & $simd_vec::<u32>::splat(0xF),
         ]
     };
     ($simd_vec:ident, u64) => {
@@ -101,6 +106,8 @@ macro_rules! test_vecs {
             $simd_vec::<i8>::iota(0),
             $simd_vec::<i8>::iota(-1),
             $simd_vec::<i8>::iota(10),
+            $simd_vec::<i8>::iota(24) ^ $simd_vec::<i8>::iota(17),
+            $simd_vec::<i8>::iota(-14) ^ $simd_vec::<i8>::iota(75),
         ]
     };
     ($simd_vec:ident, i16) => {
@@ -121,6 +128,8 @@ macro_rules! test_vecs {
             $simd_vec::<i16>::iota(13452) * $simd_vec::<i16>::iota(22222),
             $simd_vec::<i16>::iota(24123) * $simd_vec::<i16>::iota(-23333),
             $simd_vec::<i16>::iota(-14444) * $simd_vec::<i16>::iota(29312),
+            $simd_vec::<i16>::iota(24123) ^ $simd_vec::<i16>::iota(-23333),
+            $simd_vec::<i16>::iota(-14444) ^ $simd_vec::<i16>::iota(29312),
         ]
     };
     ($simd_vec:ident, i32) => {
@@ -151,6 +160,9 @@ macro_rules! test_vecs {
             $simd_vec::<i32>::iota(1345222) * $simd_vec::<i32>::iota(2222222),
             $simd_vec::<i32>::iota(2412322) * $simd_vec::<i32>::iota(-2333322),
             $simd_vec::<i32>::iota(-1444422) * $simd_vec::<i32>::iota(2931222),
+            $simd_vec::<i32>::iota(-1444422) ^ $simd_vec::<i32>::iota(2931222),
+            $simd_vec::<i32>::iota(-1444422) ^ $simd_vec::<i32>::iota(2931222),
+            ($simd_vec::<i32>::iota(0xF018B02 as i32) * $simd_vec::<i32>::iota(0x0EF2932F as i32)) & $simd_vec::<i32>::splat(0xF as i32),
         ]
     };
     ($simd_vec:ident, i64) => {
@@ -176,6 +188,9 @@ macro_rules! test_vecs {
             $simd_vec::<i64>::iota(-1),
             $simd_vec::<i64>::iota(10),
             $simd_vec::<i64>::iota(1_000),
+            $simd_vec::<i64>::iota(10) ^ $simd_vec::<i64>::iota(7),
+            $simd_vec::<i64>::iota(1000) ^ $simd_vec::<i64>::iota(-13287),
+            ($simd_vec::<i64>::iota(0xF018B02 as i64) ^ $simd_vec::<i64>::iota(0x0EF2932F as i64)) & $simd_vec::<i64>::splat(0xF as i64),
         ]
     };
     ($simd_vec:ident, f32) => {

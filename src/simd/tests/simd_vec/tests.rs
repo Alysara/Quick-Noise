@@ -22,12 +22,12 @@ simd_vec_tests!(blend_32_test, [[f32, f32 -> f32]], |x, y| {
     (x.simd_gt(y)).select(x, y)
 });
 
-simd_vec_tests!(permute_32_test, [[f32, u32 -> f32]], |x, y| {
+simd_vec_tests!(permute_32_test, [[f32, u32 -> f32], [i32, u32 -> i32], [u32, u32 -> u32]], |x, y| {
     let mask = SimdVec::<u32, F>::splat((F::SIMD_WIDTH as u32 / 4) - 1);
     x.permute_32(y & mask)
 });
 
-simd_vec_tests!(permute_8_test, [u8], |x, y| {
+simd_vec_tests!(permute_8_test, [[f32, u8 -> f32], [i32, u8 -> i32], [u64, u8 -> u64], [u8, u8 -> u8]], |x, y| {
     let mask = SimdVec::<u8, F>::splat((F::SIMD_WIDTH as u8) - 1);
     x.permute_8(y & mask)
 });
