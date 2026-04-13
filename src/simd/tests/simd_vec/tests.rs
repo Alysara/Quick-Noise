@@ -15,8 +15,18 @@ simd_vec_tests!(load_store_test, [u8, u16, u32, u64, i8, i16, i32, i64, f32, f64
 simd_vec_tests!(partial_load_test, [f32, f64], |x| {
     SimdVec::partial_load(x.to_array().as_slice(), 2)
 });
-simd_vec_tests!(masked_load_test, [f32], |x, y| {
+simd_vec_tests!(masked_load_test, [f32, u32], |x, y| {
     SimdVec::masked_load(x.to_array().as_slice(), x.simd_gt(y))
+});
+simd_vec_tests!(partial_store_test, [f32], |x, y| {
+    let mut array = x.to_array();
+    y.partial_store(array.as_mut_slice(), 2);
+    SimdVec::load(array.as_slice())
+});
+simd_vec_tests!(masked_store_test, [f32, u32], |x, y| {
+    let mut array = x.to_array();
+    y.masked_store(array.as_mut_slice(), x.simd_gt(y));
+    SimdVec::load(array.as_slice())
 });
 simd_vec_test!(zero_test, || -> u32 { SimdVec::zero() });
 
