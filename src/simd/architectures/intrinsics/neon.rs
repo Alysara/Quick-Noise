@@ -71,8 +71,21 @@ impl SimdStoreImpl for Neon {
     type MaskType = Self;
     #[inline(always)] fn store_aligned<T>(self, ptr: *mut T) { execute_intrinsic!(vst1q_u32, ptr, self); }
     #[inline(always)] fn store_unaligned<T>(self, ptr: *mut T) { execute_intrinsic!(vst1q_u32, ptr, self); }
-    #[inline(always)] fn masked_store_64<T>(self, ptr: *mut T, mask: Self::MaskType) { unsafe { vst1q_u64(ptr as *mut u64, vandq_u64(transmute(self.0), transmute(mask.0))) } }
-    #[inline(always)] fn masked_store_32<T>(self, ptr: *mut T, mask: Self::MaskType) { unsafe { vst1q_u32(ptr as *mut u32, vandq_u32(transmute(self.0), transmute(mask.0))) } }
+    #[inline(always)] fn masked_store_64<T>(self, ptr: *mut T, mask: Self::MaskType) {
+        unsafe {
+            let current = vld1q_u64(ptr as *const u64);
+            let masked = vbslq_u64(transmute(mask.0), transmute(self.0), current);
+            vst1q_u64(ptr as *mut u64, masked);
+        }
+    }
+
+    #[inline(always)] fn masked_store_32<T>(self, ptr: *mut T, mask: Self::MaskType) {
+        unsafe {
+            let current = vld1q_u32(ptr as *const u32);
+            let masked = vbslq_u32(transmute(mask.0), transmute(self.0), current);
+            vst1q_u32(ptr as *mut u32, masked);
+        }
+    }
 }
 
 impl SimdZeroImpl for Neon {
