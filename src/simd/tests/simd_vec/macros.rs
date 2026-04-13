@@ -28,7 +28,7 @@ impl<T: SimdElement> SimdTestEq for T {
             SimdType::F32 | SimdType::F64 => {
                 let a = self.to_f64().unwrap();
                 let b = other.to_f64().unwrap();
-                (!a.is_finite() && !b.is_finite()) || approx_eq(a, b, 5e-3)
+                (!a.is_finite() && !b.is_finite()) || approx_eq(a, b, 0.)
             },
             _ => self == other
         }
@@ -68,11 +68,45 @@ macro_rules! assert_simd_eq {
             }
         }
     }};
+
+    ($output_simd:expr, $output_scalar:expr) => {{
+        let simd_array = $output_simd.to_array();
+        let scalar_array = $output_scalar.to_array();
+        assert_eq!(
+            simd_array.len(), scalar_array.len(),
+            "Length mismatch! {} != {}", simd_array.len(), scalar_array.len()
+        );
+        for i in 0..simd_array.len() {
+            if !crate::simd::tests::simd_vec::macros::SimdTestEq::test_eq(simd_array[i], scalar_array[i]) {
+                panic!(
+                    "Simd does not match!\nOutput:\n  simd:   {:?}\n  scalar: {:?}",
+                    simd_array, scalar_array
+                );
+            }
+        }
+    }};
 }
 pub use crate::assert_simd_eq;
 
 #[macro_export]
 macro_rules! simd_vec_test {
+    // === 0 arg ===
+    ($test_name:ident, || -> $ret_ty:ty $body:block) => {
+        paste::paste! {
+            fn [<$test_name _func>]<F: SimdFamily>() -> SimdVec<$ret_ty, F> $body
+
+            #[test]
+            fn $test_name() {
+                let simd_result = [<$test_name _func>]::<ArchFamily>();
+                let scalar_result = [<$test_name _func>]::<ScalarFamily>();
+                crate::simd::tests::simd_vec::macros::assert_simd_eq!(
+                    simd_result,
+                    scalar_result
+                );
+            }
+        }
+    };
+
     // === 1 arg, inferred return type ===
     ($test_name:ident, |$x:ident: $elem_ty:ty| $body:block) => {
         paste::paste! {

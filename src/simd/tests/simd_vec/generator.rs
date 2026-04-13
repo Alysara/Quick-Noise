@@ -206,8 +206,8 @@ macro_rules! test_vecs {
             $simd_vec::<f32>::splat(-1e-3),
             $simd_vec::<f32>::splat(1e6),
             $simd_vec::<f32>::splat(-1e6),
-            // $simd_vec::<f32>::splat(f32::MAX),
-            // $simd_vec::<f32>::splat(f32::MIN),
+            $simd_vec::<f32>::splat(f32::MAX),
+            $simd_vec::<f32>::splat(f32::MIN),
             $simd_vec::<f32>::iota(0.0),
             $simd_vec::<f32>::iota(1.0),
             $simd_vec::<f32>::iota(10.0),
@@ -215,6 +215,10 @@ macro_rules! test_vecs {
             $simd_vec::<f32>::iota(1.234e4) * $simd_vec::<f32>::iota(8.92752e-6),
             $simd_vec::<f32>::iota(-3.6234e3) * $simd_vec::<f32>::iota(-7.7777e4),
             $simd_vec::<f32>::iota(-6.33453e6) * $simd_vec::<f32>::iota(2.0292e2),
+
+            ($simd_vec::<f32>::iota(0.0) * $simd_vec::<f32>::splat(0.7777)).fract(),
+            ($simd_vec::<f32>::iota(0.0) * $simd_vec::<f32>::splat(0.4444)).fract(),
+            ($simd_vec::<f32>::iota(0.0) * $simd_vec::<f32>::splat(2.9999)).fract(),
         ]
     };
     ($simd_vec:ident, f64) => {
@@ -228,8 +232,8 @@ macro_rules! test_vecs {
             $simd_vec::<f64>::splat(-9.87654321),
             $simd_vec::<f64>::splat(1e10),
             $simd_vec::<f64>::splat(-1e10),
-            // $simd_vec::<f64>::splat(f64::MAX),
-            // $simd_vec::<f64>::splat(f64::MIN),
+            $simd_vec::<f64>::splat(f64::MAX),
+            $simd_vec::<f64>::splat(f64::MIN),
             $simd_vec::<f64>::iota(0.0),
             $simd_vec::<f64>::iota(1.0),
             $simd_vec::<f64>::iota(10.0),
@@ -237,6 +241,10 @@ macro_rules! test_vecs {
             $simd_vec::<f64>::iota(1.234e4) * $simd_vec::<f64>::iota(8.92752e-6),
             $simd_vec::<f64>::iota(-3.6234e3) * $simd_vec::<f64>::iota(-7.7777e4),
             $simd_vec::<f64>::iota(-6.33453e6) * $simd_vec::<f64>::iota(2.0292e2),
+
+            ($simd_vec::<f64>::iota(0.0) * $simd_vec::<f64>::splat(0.7777)).fract(),
+            ($simd_vec::<f64>::iota(0.0) * $simd_vec::<f64>::splat(0.4444)).fract(),
+            ($simd_vec::<f64>::iota(0.0) * $simd_vec::<f64>::splat(2.9999)).fract(),
         ]
     };
 }

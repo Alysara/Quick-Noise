@@ -81,6 +81,27 @@ macro_rules! scalar_self_op {
     }
 }
 
+macro_rules! scalar_fma_expr_op {
+    ($type:ty, $self:ident, $mult:ident, $add:ident, $size:expr, |$a:ident, $b:ident, $c:ident| $op:expr) => {
+        unsafe {
+            let mut new = Scalar::<$size>([0; $size]);
+
+            let a_ptr: *const $type = $self.0.as_ptr() as *const $type;
+            let b_ptr: *const $type = $mult.0.as_ptr() as *const $type;
+            let c_ptr: *const $type = $add.0.as_ptr() as *const $type;
+            let new_ptr: *mut $type = new.0.as_mut_ptr() as *mut $type;
+
+            for i in 0..($size / size_of::<$type>()) {
+                let $a = *a_ptr.add(i);
+                let $b = *b_ptr.add(i);
+                let $c = *c_ptr.add(i);
+                *new_ptr.add(i) = $op;
+            }
+            new
+        }
+    }
+}
+
 macro_rules! scalar_cmp {
     {$type:ty, $op:tt, $self:ident, $rhs:ident, $size:expr} => {
         unsafe {
@@ -343,14 +364,14 @@ impl<const N: usize> SimdVariableBlendImpl for ScalarMask<N> {
 }
 
 impl<const N: usize> SimdMulAddImpl for Scalar<N> {
-    #[inline(always)] fn mul_add_f64(self, mult: Self, add: Self) -> Self { self.f64_mul(mult).f64_add(add) }
-    #[inline(always)] fn mul_sub_f64(self, mult: Self, sub: Self) -> Self { self.f64_mul(mult).f64_sub(sub) }
-    #[inline(always)] fn negated_mul_add_f64(self, mult: Self, add: Self) -> Self { add.f64_sub(self.f64_mul(mult)) }
-    #[inline(always)] fn negated_mul_sub_f64(self, mult: Self, sub: Self) -> Self { Self::zero().f64_sub(self.f64_mul(mult)).f64_sub(sub) }
-    #[inline(always)] fn mul_add_f32(self, mult: Self, add: Self) -> Self { self.f32_mul(mult).f32_add(add) }
-    #[inline(always)] fn mul_sub_f32(self, mult: Self, sub: Self) -> Self { self.f32_mul(mult).f32_sub(sub) }
-    #[inline(always)] fn negated_mul_add_f32(self, mult: Self, add: Self) -> Self { add.f32_sub(self.f32_mul(mult)) }
-    #[inline(always)] fn negated_mul_sub_f32(self, mult: Self, sub: Self) -> Self { Self::zero().f32_sub(self.f32_mul(mult)).f32_sub(sub) }
+    #[inline(always)] fn mul_add_f64(self, mult: Self, add: Self) -> Self { scalar_fma_expr_op!(f64, self, mult, add, N, |a, b, c| f64::mul_add(a, b, c)) }
+    #[inline(always)] fn mul_sub_f64(self, mult: Self, sub: Self) -> Self { scalar_fma_expr_op!(f64, self, mult, sub, N, |a, b, c| f64::mul_add(a, b, -c)) }
+    #[inline(always)] fn negated_mul_add_f64(self, mult: Self, add: Self) -> Self { scalar_fma_expr_op!(f64, self, mult, add, N, |a, b, c| f64::mul_add(-a, b, c)) }
+    #[inline(always)] fn negated_mul_sub_f64(self, mult: Self, sub: Self) -> Self { scalar_fma_expr_op!(f64, self, mult, sub, N, |a, b, c| f64::mul_add(-a, b, -c)) }
+    #[inline(always)] fn mul_add_f32(self, mult: Self, add: Self) -> Self { scalar_fma_expr_op!(f32, self, mult, add, N, |a, b, c| f32::mul_add(a, b, c)) }
+    #[inline(always)] fn mul_sub_f32(self, mult: Self, sub: Self) -> Self { scalar_fma_expr_op!(f32, self, mult, sub, N, |a, b, c| f32::mul_add(a, b, -c)) }
+    #[inline(always)] fn negated_mul_add_f32(self, mult: Self, add: Self) -> Self { scalar_fma_expr_op!(f32, self, mult, add, N, |a, b, c| f32::mul_add(-a, b, c)) }
+    #[inline(always)] fn negated_mul_sub_f32(self, mult: Self, sub: Self) -> Self { scalar_fma_expr_op!(f32, self, mult, sub, N, |a, b, c| f32::mul_add(-a, b, -c)) }
 }
 
 impl<const N: usize> SimdRoundImpl for Scalar<N> {

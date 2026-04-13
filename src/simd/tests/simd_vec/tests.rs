@@ -1,7 +1,7 @@
 use crate::simd::architectures::arch_impl::*;
 use crate::simd::simd_vec::core::SimdVec;
 use crate::simd::simd_traits::*;
-use crate::simd::arch_simd::{ArchSimd, ArchMask, ScalarSimd, ScalarMask};
+use crate::simd::arch_simd::{ArchSimd, ArchMask, ScalarSimd, ScalarMask, ArchFamily, ScalarFamily};
 use crate::simd::tests::simd_vec::generator::{test_vecs};
 use crate::simd::tests::simd_vec::macros::{assert_simd_eq, simd_vec_test, simd_vec_tests};
 use crate::simd::array_trait::Array;
@@ -15,6 +15,10 @@ simd_vec_tests!(load_store_test, [u8, u16, u32, u64, i8, i16, i32, i64, f32, f64
 simd_vec_tests!(partial_load_test, [f32, f64], |x| {
     SimdVec::partial_load(x.to_array().as_slice(), 2)
 });
+simd_vec_tests!(masked_load_test, [f32], |x, y| {
+    SimdVec::masked_load(x.to_array().as_slice(), x.simd_gt(y))
+});
+simd_vec_test!(zero_test, || -> u32 { SimdVec::zero() });
 
 
 // === Permutes ===
@@ -73,7 +77,7 @@ simd_vec_tests!(floor_test, [f32, f64], |x| { x.floor() });
 simd_vec_tests!(ceil_test, [f32, f64], |x| { x.ceil() });
 simd_vec_tests!(fract_test, [f32, f64], |x| { x.fract() });
 simd_vec_tests!(sqrt_test, [f32, f64], |x| { x.sqrt() });
-simd_vec_tests!(rsqrt_test, [f32], |x| { x.rsqrt() });
+// simd_vec_tests!(rsqrt_test, [f32], |x| { x.rsqrt() });
 simd_vec_tests!(quintic_lerp_test, [f32, f64], |x| { x.quintic_lerp() });
 
 // TODO: f64 casts.

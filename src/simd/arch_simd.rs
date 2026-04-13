@@ -44,9 +44,9 @@ cfg_if::cfg_if! {
     else if #[cfg(all(target_arch = "aarch64", target_feature = "neon"))] {
         pub const SIMD_WIDTH: usize = 16;
         pub const NUM_SIMD_REG: usize = 32;
-        pub type ArchSimd<T> = SimdVec<T, ScalarFamily128>;
-        pub type ArchMask<T> = SimdMask<T, ScalarFamily128>;
-        pub type ArchFamily = ScalarFamily128;
+        pub type ArchSimd<T> = SimdVec<T, NeonFamily>;
+        pub type ArchMask<T> = SimdMask<T, NeonFamily>;
+        pub type ArchFamily = NeonFamily;
     }
 
     // wasm
@@ -77,8 +77,9 @@ cfg_if::cfg_if! {
     }
 }
 
-pub type ScalarSimd<T> = SimdVec<T, <ArchFamily as SimdFamily>::ScalarFamily>;
-pub type ScalarMask<T> = SimdMask<T, <ArchFamily as SimdFamily>::ScalarFamily>;
+pub type ScalarFamily = <ArchFamily as SimdFamily>::ScalarFamily;
+pub type ScalarSimd<T> = SimdVec<T, ScalarFamily>;
+pub type ScalarMask<T> = SimdMask<T, ScalarFamily>;
 
 
 // pub type ArchSimd<T: SimdInfo> = Simd<T, { T::LANES }>;
