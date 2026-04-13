@@ -169,7 +169,7 @@ impl<const N: usize> SimdBitwiseImpl for Scalar<N> {
     #[inline(always)] fn or(self, rhs: Self) -> Self { scalar_token_op!(u64, |, self, rhs, N) }
     #[inline(always)] fn xor(self, rhs: Self) -> Self { scalar_token_op!(u64, ^, self, rhs, N) }
     #[inline(always)] fn not(self) -> Self { self.xor(Self([255; N])) }
-    #[inline(always)] fn and_not(self, rhs: Self) -> Self { self.not().and(rhs) }
+    #[inline(always)] fn and_not(self, rhs: Self) -> Self { self.and(rhs.not()) }
 }
 
 impl<const N: usize> SimdShiftImpl for Scalar<N> {
@@ -469,7 +469,7 @@ impl<const N: usize> SimdSqrtImpl for Scalar<N> {
 
 impl<const N: usize> SimdAllBitsImpl for ScalarMask<N> {
     #[inline(always)] fn all_zero(self) -> bool {
-        self.0.iter().any(|&x| x)
+        self.0.iter().any(|&x| !x)
     }
 }
 

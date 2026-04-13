@@ -39,6 +39,14 @@ impl<T: SimdInteger, F: SimdFamily> SimdAndNot for SimdVec<T, F> {
     }
 }
 
+impl<T: SimdInteger, F: SimdFamily> Not for SimdVec<T, F> {
+    type Output = Self;
+    #[inline(always)]
+    fn not(self) -> Self {
+        Self::new(F::Vec::not(self.data))        
+    }
+}
+
 // === Shifts ===
 impl<T: SimdIntegerNotByte, F: SimdFamily> Shl<SimdVec<<T as SimdInteger>::Unsigned, F>> for SimdVec<T, F> {
     type Output = Self;

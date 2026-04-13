@@ -11,13 +11,6 @@ use crate::simd::simd_mask::core::SimdMask;
 use crate::simd::simd_traits::*;
 use std::mem::transmute_copy;
 
-impl<T: SimdFloat, F: SimdFamily> SimdVec<T, F> {
-    #[inline(always)]
-    pub fn fract(self) -> Self {
-        self - self.floor()
-    }
-}
-
 impl<T: SimdFloat, F: SimdFamily> SimdRound for SimdVec<T, F> {
     #[inline(always)]
     fn floor(self) -> Self {

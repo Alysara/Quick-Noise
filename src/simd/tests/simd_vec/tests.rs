@@ -42,6 +42,30 @@ simd_vec_tests!(gather_32_test, [[u32 -> f32]], |x| {
     (x & mask).gather(&array)
 });
 
+// === Comparisons ===
+simd_vec_tests!(lt_test, [f32, f64], |x, y| { x.simd_lt(y).select(x, y) });
+simd_vec_tests!(le_test, [f32, f64], |x, y| { x.simd_le(y).select(x, y) });
+simd_vec_tests!(gt_test, [f32, f64], |x, y| { x.simd_gt(y).select(x, y) });
+simd_vec_tests!(ge_test, [f32, f64], |x, y| { x.simd_ge(y).select(x, y) });
+simd_vec_tests!(eq_test, [f32, f64], |x, y| { x.simd_eq(y).select(x, y) });
+simd_vec_tests!(neq_test, [f32, f64], |x, y| { x.simd_neq(y).select(x, y) });
+
+// TODO: Add mask tester.
+// TODO: Add correct implementation for all_zero.
+// simd_vec_tests!(all_false_test, [f32, f64], |x, y| {
+//     if x.simd_gt(y).all_false() { x } else { y }
+// });
+
+simd_vec_tests!(and_mask_test, [f32, f64], |x, y, z| { (x.simd_gt(y) & y.simd_gt(z)).select(y, z) });
+simd_vec_tests!(or_mask_test, [f32, f64], |x, y, z| { (x.simd_gt(y) | y.simd_gt(z)).select(y, z) });
+simd_vec_tests!(xor_mask_test, [f32, f64], |x, y, z| { (x.simd_gt(y) ^ y.simd_gt(z)).select(y, z) });
+simd_vec_tests!(andnot_mask_test, [f32, f64], |x, y, z| { (x.simd_gt(y).andnot(y.simd_gt(z))).select(y, z) });
+simd_vec_tests!(not_mask_test, [f32, f64], |x, y| { (!x.simd_gt(y)).select(x, y) });
+
+// === Min/Max ===
+simd_vec_tests!(min_test, [f32, f64, u8, u16, u32, i8, i16, i32], |x, y| { x.min(y) });
+simd_vec_tests!(max_test, [f32, f64, u8, u16, u32, i8, i16, i32], |x, y| { x.max(y) });
+
 // === Arithmetic ===
 simd_vec_tests!(add_test, [u8, u16, u32, u64, i8, i16, i32, i64, f32, f64], |x, y| { x + y });
 simd_vec_tests!(sub_test, [u8, u16, u32, u64, i8, i16, i32, i64, f32, f64], |x, y| { x - y });
@@ -52,6 +76,7 @@ simd_vec_tests!(and_test, [u8, u16, u32, u64], |x, y| { x & y });
 simd_vec_tests!(or_test, [u8, u16, u32, u64], |x, y| { x | y });
 simd_vec_tests!(xor_test, [u8, u16, u32, u64], |x, y| { x ^ y });
 simd_vec_tests!(andnot_test, [u8, u16, u32, u64], |x, y| { x.andnot(y) });
+simd_vec_tests!(not_test, [u8, u16, u32, u64], |x| { !x });
 
 // TODO: VARIABLE SHIFTS DO NOT WORK ON SSE!
 simd_vec_tests!(shl_scalar_test, [u32, i32], |x| { x << 10 });
@@ -90,8 +115,6 @@ simd_vec_tests!(cast_uint_round_test, [[f32 -> u32]], |x| { x.abs().clamp_max(2e
 simd_vec_tests!(cast_uint_trunc_test, [[f32 -> u32]], |x| { x.abs().clamp_max(2e9).cast_uint_trunc() });
 simd_vec_tests!(cast_uint_raw_test,   [[f32 -> u32]], |x| { x.raw_cast() });
 
-simd_vec_tests!(max_test, [f32, f64], |x, y| { x.max(y) });
-simd_vec_tests!(min_test, [f32, f64], |x, y| { x.min(y) });
 simd_vec_tests!(mul_add_test, [f32, f64], |x, y, z| { x.mul_add(y, z) });
 simd_vec_tests!(mul_sub_test, [f32, f64], |x, y, z| { x.mul_sub(y, z) });
 simd_vec_tests!(negated_mul_add, [f32, f64], |x, y, z| { x.negated_mul_add(y, z) });

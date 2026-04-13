@@ -50,7 +50,7 @@ impl SimdBitwiseImpl for Avx512 {
     #[inline(always)] fn or(self, rhs: Self) -> Self { self_from_op!(_mm512_or_si512, self, rhs) }
     #[inline(always)] fn xor(self, rhs: Self) -> Self { self_from_op!(_mm512_xor_si512, self, rhs) }
     #[inline(always)] fn not(self) -> Self { Self(self.xor(Self::splat_32(!0)).0) }
-    #[inline(always)] fn and_not(self, rhs: Self) -> Self { self_from_op!(_mm512_andnot_si512, self, rhs) }
+    #[inline(always)] fn and_not(self, rhs: Self) -> Self { self_from_op!(_mm512_andnot_si512, rhs, self) }
 }
 
 impl SimdShiftImpl for Avx512 {

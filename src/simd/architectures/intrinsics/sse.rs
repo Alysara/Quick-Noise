@@ -44,7 +44,7 @@ impl SimdBitwiseImpl for Sse {
     #[inline(always)] fn or(self, rhs: Self) -> Self { self_from_op!(_mm_or_si128, self, rhs) }
     #[inline(always)] fn xor(self, rhs: Self) -> Self { self_from_op!(_mm_xor_si128, self, rhs) }
     #[inline(always)] fn not(self) -> Self { Self(self.xor(Self::splat_32(!0)).0) }
-    #[inline(always)] fn and_not(self, rhs: Self) -> Self { self_from_op!(_mm_andnot_si128, self, rhs) }
+    #[inline(always)] fn and_not(self, rhs: Self) -> Self { self_from_op!(_mm_andnot_si128, rhs, self) }
 }
 
 impl SimdShiftImpl for Sse {

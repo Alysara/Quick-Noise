@@ -44,7 +44,7 @@ impl SimdBitwiseImpl for Avx2 {
     #[inline(always)] fn or(self, rhs: Self) -> Self { self_from_op!(_mm256_or_si256, self, rhs) }
     #[inline(always)] fn xor(self, rhs: Self) -> Self { self_from_op!(_mm256_xor_si256, self, rhs) }
     #[inline(always)] fn not(self) -> Self { Self(self.xor(Self::splat_32(!0)).0) }
-    #[inline(always)] fn and_not(self, rhs: Self) -> Self { self_from_op!(_mm256_andnot_si256, self, rhs) }
+    #[inline(always)] fn and_not(self, rhs: Self) -> Self { self_from_op!(_mm256_andnot_si256, rhs, self) }
 }
 
 impl SimdShiftImpl for Avx2 {
