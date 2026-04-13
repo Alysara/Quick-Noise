@@ -50,6 +50,7 @@ simd_vec_tests!(ge_test, [f32, f64], |x, y| { x.simd_ge(y).select(x, y) });
 simd_vec_tests!(eq_test, [f32, f64, u32, u64, i32, i64], |x, y| { x.simd_eq(y).select(x, y) });
 simd_vec_tests!(neq_test, [f32, f64, u32, u64, i32, i64], |x, y| { x.simd_neq(y).select(x, y) });
 
+simd_vec_tests!(float_int_cast_test, [[i32 -> f32]], |x| { x.cast_float() });
 // TODO: Add mask tester.
 // TODO: Add correct implementation for all_zero.
 // simd_vec_tests!(all_false_test, [f32, f64], |x, y| {
