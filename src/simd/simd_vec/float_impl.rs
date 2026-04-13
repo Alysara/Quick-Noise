@@ -99,7 +99,7 @@ impl<T: SimdElement, F: SimdFamily> SimdEq for SimdVec<T, F> {
         SimdMask::new(match T::TYPE {
             SimdType::F64 => self.data.cmp_f64_neq(rhs.data),
             SimdType::F32 => self.data.cmp_f32_neq(rhs.data),
-            _ => unreachable!() // TODO: Add integer types .
+            _ => self.simd_eq(rhs).data,
         })
     }
 }

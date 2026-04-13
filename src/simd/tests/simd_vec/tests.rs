@@ -45,10 +45,10 @@ simd_vec_tests!(gather_32_test, [[u32 -> f32]], |x| {
 // === Comparisons ===
 simd_vec_tests!(lt_test, [f32, f64], |x, y| { x.simd_lt(y).select(x, y) });
 simd_vec_tests!(le_test, [f32, f64], |x, y| { x.simd_le(y).select(x, y) });
-simd_vec_tests!(gt_test, [f32, f64], |x, y| { x.simd_gt(y).select(x, y) });
+simd_vec_tests!(gt_test, [f32, f64, u32, u64, i32, i64], |x, y| { x.simd_gt(y).select(x, y) });
 simd_vec_tests!(ge_test, [f32, f64], |x, y| { x.simd_ge(y).select(x, y) });
-simd_vec_tests!(eq_test, [f32, f64], |x, y| { x.simd_eq(y).select(x, y) });
-simd_vec_tests!(neq_test, [f32, f64], |x, y| { x.simd_neq(y).select(x, y) });
+simd_vec_tests!(eq_test, [f32, f64, u32, u64, i32, i64], |x, y| { x.simd_eq(y).select(x, y) });
+simd_vec_tests!(neq_test, [f32, f64, u32, u64, i32, i64], |x, y| { x.simd_neq(y).select(x, y) });
 
 // TODO: Add mask tester.
 // TODO: Add correct implementation for all_zero.
