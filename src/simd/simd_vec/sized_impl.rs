@@ -92,6 +92,6 @@ impl<F: SimdFamily> SimdVec<u32, F> {
 
 impl<F: SimdFamily> SimdVec<u64, F> {
     pub fn gather<S: SimdElement + SimdElement<BitWidthType = B64>, const N: usize>(self, slice: &[S; N]) -> SimdVec<S, F> {
-        SimdVec::new(self.data.gather_32_from_32::<S, 8>(slice.as_ptr()))
+        SimdVec::new(self.data.gather_64_from_64::<S, 8>(slice.as_ptr()))
     }
 }

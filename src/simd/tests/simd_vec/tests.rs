@@ -41,6 +41,11 @@ simd_vec_tests!(gather_32_test, [[u32 -> f32]], |x| {
     let mask = SimdVec::<u32, F>::splat(32 - 1);
     (x & mask).gather(&array)
 });
+simd_vec_tests!(gather_64_test, [[u64 -> f64]], |x| {
+    let array: [f64; 32] = std::array::from_fn(|i| i as f64 * 10.0);
+    let mask = SimdVec::<u64, F>::splat(32 - 1);
+    (x & mask).gather(&array)
+});
 
 // === Comparisons ===
 simd_vec_tests!(lt_test, [f32, f64], |x, y| { x.simd_lt(y).select(x, y) });
