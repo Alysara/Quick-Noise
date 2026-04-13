@@ -44,7 +44,7 @@ impl SimdBitwiseImpl for Neon {
     #[inline(always)] fn or(self, rhs: Self) -> Self { self_from_op!(vorrq_u32, self, rhs) }
     #[inline(always)] fn xor(self, rhs: Self) -> Self { self_from_op!(veorq_u32, self, rhs) }
     #[inline(always)] fn not(self) -> Self { Self(self.xor(Self::splat_32(!0u32)).0) }
-    #[inline(always)] fn and_not(self, rhs: Self) -> Self { self_from_op!(vbicq_u32, rhs, self) }
+    #[inline(always)] fn and_not(self, rhs: Self) -> Self { self_from_op!(vbicq_u32, self, rhs) }
 }
 
 impl SimdShiftImpl for Neon {
