@@ -53,27 +53,27 @@ cfg_if::cfg_if! {
     else if #[cfg(all(any(target_arch = "wasm32", target_arch = "wasm64"), target_feature = "simd128"))] {
         pub const SIMD_WIDTH: usize = 16;
         pub const NUM_SIMD_REG: usize = 16;
-        pub type ArchSimd<T> = SimdVec<T, SseFamily>;
-        pub type ArchMask<T> = SimdMask<T, SseFamily>;
-        pub type ArchFamily = SseFamily;
+        pub type ArchSimd<T> = SimdVec<T, ScalerFamily128>;
+        pub type ArchMask<T> = SimdMask<T, ScalerFamily128>;
+        pub type ArchFamily = ScalerFamily128;
     }
 
     // riscv
     else if #[cfg(all(any(target_arch = "riscv64", target_arch = "riscv32"), target_feature = "v"))] {
         pub const SIMD_WIDTH: usize = 32;
         pub const NUM_SIMD_REG: usize = 32;
-        pub type ArchSimd<T> = SimdVec<T, SseFamily>;
-        pub type ArchMask<T> = SimdMask<T, SseFamily>;
-        pub type ArchFamily = SseFamily;
+        pub type ArchSimd<T> = SimdVec<T, ScalerFamily128>;
+        pub type ArchMask<T> = SimdMask<T, ScalerFamily128>;
+        pub type ArchFamily = ScalerFamily128;
     }
 
     // fallback
     else {
         pub const SIMD_WIDTH: usize = 4;
         pub const NUM_SIMD_REG: usize = 8;
-        pub type ArchSimd<T> = SimdVec<T, SseFamily>;
-        pub type ArchMask<T> = SimdMask<T, SseFamily>;
-        pub type ArchFamily = SseFamily;
+        pub type ArchSimd<T> = SimdVec<T, ScalerFamily128>;
+        pub type ArchMask<T> = SimdMask<T, ScalerFamily128>;
+        pub type ArchFamily = ScalerFamily128;
     }
 }
 

@@ -1,6 +1,6 @@
 use std::{fs, path::Path};
 
-use crate::worley::Worley;
+use crate::cellular::Cellular;
 use crate::{noise::perlin::*, simd::simd_array::SimdArray};
 use crate::noise::simplex::Simplex;
 use crate::noise::value::Value;
@@ -456,7 +456,7 @@ pub fn write_value_height_map_batched(
     println!("Wrote height map to {}!", path.as_ref().display());
 }
 
-pub fn write_worley_height_map_batched(
+pub fn write_cellular_height_map_batched(
     path: impl AsRef<Path>,
     dimension: usize,
     octaves: u32,
@@ -470,7 +470,7 @@ pub fn write_worley_height_map_batched(
         fs::create_dir_all(parent).expect("Failed to create parent");
     }
 
-    let mut worley = Worley::new(0);
+    let mut cellular = Cellular::new(0);
 
     let mut pixels = Vec::<u8>::new();
     pixels.resize(dimension * dimension * MAP_SIZE, 0);
@@ -494,7 +494,7 @@ pub fn write_worley_height_map_batched(
                 }
             }
 
-            worley.batched_2d(
+            cellular.batched_2d(
                 &mut noise,
                 &x_array,
                 &y_array,
@@ -773,7 +773,7 @@ pub fn write_cellular_height_map_batched_3d(
         fs::create_dir_all(parent).expect("Failed to create parent");
     }
 
-    let mut cellular = Worley::new(1);
+    let mut cellular = Cellular::new(1);
 
     let mut pixels = Vec::<u8>::new();
     pixels.resize(dimension * dimension * MAP_SIZE, 0);

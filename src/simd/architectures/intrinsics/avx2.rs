@@ -190,3 +190,8 @@ impl SimdNegateImpl for Avx2 {
     #[inline(always)] fn negate_f64(self) -> Self { Self::splat_64(-0.0f64).xor(self) }
     #[inline(always)] fn negate_f32(self) -> Self { Self::splat_32(-0.0f64).xor(self) }
 }
+
+impl SimdBlockByteShiftImpl for Avx2 {
+    #[inline(always)] fn block_left_byte_shift<const N: i32>(self) -> Self { self_from_const_op!(_mm256_bslli_epi128, N, self) }
+    #[inline(always)] fn block_right_byte_shift<const N: i32>(self) -> Self { self_from_const_op!(_mm256_bsrli_epi128, N, self) }
+}

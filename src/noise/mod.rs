@@ -25,8 +25,8 @@ pub mod value {
     pub use core::Value;
 }
 
-pub mod worley {
+pub mod cellular {
     mod core;
     mod batched;
-    pub use core::Worley;
+    pub use core::Cellular;
 }

@@ -207,3 +207,13 @@ impl<T: SimdElement, F: SimdFamily> SimdClamp for SimdVec<T, F> {
         self.simd_lt(min_vec).select(min_vec, self)
     }
 }
+
+impl<T: SimdElement, F: SimdFamily> SimdBlockByteShift for SimdVec<T, F> {
+    #[inline(always)]
+    fn block_left_byte_shift<const N: i32>(self) -> Self {
+        Self::new(self.data.block_left_byte_shift::<N>())
+    }
+    fn block_right_byte_shift<const N: i32>(self) -> Self {
+        Self::new(self.data.block_right_byte_shift::<N>())
+    }
+}

@@ -485,3 +485,26 @@ impl<const N: usize> SimdNegateImpl for Scalar<N> {
     #[inline(always)] fn negate_f64(self) -> Self { Self::splat_64(-0.0f64).xor(self) }
     #[inline(always)] fn negate_f32(self) -> Self { Self::splat_32(-0.0f64).xor(self) }
 }
+
+impl<const N: usize> SimdBlockByteShiftImpl for Scalar<N> {
+    #[inline(always)] fn block_left_byte_shift<const M: i32>(self) -> Self {
+        let mut new = Self::splat_8(0);
+        for block_start in (0..N).step_by(16) {
+            let block_end = block_start + 16;
+            for i in (block_start + M as usize)..block_end {
+                new.0[i] = self.0[i - M as usize];
+            }
+        }
+        new
+    }
+    #[inline(always)] fn block_right_byte_shift<const M: i32>(self) -> Self {
+        let mut new = Self::splat_8(0);
+        for block_start in (0..N).step_by(16) {
+            let block_end = block_start + 16;
+            for i in block_start..(block_end - M as usize) {
+                new.0[i] = self.0[i + M as usize];
+            }
+        }
+        new
+    }
+}

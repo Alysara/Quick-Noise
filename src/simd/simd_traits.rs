@@ -129,6 +129,11 @@ pub trait SimdClamp: SimdContext {
     fn clamp_max(self, max_value: Self::Element) -> Self;
 }
 
+pub trait SimdBlockByteShift {
+    fn block_left_byte_shift<const N: i32>(self) -> Self;
+    fn block_right_byte_shift<const N: i32>(self) -> Self;
+}
+
 // pub trait SimdGather<T>: SimdContext {
 //     fn gather<S: SimdElement + SimdElement<BitWidth>, const N: usize>(self, slice: &[S; N]) -> SimdVec<S, Self::Family>;
 // }

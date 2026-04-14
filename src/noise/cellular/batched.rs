@@ -1,9 +1,9 @@
-use crate::worley::Worley;
+use crate::cellular::Cellular;
 use crate::simd::simd_array::SimdArray;
 use crate::simd::arch_simd::{ArchSimd};
 use crate::simd::simd_traits::*;
 
-impl Worley {
+impl Cellular {
     pub fn batched_2d(
         &mut self,
         output: &mut SimdArray<f32, 1024>,

@@ -3,7 +3,7 @@ use fastnoise2::Node;
 use quick_noise::perlin::{Octave2D, Octave3D, Perlin, PerlinMap, PerlinVol};
 use quick_noise::simplex::Simplex;
 use quick_noise::value::Value;
-use quick_noise::worley::Worley;
+use quick_noise::cellular::Cellular;
 const SCALES: [f32; 11] = [64.0, 48.0, 32.0, 24.0, 16.0, 12.0, 8.0, 6.0, 4.0, 3.0, 2.0];
 
 fn perlin_2d_benchmark(c: &mut Criterion) {
@@ -91,12 +91,12 @@ fn value_2d_benchmark_batch(c: &mut Criterion) {
 }
 
 
-fn worley_2d_benchmark_batch(c: &mut Criterion) {
-    let mut group = c.benchmark_group("worley_noise_2d_batch");
+fn cellular_2d_benchmark_batch(c: &mut Criterion) {
+    let mut group = c.benchmark_group("cellular_noise_2d_batch");
     let scale = 1.0 / 32.0;
     group.throughput(Throughput::Elements(1024)); 
     group.bench_function(format!("scale: {scale}"), |b| {
-        let mut worley = Worley::new(0);
+        let mut cellular = Cellular::new(0);
         let mut x_array = PerlinMap::new_uninit();
         let mut y_array = PerlinMap::new_uninit();
         let mut output = PerlinMap::new_uninit();
@@ -108,7 +108,7 @@ fn worley_2d_benchmark_batch(c: &mut Criterion) {
         }
 
         b.iter(|| {
-            worley.batched_2d(&mut output, &x_array, &y_array, scale, 1.0, 1, 0.0)
+            cellular.batched_2d(&mut output, &x_array, &y_array, scale, 1.0, 1, 0.0)
         });
     });
 }
@@ -173,7 +173,7 @@ fn cellular_3d_benchmark_batch(c: &mut Criterion) {
     let scale = 32.0;
     group.throughput(Throughput::Elements(32768)); 
     group.bench_function(format!("scale: {scale}"), |b| {
-        let mut cellular = Worley::new(0);
+        let mut cellular = Cellular::new(0);
         let mut x_array = PerlinVol::new_uninit();
         let mut y_array = PerlinVol::new_uninit();
         let mut z_array = PerlinVol::new_uninit();
@@ -488,7 +488,7 @@ criterion_group!(benches, perlin_2d_benchmark, perlin_3d_benchmark, perlin_2d_be
 // criterion_group!(benches, perlin_2d_benchmark_batch, perlin_2d_benchmark_fn2, perlin_3d_benchmark_batch, perlin_3d_benchmark_fn2);
 // criterion_group!(benches, simplex_2d_benchmark_batch, simplex_2d_benchmark_fn2);
 // criterion_group!(benches, value_2d_benchmark_batch, perlin_2d_benchmark_batch, simplex_2d_benchmark_batch);
-// criterion_group!(benches, worley_2d_benchmark_batch, cellular_2d_benchmark_fn2);
+// criterion_group!(benches, cellular_2d_benchmark_batch, cellular_2d_benchmark_fn2);
 // criterion_group!(benches, cellular_3d_benchmark_batch, cellular_3d_benchmark_fn2);
 // criterion_group!(benches, value_3d_benchmark_batch, value_3d_benchmark_fn2);
 // criterion_group!(benches, simplex_3d_benchmark_batch, simplex_3d_benchmark_fn2);

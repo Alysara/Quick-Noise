@@ -127,6 +127,7 @@ pub trait SimdArch:
     SimdGatherImpl +
     SimdSqrtImpl +
     SimdNegateImpl +
+    SimdBlockByteShiftImpl +
 {}
 
 pub trait MaskArch:
@@ -335,4 +336,9 @@ pub trait SimdAllBitsImpl {
 pub trait SimdNegateImpl {
     fn negate_f64(self) -> Self;
     fn negate_f32(self) -> Self;
+}
+
+pub trait SimdBlockByteShiftImpl {
+    fn block_right_byte_shift<const N: i32>(self) -> Self;
+    fn block_left_byte_shift<const N: i32>(self) -> Self;
 }
