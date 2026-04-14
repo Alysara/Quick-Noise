@@ -240,6 +240,8 @@ impl SimdBlockByteShiftImpl for Neon {
     // Stabilize const generic expr plssssss.
     #[inline(always)]
     fn block_left_byte_shift<const N: i32>(self) -> Self {
+        const _: () = assert!(N >= 0 && N <= 16);
+        
         match N {
             0 => self,
             1 => self_from_const_op!(vextq_u8, 15, Self::zero(), self),
