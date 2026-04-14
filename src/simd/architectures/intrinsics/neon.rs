@@ -262,6 +262,6 @@ impl SimdBlockByteShiftImpl for Neon {
         }
     }
     #[inline(always)] fn block_right_byte_shift<const N: i32>(self) -> Self {
-        self_from_const_op!(N, vextq_u8, self, Self::zero())
+        self_from_const_op!(vextq_u8, N, self, Self::zero())
     }
 }
