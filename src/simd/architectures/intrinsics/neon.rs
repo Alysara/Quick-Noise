@@ -230,11 +230,11 @@ impl SimdNegateImpl for Neon {
     #[inline(always)] fn negate_f32(self) -> Self { self_from_op!(vnegq_f32, self) }
 }
 
-impl SimdLaneShiftImpl for Neon {
-    #[inline(always)] fn lane_shift_left<const N: i32>(self) -> Self {
-        self_from_const_op!(vextq_u8, vdupq_n_u8(0), self, 16 - N)
+impl SimdBlockByteShiftImpl for Neon {
+    #[inline(always)] fn block_left_byte_shift<const N: i32>(self) -> Self {
+        self_from_op!(vextq_u8, vdupq_n_u8(0), self, 16 - N)
     }
-    #[inline(always)] fn lane_shift_right<const N: i32>(self) -> Self {
-        self_from_const_op!(vextq_u8, self, vdupq_n_u8(0), N)
+    #[inline(always)] fn block_right_byte_shift<const N: i32>(self) -> Self {
+        self_from_op!(vextq_u8, self, vdupq_n_u8(0), N)
     }
 }
