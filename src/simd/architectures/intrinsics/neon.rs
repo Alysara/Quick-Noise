@@ -230,34 +230,30 @@ impl SimdNegateImpl for Neon {
     #[inline(always)] fn negate_f32(self) -> Self { self_from_op!(vnegq_f32, self) }
 }
 
-const fn sixteen_minus_n<const N: i32>() -> i32 {
-    match N {
-        0=>16, 1=>15, 2=>14
-    }
-}
-
 impl SimdBlockByteShiftImpl for Neon {
     // Stabilize const generic expr plssssss.
     #[inline(always)]
     fn block_left_byte_shift<const N: i32>(self) -> Self {
-        const _: () = assert!(N >= 0 && N <= 16);
-        if N == 0 { self }
-        else if N == 1 { self_from_const_op!(vextq_u8, 15, Self::zero(), self) }
-        else if N == 2 { self_from_const_op!(vextq_u8, 14, Self::zero(), self) }
-        else if N == 3 { self_from_const_op!(vextq_u8, 13, Self::zero(), self) }
-        else if N == 4 { self_from_const_op!(vextq_u8, 12, Self::zero(), self) }
-        else if N == 5 { self_from_const_op!(vextq_u8, 11, Self::zero(), self) }
-        else if N == 6 { self_from_const_op!(vextq_u8, 10, Self::zero(), self) }
-        else if N == 7 { self_from_const_op!(vextq_u8, 9, Self::zero(), self) }
-        else if N == 8 { self_from_const_op!(vextq_u8, 8, Self::zero(), self) }
-        else if N == 9 { self_from_const_op!(vextq_u8, 7, Self::zero(), self) }
-        else if N == 10 { self_from_const_op!(vextq_u8, 6, Self::zero(), self) }
-        else if N == 11 { self_from_const_op!(vextq_u8, 5, Self::zero(), self) }
-        else if N == 12 { self_from_const_op!(vextq_u8, 4, Self::zero(), self) }
-        else if N == 13 { self_from_const_op!(vextq_u8, 3, Self::zero(), self) }
-        else if N == 14 { self_from_const_op!(vextq_u8, 2, Self::zero(), self) }
-        else if N == 15 { self_from_const_op!(vextq_u8, 1, Self::zero(), self) }
-        else { Self::zero() }
+        match N {
+            0 => self,
+            1 => self_from_const_op!(vextq_u8, 15, Self::zero(), self),
+            2 => self_from_const_op!(vextq_u8, 14, Self::zero(), self),
+            3 => self_from_const_op!(vextq_u8, 13, Self::zero(), self),
+            4 => self_from_const_op!(vextq_u8, 12, Self::zero(), self),
+            5 => self_from_const_op!(vextq_u8, 11, Self::zero(), self),
+            6 => self_from_const_op!(vextq_u8, 10, Self::zero(), self),
+            7 => self_from_const_op!(vextq_u8, 9, Self::zero(), self),
+            8 => self_from_const_op!(vextq_u8, 8, Self::zero(), self),
+            9 => self_from_const_op!(vextq_u8, 7, Self::zero(), self),
+            10 => self_from_const_op!(vextq_u8, 6, Self::zero(), self),
+            11 => self_from_const_op!(vextq_u8, 5, Self::zero(), self),
+            12 => self_from_const_op!(vextq_u8, 4, Self::zero(), self),
+            13 => self_from_const_op!(vextq_u8, 3, Self::zero(), self),
+            14 => self_from_const_op!(vextq_u8, 2, Self::zero(), self),
+            15 => self_from_const_op!(vextq_u8, 1, Self::zero(), self),
+            16 => Self::zero(),
+            _ => unreachable!(),
+        }
     }
     #[inline(always)] fn block_right_byte_shift<const N: i32>(self) -> Self {
         self_from_const_op!(vextq_u8, N, self, Self::zero())
