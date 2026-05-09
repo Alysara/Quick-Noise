@@ -121,40 +121,43 @@ impl SimdVariableBlendImpl for Neon {
 impl SimdImmediateBlendImpl for Neon {
     #[inline(always)]
     fn blend_64<const N: i32>(self, false_values: Self) -> Self {
-        const MASK: [u64; 2] = match N {
-            0b00 => [0, 0],
-            0b01 => [0xFFFFFFFFFFFFFFFF, 0],
-            0b10 => [0, 0xFFFFFFFFFFFFFFFF],
-            0b11 => [0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF],
-            _ => unreachable!(),
-        };
-        let mask = Self(transmute(vld1q_u64(MASK.as_ptr())));
+        const { assert!(N < 4, "N must be less than 4"); }
+        
+        const MASKS: [[u64; 2]; 4] = [
+            [0, 0],
+            [0xFFFFFFFFFFFFFFFF, 0],
+            [0, 0xFFFFFFFFFFFFFFFF],
+            [0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF],
+        ];
+
+        let mask = Self(transmute(vld1q_u64(MASKS[N as usize].as_ptr())));
         mask.vblend_64(self, false_values)
     }
     
     #[inline(always)]
     fn blend_32<const N: i32>(self, false_values: Self) -> Self {
-        const MASK: [u32; 4] = match N {
-            0b0000 => [0, 0, 0, 0],
-            0b0001 => [0xFFFFFFFF, 0, 0, 0],
-            0b0010 => [0, 0xFFFFFFFF, 0, 0],
-            0b0011 => [0xFFFFFFFF, 0xFFFFFFFF, 0, 0],
-            0b0100 => [0, 0, 0xFFFFFFFF, 0],
-            0b0101 => [0xFFFFFFFF, 0, 0xFFFFFFFF, 0],
-            0b0110 => [0, 0xFFFFFFFF, 0xFFFFFFFF, 0],
-            0b0111 => [0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0],
-            0b1000 => [0, 0, 0, 0xFFFFFFFF],
-            0b1001 => [0xFFFFFFFF, 0, 0, 0xFFFFFFFF],
-            0b1010 => [0, 0xFFFFFFFF, 0, 0xFFFFFFFF],
-            0b1011 => [0xFFFFFFFF, 0xFFFFFFFF, 0, 0xFFFFFFFF],
-            0b1100 => [0, 0, 0xFFFFFFFF, 0xFFFFFFFF],
-            0b1101 => [0xFFFFFFFF, 0, 0xFFFFFFFF, 0xFFFFFFFF],
-            0b1110 => [0, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF],
-            0b1111 => [0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF],
-            _ => unreachable!(),
-        };
+        const { assert!(N < 16, "N must be less than 16"); }
 
-        let mask = Self(transmute(vld1q_u32(MASK.as_ptr())));
+        const MASKS: [[u32; 4]; 16] = [
+            [0, 0, 0, 0],
+            [0xFFFFFFFF, 0, 0, 0],
+            [0, 0xFFFFFFFF, 0, 0],
+            [0xFFFFFFFF, 0xFFFFFFFF, 0, 0],
+            [0, 0, 0xFFFFFFFF, 0],
+            [0xFFFFFFFF, 0, 0xFFFFFFFF, 0],
+            [0, 0xFFFFFFFF, 0xFFFFFFFF, 0],
+            [0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0],
+            [0, 0, 0, 0xFFFFFFFF],
+            [0xFFFFFFFF, 0, 0, 0xFFFFFFFF],
+            [0, 0xFFFFFFFF, 0, 0xFFFFFFFF],
+            [0xFFFFFFFF, 0xFFFFFFFF, 0, 0xFFFFFFFF],
+            [0, 0, 0xFFFFFFFF, 0xFFFFFFFF],
+            [0xFFFFFFFF, 0, 0xFFFFFFFF, 0xFFFFFFFF],
+            [0, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF],
+            [0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF],
+        ];
+
+        let mask = Self(transmute(vld1q_u32(MASKS[N].as_ptr())));
         mask.vblend_32(self, false_values)
     }
 }
@@ -271,7 +274,7 @@ impl SimdNegateImpl for Neon {
     #[inline(always)] fn negate_f32(self) -> Self { self_from_op!(vnegq_f32, self) }
 }
 
-impl SimdBlockByteShiftImpl for Neon {
+impl SimdBlockShiftImpl for Neon {
     // Stabilize const generic expr plssssss.
     #[inline(always)]
     fn block_left_byte_shift<const N: i32>(self) -> Self {
