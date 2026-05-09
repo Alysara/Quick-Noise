@@ -130,10 +130,10 @@ impl SimdImmediateBlendImpl for Neon {
             [0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF],
         ];
 
-        let mask = Self(transmute(vld1q_u64(MASKS[N as usize].as_ptr())));
+        let mask = self_from_op!(vld1q_u64, MASKS[N as usize].as_ptr());
         mask.vblend_64(self, false_values)
     }
-    
+
     #[inline(always)]
     fn blend_32<const N: i32>(self, false_values: Self) -> Self {
         const { assert!(N < 16, "N must be less than 16"); }
@@ -157,7 +157,7 @@ impl SimdImmediateBlendImpl for Neon {
             [0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF],
         ];
 
-        let mask = Self(transmute(vld1q_u32(MASKS[N].as_ptr())));
+        let mask = self_from_op!(vld1q_u32, MASKS[N as usize].as_ptr());
         mask.vblend_32(self, false_values)
     }
 }
@@ -313,8 +313,8 @@ impl SimdMaskBitConversion for Neon {
         unsafe {
             let single_bits = execute_intrinsic!(vshrq_n_u32, self, 31);
             let iota = vld1q_u32([0, 1, 2, 3].as_ptr());
-            let shifted = vshlq_u32(single_bits, iota);
-            vaddvq_u32(shifted)
+            let shifted = vshlq_u32(single_bits, transmute(iota));
+            vaddvq_u32(shifted).into()
         }
     }
     #[inline(always)] fn to_bits_8(self) -> u64 {
