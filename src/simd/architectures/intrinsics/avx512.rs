@@ -13,8 +13,6 @@ impl SimdArch for Avx512 {
 pub struct Avx512Mask(pub __mmask64);
 impl MaskArch for Avx512Mask {}
 
-
-
 impl SimdAddImpl for Avx512 {
     #[inline(always)] fn f64_add(self, rhs: Self) -> Self { self_from_op!(_mm512_add_pd, self, rhs) }
     #[inline(always)] fn f32_add(self, rhs: Self) -> Self { self_from_op!(_mm512_add_ps, self, rhs) }
@@ -112,6 +110,18 @@ impl SimdVariableBlendImpl for Avx512Mask {
         unsafe { Avx512(transmute(execute_intrinsic!(_mm512_mask_blend_epi8, self, false_values, true_values))) }
     }
 }
+
+impl SimdImmediateBlendImpl for Avx512 {
+    #[inline(always)] fn blend_64<const N: i32>(self, false_values: Self) -> Self {
+        let mask = Avx512Mask(N as u64);
+        mask.vblend_64(self, false_values)
+    }
+    #[inline(always)] fn blend_32<const N: i32>(self, false_values: Self) -> Self {
+        let mask = Avx512Mask(N as u64);
+        mask.vblend_32(self, false_values)
+    }
+}
+
 
 impl SimdMulAddImpl for Avx512 {
     #[inline(always)] fn mul_add_f64(self, mult: Self, add: Self) -> Self { self_from_op!(_mm512_fmadd_pd, self, mult, add) }
@@ -212,7 +222,13 @@ impl SimdNegateImpl for Avx512 {
     #[inline(always)] fn negate_f32(self) -> Self { Self::splat_32(-0.0f64).xor(self) }
 }
 
-impl SimdBlockByteShiftImpl for Avx512 {
+impl SimdBlockShiftImpl for Avx512 {
     #[inline(always)] fn block_left_byte_shift<const N: i32>(self) -> Self { self_from_const_op!(_mm512_bslli_epi128, N, self) }
     #[inline(always)] fn block_right_byte_shift<const N: i32>(self) -> Self { self_from_const_op!(_mm512_bsrli_epi128, N, self) }
+}
+
+impl SimdMaskBitConversion for Avx512Mask {
+    #[inline(always)] fn to_bits_64(self) -> u64 { self.0 as u64 }
+    #[inline(always)] fn to_bits_32(self) -> u64 { self.0 as u64 }
+    #[inline(always)] fn to_bits_8(self) -> u64 { self.0 as u64 }
 }

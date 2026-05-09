@@ -118,6 +118,47 @@ impl SimdVariableBlendImpl for Neon {
     #[inline(always)] fn vblend_8(self, true_values: Self, false_values: Self) -> Self { self_from_op!(vbslq_u8, self, true_values, false_values) }
 }
 
+impl SimdImmediateBlendImpl for Neon {
+    #[inline(always)]
+    fn blend_64<const N: i32>(self, false_values: Self) -> Self {
+        const MASK: [u64; 2] = match N {
+            0b00 => [0, 0],
+            0b01 => [0xFFFFFFFFFFFFFFFF, 0],
+            0b10 => [0, 0xFFFFFFFFFFFFFFFF],
+            0b11 => [0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF],
+            _ => unreachable!(),
+        };
+        let mask = Self(transmute(vld1q_u64(MASK.as_ptr())));
+        mask.vblend_64(self, false_values)
+    }
+    
+    #[inline(always)]
+    fn blend_32<const N: i32>(self, false_values: Self) -> Self {
+        const MASK: [u32; 4] = match N {
+            0b0000 => [0, 0, 0, 0],
+            0b0001 => [0xFFFFFFFF, 0, 0, 0],
+            0b0010 => [0, 0xFFFFFFFF, 0, 0],
+            0b0011 => [0xFFFFFFFF, 0xFFFFFFFF, 0, 0],
+            0b0100 => [0, 0, 0xFFFFFFFF, 0],
+            0b0101 => [0xFFFFFFFF, 0, 0xFFFFFFFF, 0],
+            0b0110 => [0, 0xFFFFFFFF, 0xFFFFFFFF, 0],
+            0b0111 => [0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0],
+            0b1000 => [0, 0, 0, 0xFFFFFFFF],
+            0b1001 => [0xFFFFFFFF, 0, 0, 0xFFFFFFFF],
+            0b1010 => [0, 0xFFFFFFFF, 0, 0xFFFFFFFF],
+            0b1011 => [0xFFFFFFFF, 0xFFFFFFFF, 0, 0xFFFFFFFF],
+            0b1100 => [0, 0, 0xFFFFFFFF, 0xFFFFFFFF],
+            0b1101 => [0xFFFFFFFF, 0, 0xFFFFFFFF, 0xFFFFFFFF],
+            0b1110 => [0, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF],
+            0b1111 => [0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF],
+            _ => unreachable!(),
+        };
+
+        let mask = Self(transmute(vld1q_u32(MASK.as_ptr())));
+        mask.vblend_32(self, false_values)
+    }
+}
+
 impl SimdMulAddImpl for Neon {
     #[inline(always)] fn mul_add_f64(self, mult: Self, add: Self) -> Self { self_from_op!(vfmaq_f64, add, self, mult) }
     #[inline(always)] fn mul_sub_f64(self, mult: Self, sub: Self) -> Self { self_from_op!(vfmsq_f64, sub, self, mult).negate_f64() }
@@ -257,5 +298,23 @@ impl SimdBlockByteShiftImpl for Neon {
     }
     #[inline(always)] fn block_right_byte_shift<const N: i32>(self) -> Self {
         self_from_const_op!(vextq_u8, N, self, Self::zero())
+    }
+}
+
+// TODO: Add to_bits for other bit sizes for NEON.
+impl SimdMaskBitConversion for Neon {
+    #[inline(always)] fn to_bits_64(self) -> u64 {
+        0u64 
+    }
+    #[inline(always)] fn to_bits_32(self) -> u64 {
+        unsafe {
+            let single_bits = execute_intrinsic!(vshrq_n_u32, self, 31);
+            let iota = vld1q_u32([0, 1, 2, 3].as_ptr());
+            let shifted = vshlq_u32(single_bits, iota);
+            vaddvq_u32(shifted)
+        }
+    }
+    #[inline(always)] fn to_bits_8(self) -> u64 {
+        0u64
     }
 }

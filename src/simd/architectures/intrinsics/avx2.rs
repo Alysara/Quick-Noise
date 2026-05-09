@@ -100,6 +100,11 @@ impl SimdVariableBlendImpl for Avx2 {
     #[inline(always)] fn vblend_8(self, true_values: Self::VecType, false_values: Self::VecType) -> Self::VecType { self_from_op!(_mm256_blendv_epi8, false_values, true_values, self) }
 }
 
+impl SimdImmediateBlendImpl for Avx2 {
+    #[inline(always)] fn blend_64<const N: i32>(self, false_values: Self) -> Self { self_from_const_op!(_mm256_blend_pd, N, false_values, self) }
+    #[inline(always)] fn blend_32<const N: i32>(self, false_values: Self) -> Self { self_from_const_op!(_mm256_blend_ps, N, false_values, self) }
+}
+
 impl SimdMulAddImpl for Avx2 {
     #[inline(always)] fn mul_add_f64(self, mult: Self, add: Self) -> Self { self_from_op!(_mm256_fmadd_pd, self, mult, add) }
     #[inline(always)] fn mul_sub_f64(self, mult: Self, sub: Self) -> Self { self_from_op!(_mm256_fmsub_pd, self, mult, sub) }
@@ -191,7 +196,13 @@ impl SimdNegateImpl for Avx2 {
     #[inline(always)] fn negate_f32(self) -> Self { Self::splat_32(-0.0f64).xor(self) }
 }
 
-impl SimdBlockByteShiftImpl for Avx2 {
+impl SimdBlockShiftImpl for Avx2 {
     #[inline(always)] fn block_left_byte_shift<const N: i32>(self) -> Self { self_from_const_op!(_mm256_bslli_epi128, N, self) }
     #[inline(always)] fn block_right_byte_shift<const N: i32>(self) -> Self { self_from_const_op!(_mm256_bsrli_epi128, N, self) }
+}
+
+impl SimdMaskBitConversion for Avx2 {
+    #[inline(always)] fn to_bits_64(self) -> u64 { execute_intrinsic!(_mm256_movemask_pd, self) as u64 }
+    #[inline(always)] fn to_bits_32(self) -> u64 { execute_intrinsic!(_mm256_movemask_ps, self) as u64 }
+    #[inline(always)] fn to_bits_8(self) -> u64 { execute_intrinsic!(_mm256_movemask_epi8, self) as u64 }
 }

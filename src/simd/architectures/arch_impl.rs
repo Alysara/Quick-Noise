@@ -127,7 +127,8 @@ pub trait SimdArch:
     SimdGatherImpl +
     SimdSqrtImpl +
     SimdNegateImpl +
-    SimdBlockByteShiftImpl +
+    SimdBlockShiftImpl +
+    SimdImmediateBlendImpl +
 {}
 
 pub trait MaskArch:
@@ -136,6 +137,7 @@ pub trait MaskArch:
     SimdBitwiseImpl +
     SimdAllBitsImpl +
     SimdVariableBlendImpl +
+    SimdMaskBitConversion +
 {}
 
 // === Arithmetic ===
@@ -247,6 +249,10 @@ pub trait SimdVariableBlendImpl {
     fn vblend_8(self, true_values: Self::VecType, false_values: Self::VecType) -> Self::VecType;
 }
 
+pub trait SimdImmediateBlendImpl {
+    fn blend_64<const N: i32>(self, false_values: Self) -> Self;
+    fn blend_32<const N: i32>(self, false_values: Self) -> Self;
+}
 pub trait SimdMulAddImpl {
     fn mul_add_f64(self, mult: Self, add: Self) -> Self;
     fn mul_sub_f64(self, mult: Self, sub: Self) -> Self;
@@ -338,7 +344,23 @@ pub trait SimdNegateImpl {
     fn negate_f32(self) -> Self;
 }
 
-pub trait SimdBlockByteShiftImpl {
+pub trait SimdBlockShiftImpl {
     fn block_right_byte_shift<const N: i32>(self) -> Self;
     fn block_left_byte_shift<const N: i32>(self) -> Self;
 }
+
+// TODO: Add to_bits_16 and from_bits.
+pub trait SimdMaskBitConversion {
+    fn to_bits_64(self) -> u64;
+    fn to_bits_32(self) -> u64;
+    // fn to_bits_16(self) -> u64;
+    fn to_bits_8(self) -> u64;
+    // fn from_bits_64() -> Self;
+    // fn from_bits_32() -> Self;
+    // fn from_bits_16() -> Self;
+    // fn from_bits_8() -> Self;
+}
+// pub trait SimdLaneShiftImpl {
+//     fn right_lane_shift_32<const N: i32>(self) -> Self;
+//     fn left_lane_shift_32<const N: i32>(self) -> Self;
+// }

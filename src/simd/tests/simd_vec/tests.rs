@@ -32,8 +32,24 @@ simd_vec_test!(zero_test, || -> u32 { SimdVec::zero() });
 
 
 // === Permutes ===
-simd_vec_tests!(blend_32_test, [[f32, f32 -> f32]], |x, y| {
+simd_vec_tests!(vblend_32_test, [[f32, f32 -> f32]], |x, y| {
     (x.simd_gt(y)).select(x, y)
+});
+
+simd_vec_tests!(blend_32_test_1, [[f32, f32 -> f32]], |x, y| {
+    x.blend::<0b0110>(y)
+});
+
+simd_vec_tests!(blend_32_test_2, [[f32, f32 -> f32]], |x, y| {
+    x.blend::<0b1001>(y)
+});
+
+simd_vec_tests!(blend_32_test_3, [[f32, f32 -> f32]], |x, y| {
+    x.blend::<0b1010>(y)
+});
+
+simd_vec_tests!(to_bits_test, [[f32, f32 -> f32]], |x, y| {
+    SimdVec::splat(x.simd_gt(y).to_bits() as f32)
 });
 
 simd_vec_tests!(permute_32_test, [[f32, u32 -> f32], [i32, u32 -> i32], [u32, u32 -> u32]], |x, y| {

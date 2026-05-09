@@ -213,7 +213,78 @@ impl<T: SimdElement, F: SimdFamily> SimdBlockByteShift for SimdVec<T, F> {
     fn block_left_byte_shift<const N: i32>(self) -> Self {
         Self::new(self.data.block_left_byte_shift::<N>())
     }
+    #[inline(always)]
     fn block_right_byte_shift<const N: i32>(self) -> Self {
         Self::new(self.data.block_right_byte_shift::<N>())
     }
 }
+
+impl<T: SimdElement, F: SimdFamily> SimdImmediateBlend for SimdVec<T, F> {
+    #[inline(always)]
+    fn blend<const N: i32>(self, false_values: Self) -> Self {
+        match T::BIT_SIZE {
+            BitSize::Size64 => Self::new(self.data.blend_32::<N>(false_values.data)),
+            BitSize::Size32 => Self::new(self.data.blend_32::<N>(false_values.data)),
+            _ => unreachable!() // TODO: Add 16 and 8 for immediate blend.
+        }
+    }
+}
+
+// // Lack of const expr requires explicit declaration of every case.
+// impl<T: SimdElement, F: SimdFamily> SimdLaneShift for SimdVec<T, F> {
+//     fn left_lane_shift<const N: i32>(self) -> Self {
+//         if Self::SIMD_WIDTH == 16 {
+//             match T::BIT_SIZE {
+//                 BitSize::Size8 => self.block_left_byte_shift::<N>(),
+//                 BitSize::Size16 => {
+//                     match N {
+//                         0 => self,
+//                         1 => self.block_left_byte_shift::<2>(),
+//                         2 => self.block_left_byte_shift::<4>(),
+//                         3 => self.block_left_byte_shift::<6>(),
+//                         4 => self.block_left_byte_shift::<8>(),
+//                         5 => self.block_left_byte_shift::<10>(),
+//                         6 => self.block_left_byte_shift::<12>(),
+//                         7 => self.block_left_byte_shift::<14>(),
+//                         8 => self.block_left_byte_shift::<16>(),
+//                         9 => self.block_left_byte_shift::<18>(),
+//                         10 => self.block_left_byte_shift::<20>(),
+//                         11 => self.block_left_byte_shift::<22>(),
+//                         12 => self.block_left_byte_shift::<24>(),
+//                         13 => self.block_left_byte_shift::<26>(),
+//                         14 => self.block_left_byte_shift::<28>(),
+//                         15 => self.block_left_byte_shift::<30>(),
+//                         _ => Self::zero(), // Zero out large shifts.
+//                     }
+//                 }
+//                 BitSize::Size32 => {
+//                     match N {
+//                         0 => self,
+//                         1 => self.block_left_byte_shift::<4>(),
+//                         2 => self.block_left_byte_shift::<8>(),
+//                         3 => self.block_left_byte_shift::<12>(),
+//                         4 => self.block_left_byte_shift::<16>(),
+//                         5 => self.block_left_byte_shift::<20>(),
+//                         6 => self.block_left_byte_shift::<24>(),
+//                         7 => self.block_left_byte_shift::<28>(),
+//                         _ => Self::zero(), // Zero out large shifts.
+//                     }
+//                 },
+//                 BitSize::Size64 => {
+//                     match N {
+//                         0 => self,
+//                         1 => self.block_left_byte_shift::<8>(),
+//                         2 => self.block_left_byte_shift::<16>(),
+//                         3 => self.block_left_byte_shift::<24>(),
+//                         _ => Self::zero(), // Zero out large shifts.
+//                     }
+//                 }
+//             }
+//         } else if Self::SIMD_WIDTH == 32 {
+
+//         }
+//     }
+//     fn right_lane_shift<const N: i32>(self) -> Self {
+        
+//     }
+// }

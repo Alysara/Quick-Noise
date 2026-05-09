@@ -363,6 +363,35 @@ impl<const N: usize> SimdVariableBlendImpl for ScalarMask<N> {
     }
 }
 
+impl<const M: usize> SimdImmediateBlendImpl for Scalar<M> {
+    #[inline(always)] fn blend_64<const N: i32>(self, false_values: Self) -> Self { 
+        unsafe {
+            let mut new = Scalar::<M>([0; M]);
+            let new_ptr = new.0.as_mut_ptr() as *mut u64;
+            let false_ptr = false_values.0.as_ptr() as *const u64;
+            let true_ptr = self.0.as_ptr() as *const u64;
+            for i in 0..(M >> 3) {
+                let cond = ((N >> i) & 1) == 1;
+                *new_ptr.add(i) = if cond { *true_ptr.add(i) } else { *false_ptr.add(i) };
+            }
+            new
+        }
+    }
+    #[inline(always)] fn blend_32<const N: i32>(self, false_values: Self) -> Self {
+        unsafe {
+            let mut new = Scalar::<M>([0; M]);
+            let new_ptr = new.0.as_mut_ptr() as *mut u32;
+            let false_ptr = false_values.0.as_ptr() as *const u32;
+            let true_ptr = self.0.as_ptr() as *const u32;
+            for i in 0..(M >> 2) {
+                let cond = ((N >> i) & 1) == 1;
+                *new_ptr.add(i) = if cond { *true_ptr.add(i) } else { *false_ptr.add(i) };
+            }
+            new
+        }
+    }
+}
+
 impl<const N: usize> SimdMulAddImpl for Scalar<N> {
     #[inline(always)] fn mul_add_f64(self, mult: Self, add: Self) -> Self { scalar_fma_expr_op!(f64, self, mult, add, N, |a, b, c| f64::mul_add(a, b, c)) }
     #[inline(always)] fn mul_sub_f64(self, mult: Self, sub: Self) -> Self { scalar_fma_expr_op!(f64, self, mult, sub, N, |a, b, c| f64::mul_add(a, b, -c)) }
@@ -486,7 +515,7 @@ impl<const N: usize> SimdNegateImpl for Scalar<N> {
     #[inline(always)] fn negate_f32(self) -> Self { Self::splat_32(-0.0f64).xor(self) }
 }
 
-impl<const N: usize> SimdBlockByteShiftImpl for Scalar<N> {
+impl<const N: usize> SimdBlockShiftImpl for Scalar<N> {
     #[inline(always)] fn block_left_byte_shift<const M: i32>(self) -> Self {
         let mut new = Self::splat_8(0);
         for block_start in (0..N).step_by(16) {
@@ -506,5 +535,29 @@ impl<const N: usize> SimdBlockByteShiftImpl for Scalar<N> {
             }
         }
         new
+    }
+}
+
+impl<const N: usize> SimdMaskBitConversion for ScalarMask<N> {
+    #[inline(always)] fn to_bits_64(self) -> u64 {
+        let mut bits = 0u64;
+        for i in 0..(N >> 3) {
+            bits ^= (self.0[i] as u64) << i
+        }
+        bits
+    }
+    #[inline(always)] fn to_bits_32(self) -> u64 {
+        let mut bits = 0u64;
+        for i in 0..(N >> 2) {
+            bits ^= (self.0[i] as u64) << i
+        }
+        bits
+    }
+    #[inline(always)] fn to_bits_8(self) -> u64 {
+        let mut bits = 0u64;
+        for i in 0..N {
+            bits ^= (self.0[i] as u64) << i
+        }
+        bits
     }
 }

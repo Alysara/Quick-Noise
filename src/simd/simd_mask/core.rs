@@ -90,3 +90,14 @@ impl<T: SimdElement, F: SimdFamily> SimdSelect for SimdMask<T, F> {
         }
     }
 }
+
+impl<T: SimdElement, F: SimdFamily> SimdMaskToBits for SimdMask<T, F> {
+    fn to_bits(self) -> u64 {
+        match T::BIT_SIZE {
+            BitSize::Size64 => self.data.to_bits_64(),
+            BitSize::Size32 => self.data.to_bits_32(),
+            BitSize::Size8 => self.data.to_bits_8(),
+            _ => unreachable!() // TODO: Add to_bits_16.
+        }
+    }
+}

@@ -115,6 +115,10 @@ pub trait SimdSelect: SimdContext {
     ) -> SimdVec<Self::Element,Self::Family>;
 }
 
+pub trait SimdMaskToBits {
+    fn to_bits(self) -> u64;
+}
+
 pub trait SimdSqrt {
     fn sqrt(self) -> Self;
 }
@@ -133,6 +137,15 @@ pub trait SimdBlockByteShift {
     fn block_left_byte_shift<const N: i32>(self) -> Self;
     fn block_right_byte_shift<const N: i32>(self) -> Self;
 }
+
+pub trait SimdImmediateBlend {
+    fn blend<const N: i32>(self, false_values: Self) -> Self;
+}
+
+// pub trait SimdLaneShift {
+//     fn left_lane_shift<const N: i32>(self) -> Self;
+//     fn right_lane_shift<const N: i32>(self) -> Self;
+// }
 
 // pub trait SimdGather<T>: SimdContext {
 //     fn gather<S: SimdElement + SimdElement<BitWidth>, const N: usize>(self, slice: &[S; N]) -> SimdVec<S, Self::Family>;
