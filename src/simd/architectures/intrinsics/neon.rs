@@ -311,7 +311,7 @@ impl SimdMaskBitConversion for Neon {
     }
     #[inline(always)] fn to_bits_32(self) -> u64 {
         unsafe {
-            let single_bits = execute_intrinsic!(vshrq_n_u32, self, 31);
+            let single_bits = vshrq_n_u32::<31>(transmute(self.0));
             let iota = vld1q_u32([0, 1, 2, 3].as_ptr());
             let shifted = vshlq_u32(single_bits, transmute(iota));
             vaddvq_u32(shifted).into()
