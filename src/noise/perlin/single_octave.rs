@@ -3,8 +3,12 @@ use crate::noise::perlin::constants::*;
 use crate::noise::perlin::containers::*;
 use crate::math::vec::{Vec2, Vec3};
 use crate::simd::simd_array::SimdArray;
+use crate::simd::arch_simd::{ArchSimd, ArchMask};
+use crate::simd::simd_traits::SimdPartialOrd;
+use crate::simd::simd_traits::SimdMaskToBits;
+
 impl Perlin {
-    // #[inline(never)]
+    #[inline(never)]
     pub(super) fn uniform_grid_octave_2d<const INITIALIZE: bool>(
         &mut self,
         result: &mut PerlinMap,
@@ -19,13 +23,13 @@ impl Perlin {
         let weight: f32 = octave.weight * weight_coef;
 
         // Get the starting gradient coordinates and how far the first sample is to the next one.
-        let grid_start: Vec2<i32> = ((block_pos + 1).as_f32() * increment + LO_EPSILON as f32).floor().as_i32();
+        let grid_start: Vec2<i32> = (block_pos.as_f32() * increment).floor().as_i32();
         let frac_start: Vec2<f32> = (block_pos.as_f32() * increment - grid_start.as_f32()).float_max(Vec2::splat(0.0));
 
         // Get the distances from the gradient gridpoints.
         let distances: PerlinVecPair = PerlinVecPair {
-            x: PerlinVec::iota_custom(frac_start.x + LO_EPSILON as f32, increment.x).fract(),
-            y: PerlinVec::iota_custom(frac_start.y + LO_EPSILON as f32, increment.y).fract(),
+            x: PerlinVec::iota_custom(frac_start.x, increment.x).fract(),
+            y: PerlinVec::iota_custom(frac_start.y, increment.y).fract(),
         };
 
         // Quintic lerp the distances to get the fade factor.
@@ -38,40 +42,38 @@ impl Perlin {
         // Note: Octave offset does not currently work.
         self.random_gen.set_channel(channel_seed ^ (octave.scale + octave_offset).sum() as u64);
 
-        let mut num_loops: Vec3<u32> = Vec3::splat(1);
-        let mut grid_indices: Vec3<SimdArray<u32, 32>> = Vec3::new(
-            SimdArray::new(32),
-            SimdArray::new(32),
-            SimdArray::new(32)
-        );
-
+        let mut grid_indices: Vec2<u32> = Vec2::splat(0);
+        
         for axis in 0..2 {
-            let mut cur_grid_index: usize = 0;
-            for i in 1..ROW_SIZE {
-                if distances[axis][i-1] > distances[axis][i] {
-                    grid_indices[axis][cur_grid_index] = i as u32;
-                    cur_grid_index += 1;
-                    num_loops[axis] += 1;
-                }
+            for i in (0..ROW_SIZE).step_by(ArchSimd::<f32>::LANES - 1) {
+                let cur = distances[axis].load_simd(i);
+                let prev = cur.right_lane_shift::<1>();
+                let bits = prev.simd_gt(cur).to_bits() as u32;
+                grid_indices[axis] ^= bits << i;
             }
         }
+
+        let num_loops: Vec2<u32> = Vec2::new(
+            grid_indices.x.count_ones() + 1,
+            grid_indices.y.count_ones() + 1,
+        );
 
         // Initialize gradient vectors.
         let mut d_vecs: PerlinContainer2D = PerlinContainer2D::new_uninit();
 
         // Set the top gradients.
         let (tl, tr) = d_vecs.tl_tr_mut();
-        self.set_uniform_grid_gradients_2d(tl, tr, grid_start.x, grid_start.y, &grid_indices.y, octave.scale.y, num_loops.y, &distances.y);
+        self.set_uniform_grid_gradients_2d(tl, tr, grid_start.x, grid_start.y, grid_indices.y, num_loops.y, &distances.y);
 
         // Iterate through single x chunks but full y chunks.
         let mut x_cur_index: usize = 0;
         for x_it in 0..num_loops.x {
             let x_cur_fract = distances.x[x_cur_index];
-            let x_next_index: usize = grid_indices.x[x_it as usize] as usize;
+            let x_next_index: usize = grid_indices.x.trailing_zeros() as usize;
 
             // Set bottom gradients.
             let (bl, br) = d_vecs.bl_br_mut();
-            self.set_uniform_grid_gradients_2d(bl, br, grid_start.x + x_it as i32 + 1, grid_start.y, &grid_indices.y, octave.scale.y, num_loops.y, &distances.y);
+            self.set_uniform_grid_gradients_2d(bl, br, grid_start.x + x_it as i32 + 1, grid_start.y, grid_indices.y, num_loops.y, &distances.y);
         
             // Perform dot products on x and trilinear interpolation (with quintic fade).
             Self::uniform_grid_interpolate_2d::<INITIALIZE>(
@@ -82,6 +84,7 @@ impl Perlin {
             // Reuse the top and bottom gradients.
             d_vecs.swap_top_bottom();
 
+            grid_indices.x ^= 1 << x_next_index;
             x_cur_index = x_next_index;
         }
     }

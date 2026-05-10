@@ -5,15 +5,14 @@ use crate::simd::simd_array::SimdArray;
 use crate::simd::simd_traits::*;
 
 impl Perlin {
-    #[inline(never)]
+    #[inline(always)]
     pub(super) fn set_uniform_grid_gradients_2d (
         &mut self,
         left: &mut PerlinVecPair,
         right: &mut PerlinVecPair,
         x_start: i32,
         y_start: i32,
-        y_grid_indices: &SimdArray<u32, ROW_SIZE>,
-        y_scale: f32,
+        y_grid_indices: u32,
         y_num_loops: u32,
         y_distances: &PerlinVec,
     ) {
@@ -53,15 +52,16 @@ impl Perlin {
 
         // Loop through the y chunks.
         let mut y_cur_index: u32 = 0;
+        let mut indices = y_grid_indices;
         for y_it in 0..y_num_loops {
-            let y_next_index: u32 = y_grid_indices[y_it as usize];
+            let y_next_index: u32 = indices.trailing_zeros();
 
             // Find range of gradients to set.
             let set_amount: u32 = y_next_index - y_cur_index;
 
             unsafe {
                 let l = grad_array.get_unchecked(y_it as usize) as usize;
-                let r = grad_array.get_unchecked(y_it as usize + 1) as usize;
+                let r = grad_array.get_unchecked    (y_it as usize + 1) as usize;
 
                 debug_assert!(l < 32);
                 debug_assert!(r < 32);
@@ -73,6 +73,7 @@ impl Perlin {
                 PerlinVec::multiset_many::<4>(&mut arrays, &values, y_cur_index as usize, set_amount as isize);
             }
 
+            indices ^= 1 << y_next_index;
             y_cur_index = y_next_index;
         }
 
