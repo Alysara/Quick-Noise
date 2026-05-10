@@ -48,7 +48,7 @@ fn main() {
     //     ],
     //     0
     // );
-    // grayscale::write_perlin_height_map("noise_images/single_pass.png", 32, 1, 32.0, 2.0, 0.5);
+    grayscale::write_perlin_height_map("noise_images/single_pass.png", 32, 1, 15.0, 2.0, 0.5);
 
     grayscale::write_perlin_height_map("noise_images/glossy.png", 32, 11, 256.0, 1.5, 0.7);
     grayscale::write_perlin_height_map("noise_images/chiseled.png", 32, 6, 256.0, 2.0, 0.8);

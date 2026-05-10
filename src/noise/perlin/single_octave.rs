@@ -45,9 +45,9 @@ impl Perlin {
         let mut grid_indices: Vec2<u32> = Vec2::splat(0);
         
         for axis in 0..2 {
-            for i in (0..ROW_SIZE).step_by(ArchSimd::<f32>::LANES - 1) {
+            for i in (1..ROW_SIZE).step_by(ArchSimd::<f32>::LANES) {
                 let cur = distances[axis].load_simd(i);
-                let prev = cur.right_lane_shift::<1>();
+                let prev = distances[axis].load_simd(i - 1);
                 let bits = prev.simd_gt(cur).to_bits() as u32;
                 grid_indices[axis] ^= bits << i;
             }
