@@ -129,6 +129,7 @@ pub trait SimdArch:
     SimdNegateImpl +
     SimdBlockShiftImpl +
     SimdImmediateBlendImpl +
+    SimdLaneShiftImpl +
 {}
 
 pub trait MaskArch:
@@ -360,7 +361,8 @@ pub trait SimdMaskBitConversion {
     // fn from_bits_16() -> Self;
     // fn from_bits_8() -> Self;
 }
-// pub trait SimdLaneShiftImpl {
-//     fn right_lane_shift_32<const N: i32>(self) -> Self;
-//     fn left_lane_shift_32<const N: i32>(self) -> Self;
-// }
+
+pub trait SimdLaneShiftImpl {
+    fn right_lane_shift_32<const N: i32>(self) -> Self;
+    fn left_lane_shift_32<const N: i32>(self) -> Self;
+}

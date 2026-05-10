@@ -206,3 +206,46 @@ impl SimdMaskBitConversion for Avx2 {
     #[inline(always)] fn to_bits_32(self) -> u64 { execute_intrinsic!(_mm256_movemask_ps, self) as u64 }
     #[inline(always)] fn to_bits_8(self) -> u64 { execute_intrinsic!(_mm256_movemask_epi8, self) as u64 }
 }
+
+impl SimdLaneShiftImpl for Avx2 {
+    #[inline(always)] fn left_lane_shift_32<const N: i32>(self) -> Self {
+        match N {
+            0 => self,
+            1 => Self::zero().blend_32::<1>(self)
+                .permute_32(self_from_op!(_mm256_setr_epi32, 1, 2, 3, 4, 5, 6, 7, 0)),
+            2 => Self::zero().blend_32::<1>(self)
+                .permute_32(self_from_op!(_mm256_setr_epi32, 2, 3, 4, 5, 6, 7, 0, 0)),
+            3 => Self::zero().blend_32::<1>(self)
+                .permute_32(self_from_op!(_mm256_setr_epi32, 3, 4, 5, 6, 7, 0, 0, 0)),
+            4 => Self::zero().blend_32::<1>(self)
+                .permute_32(self_from_op!(_mm256_setr_epi32, 4, 5, 6, 7, 0, 0, 0, 0)),
+            5 => Self::zero().blend_32::<1>(self)
+                .permute_32(self_from_op!(_mm256_setr_epi32, 5, 6, 7, 0, 0, 0, 0, 0)),
+            6 => Self::zero().blend_32::<1>(self)
+                .permute_32(self_from_op!(_mm256_setr_epi32, 6, 7, 0, 0, 0, 0, 0, 0)),
+            7 => Self::zero().blend_32::<1>(self)
+                .permute_32(self_from_op!(_mm256_setr_epi32, 7, 0, 0, 0, 0, 0, 0, 0)),
+            _ => Self::zero()
+        }
+    }
+    #[inline(always)] fn right_lane_shift_32<const N: i32>(self) -> Self {
+        match N {
+            0 => self,
+            1 => Self::zero().blend_32::<0x80>(self)
+                .permute_32(self_from_op!(_mm256_setr_epi32, 7, 0, 1, 2, 3, 4, 5, 6)),
+            2 => Self::zero().blend_32::<0x80>(self)
+                .permute_32(self_from_op!(_mm256_setr_epi32, 7, 7, 0, 1, 2, 3, 4, 5)),
+            3 => Self::zero().blend_32::<0x80>(self)
+                .permute_32(self_from_op!(_mm256_setr_epi32, 7, 7, 7, 0, 1, 2, 3, 4)),
+            4 => Self::zero().blend_32::<0x80>(self)
+                .permute_32(self_from_op!(_mm256_setr_epi32, 7, 7, 7, 7, 0, 1, 2, 3)),
+            5 => Self::zero().blend_32::<0x80>(self)
+                .permute_32(self_from_op!(_mm256_setr_epi32, 7, 7, 7, 7, 7, 0, 1, 2)),
+            6 => Self::zero().blend_32::<0x80>(self)
+                .permute_32(self_from_op!(_mm256_setr_epi32, 7, 7, 7, 7, 7, 7, 0, 1)),
+            7 => Self::zero().blend_32::<0x80>(self)
+                .permute_32(self_from_op!(_mm256_setr_epi32, 7, 7, 7, 7, 7, 7, 7, 0)),
+            _ => Self::zero()
+        }
+    }
+}

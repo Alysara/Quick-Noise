@@ -95,3 +95,19 @@ impl<F: SimdFamily> SimdVec<u64, F> {
         SimdVec::new(self.data.gather_64_from_64::<S, 8>(slice.as_ptr()))
     }
 }
+
+// TODO: Add other types of lane shifts.
+impl<T: SimdElement, F: SimdFamily> SimdVec<T, F> {
+    pub fn left_lane_shift<const N: i32>(self) -> Self {
+        match T::BIT_SIZE {
+            BitSize::Size32 => Self::new(self.data.left_lane_shift_32::<N>()),
+            _ => unreachable!()
+        }
+    }
+    pub fn right_lane_shift<const N: i32>(self) -> Self {
+        match T::BIT_SIZE {
+            BitSize::Size32 => Self::new(self.data.right_lane_shift_32::<N>()),
+            _ => unreachable!()
+        }
+    }
+}

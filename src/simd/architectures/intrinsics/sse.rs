@@ -196,6 +196,7 @@ impl SimdNegateImpl for Sse {
     #[inline(always)] fn negate_f32(self) -> Self { Self::splat_32(-0.0f64).xor(self) }
 }
 
+// TODO: THIS IS BACKWARDS COMPARED TO NON-BLOCKED, figure out why and fix.
 impl SimdBlockShiftImpl for Sse {
     #[inline(always)] fn block_left_byte_shift<const N: i32>(self) -> Self { self_from_const_op!(_mm_bslli_si128, N, self) }
     #[inline(always)] fn block_right_byte_shift<const N: i32>(self) -> Self { self_from_const_op!(_mm_bsrli_si128, N, self) }
@@ -207,7 +208,23 @@ impl SimdMaskBitConversion for Sse {
     #[inline(always)] fn to_bits_8(self) -> u64 { execute_intrinsic!(_mm_movemask_epi8, self) as u64 }
 }
 
-// impl SimdLaneShiftImpl for Sse {
-//     #[inline(always)] fn left_lane_shift<const N: i32>(self) -> Self { self_from_const_op!(_mm_bslli_si128, N, self) }
-//     #[inline(always)] fn right_lane_shift<const N: i32>(self) -> Self { self_from_const_op!(_mm_bsrli_si128, N, self) }
-// }
+impl SimdLaneShiftImpl for Sse {
+    #[inline(always)] fn left_lane_shift_32<const N: i32>(self) -> Self {
+        match N {
+            0 => self,
+            1 => self_from_const_op!(_mm_bsrli_si128, 4, self),
+            2 => self_from_const_op!(_mm_bsrli_si128, 8, self),
+            3 => self_from_const_op!(_mm_bsrli_si128, 12, self),
+            _ => Self::zero()
+        }
+    }
+    #[inline(always)] fn right_lane_shift_32<const N: i32>(self) -> Self {
+        match N {
+            0 => self,
+            1 => self_from_const_op!(_mm_bslli_si128, 4, self),
+            2 => self_from_const_op!(_mm_bslli_si128, 8, self),
+            3 => self_from_const_op!(_mm_bslli_si128, 12, self),
+            _ => Self::zero()
+        }
+    }
+}

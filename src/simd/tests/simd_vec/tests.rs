@@ -153,11 +153,22 @@ simd_vec_tests!(negated_mul_add, [f32, f64], |x, y, z| { x.negated_mul_add(y, z)
 simd_vec_tests!(negated_mul_sub, [f32, f64], |x, y, z| { x.negated_mul_sub(y, z) });
 
 // === Lane shifts ===
-simd_vec_tests!(block_left_byte_shift_test_1, [u8, f32], |x| { x.block_left_byte_shift::<1>()});
-simd_vec_tests!(block_left_byte_shift_test_2, [u8, f32], |x| { x.block_left_byte_shift::<2>()});
-simd_vec_tests!(block_left_byte_shift_test_3, [u8, f32], |x| { x.block_left_byte_shift::<4>()});
-simd_vec_tests!(block_left_byte_shift_test_4, [u8, f32], |x| { x.block_left_byte_shift::<10>()});
-simd_vec_tests!(block_right_byte_shift_test_1, [u8, f32], |x| { x.block_right_byte_shift::<1>()});
-simd_vec_tests!(block_right_byte_shift_test_2, [u8, f32], |x| { x.block_right_byte_shift::<2>()});
-simd_vec_tests!(block_right_byte_shift_test_3, [u8, f32], |x| { x.block_right_byte_shift::<4>()});
-simd_vec_tests!(block_right_byte_shift_test_4, [u8, f32], |x| { x.block_right_byte_shift::<10>()});
+simd_vec_tests!(block_left_byte_shift_test_1, [u8, f32], |x| { x.block_left_byte_shift::<1>() });
+simd_vec_tests!(block_left_byte_shift_test_2, [u8, f32], |x| { x.block_left_byte_shift::<2>() });
+simd_vec_tests!(block_left_byte_shift_test_3, [u8, f32], |x| { x.block_left_byte_shift::<4>() });
+simd_vec_tests!(block_left_byte_shift_test_4, [u8, f32], |x| { x.block_left_byte_shift::<10>() });
+simd_vec_tests!(block_right_byte_shift_test_1, [u8, f32], |x| { x.block_right_byte_shift::<1>() });
+simd_vec_tests!(block_right_byte_shift_test_2, [u8, f32], |x| { x.block_right_byte_shift::<2>() });
+simd_vec_tests!(block_right_byte_shift_test_3, [u8, f32], |x| { x.block_right_byte_shift::<4>() });
+simd_vec_tests!(block_right_byte_shift_test_4, [u8, f32], |x| { x.block_right_byte_shift::<10>() });
+
+
+simd_vec_tests!(left_lane_shift_2_test_32, [f32, u32, i32], |x| { x.left_lane_shift::<2>() });
+simd_vec_tests!(left_lane_shift_1_test_32, [f32, u32, i32], |x| { x.left_lane_shift::<1>() });
+simd_vec_tests!(left_lane_shift_0_test_32, [f32, u32, i32], |x| { x.left_lane_shift::<0>() });
+simd_vec_tests!(left_lane_shift_99_test_32, [f32, u32, i32], |x| { x.left_lane_shift::<99>() });
+
+simd_vec_tests!(right_lane_shift_2_test_32, [f32, u32, i32], |x| { x.right_lane_shift::<2>() });
+simd_vec_tests!(right_lane_shift_1_test_32, [f32, u32, i32], |x| { x.right_lane_shift::<1>() });
+simd_vec_tests!(right_lane_shift_0_test_32, [f32, u32, i32], |x| { x.right_lane_shift::<0>() });
+simd_vec_tests!(right_lane_shift_99_test_32, [f32, u32, i32], |x| { x.right_lane_shift::<99>() });

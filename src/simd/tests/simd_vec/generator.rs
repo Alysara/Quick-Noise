@@ -47,6 +47,7 @@ macro_rules! test_vecs {
     };
     ($simd_vec:ident, u32) => {
         vec![
+            $simd_vec::<u32>::iota(0),
             $simd_vec::<u32>::splat(0),
             $simd_vec::<u32>::splat(1),
             $simd_vec::<u32>::splat(2),

@@ -561,3 +561,33 @@ impl<const N: usize> SimdMaskBitConversion for ScalarMask<N> {
         bits
     }
 }
+
+impl<const M: usize> SimdLaneShiftImpl for Scalar<M> {
+    #[inline(always)] 
+    fn left_lane_shift_32<const N: i32>(self) -> Self {
+        let mut new = Self::zero();
+        if N as usize * 4 >= M {
+            new
+        } else {
+            let n = (N * 4) as usize;
+            for i in 0..(M - n) {
+                new.0[i] = self.0[i + n];
+            }
+            new
+        }
+    }
+    
+    #[inline(always)] 
+    fn right_lane_shift_32<const N: i32>(self) -> Self {
+        let mut new = Self::zero();
+        if N as usize * 4 >= M {
+            new
+        } else {
+            let n = (N * 4) as usize;
+            for i in n..M {
+                new.0[i] = self.0[i - n];
+            }
+            new
+        }
+    }
+}
