@@ -100,14 +100,14 @@ impl Perlin {
         let weight: f32 = octave.weight * weight_coef;
 
         // Get the starting gradient coordinates and how far the first sample is to the next one.
-        let grid_start: Vec3<i32> = (block_pos.as_f32() * increment + LO_EPSILON as f32).floor().as_i32();
+        let grid_start: Vec3<i32> = (block_pos.as_f32() * increment).floor().as_i32();
         let frac_start: Vec3<f32> = (block_pos.as_f32() * increment - grid_start.as_f32()).float_max(Vec3::splat(0.0));
 
         // Get the distances from the gradient gridpoints.
         let distances: PerlinVecTriple = PerlinVecTriple {
-            x: PerlinVec::iota_custom(frac_start.x + LO_EPSILON as f32, increment.x).fract(),
-            y: PerlinVec::iota_custom(frac_start.y + LO_EPSILON as f32, increment.y).fract(),
-            z: PerlinVec::iota_custom(frac_start.z + LO_EPSILON as f32, increment.z).fract(),
+            x: PerlinVec::iota_custom(frac_start.x, increment.x).fract(),
+            y: PerlinVec::iota_custom(frac_start.y, increment.y).fract(),
+            z: PerlinVec::iota_custom(frac_start.z, increment.z).fract(),
         };
 
         // Quintic lerp the distances to get the fade factor.
