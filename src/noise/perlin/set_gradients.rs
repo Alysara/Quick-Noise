@@ -13,7 +13,6 @@ impl Perlin {
         x_start: i32,
         y_start: i32,
         y_grid_indices: u32,
-        y_num_loops: u32,
         y_distances: &PerlinVec,
     ) {
         let iota_vec = ArchSimd::iota(0) * ArchSimd::splat(self.random_gen.channel_seed as u32);
@@ -37,6 +36,7 @@ impl Perlin {
         let mut grad_array = SimdArray::<u32, 64>::new_uninit();
 
         // Main vectorized bit mixing loop.
+        let y_num_loops = y_grid_indices.count_ones() + 1;
         let end_index = y_num_loops as usize + 1;
         for i in (0..end_index).step_by(ArchSimd::<f32>::LANES) {
             let y_shuf = y_vec.permute_8(shuffle_indices) ^ prime;
@@ -82,7 +82,7 @@ impl Perlin {
         right.y = right.y.mul_sub(*y_distances, right.y); // equivalent to -> right.y *= y_distances - 1.0
     }
 
-    // #[inline(never)]
+    #[inline(never)]
     pub(super) fn set_uniform_grid_gradients_3d (
         &mut self,
         lf: &mut PerlinVecTriple,
@@ -92,9 +92,7 @@ impl Perlin {
         x_start: i32,
         y_start: i32,
         z_start: i32,
-        z_grid_indices: &SimdArray<u32, ROW_SIZE>,
-        z_scale: f32,
-        z_num_loops: u32,
+        z_grid_indices: u32,
         z_distances: &PerlinVec,
     ) {
         let iota_vec = ArchSimd::iota(0);
@@ -108,6 +106,8 @@ impl Perlin {
         let mut z_vec = ArchSimd::splat(z_start) + iota_vec;
         let grad: ArchSimd<u32> = self.random_gen.mix_i32_simd_triple(x_front_vec, y_vec, z_vec) & ArchSimd::splat(15);
         front_grad_array.store_simd(0, grad);
+        
+        let z_num_loops = z_grid_indices.count_ones() + 1;
         for i in (ArchSimd::<f32>::LANES..z_num_loops as usize + 1).step_by(ArchSimd::<f32>::LANES) {
             z_vec += lane_increment;
             let grad: ArchSimd<u32> = self.random_gen.mix_i32_simd_triple(x_front_vec, y_vec, z_vec) & ArchSimd::splat(15);
@@ -120,8 +120,9 @@ impl Perlin {
         ];
 
         let mut z_cur_index: u32 = 0;
+        let mut indices = z_grid_indices;
         for z_it in 0..z_num_loops {
-            let z_next_index: u32 = z_grid_indices[z_it as usize];
+            let z_next_index: u32 = indices.trailing_zeros();
             let set_amount: u32 = z_next_index - z_cur_index;
             unsafe {
                 let lf_grad = front_grad_array.get_unchecked(z_it as usize) as usize;
@@ -134,6 +135,7 @@ impl Perlin {
                 ];
                 PerlinVec::multiset_many::<6>(&mut front_arrays, &values, z_cur_index as usize, set_amount as isize);
             }
+            indices ^= 1 << z_next_index;
             z_cur_index = z_next_index;
         }
 
@@ -153,8 +155,9 @@ impl Perlin {
         ];
 
         let mut z_cur_index: u32 = 0;
+        let mut indices = z_grid_indices;
         for z_it in 0..z_num_loops {
-            let z_next_index: u32 = z_grid_indices[z_it as usize];
+            let z_next_index: u32 = indices.trailing_zeros();
             let set_amount: u32 = z_next_index - z_cur_index;
             unsafe {
                 let lb_grad = back_grad_array.get_unchecked(z_it as usize) as usize;
@@ -167,7 +170,7 @@ impl Perlin {
                 ];
                 PerlinVec::multiset_many::<6>(&mut back_arrays, &values, z_cur_index as usize, set_amount as isize);
             }
-            if z_next_index == 32 { break; }
+            indices ^= 1 << z_next_index;
             z_cur_index = z_next_index;
         }
 

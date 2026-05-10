@@ -53,27 +53,23 @@ impl Perlin {
             }
         }
 
-        let num_loops: Vec2<u32> = Vec2::new(
-            grid_indices.x.count_ones() + 1,
-            grid_indices.y.count_ones() + 1,
-        );
-
         // Initialize gradient vectors.
         let mut d_vecs: PerlinContainer2D = PerlinContainer2D::new_uninit();
 
         // Set the top gradients.
         let (tl, tr) = d_vecs.tl_tr_mut();
-        self.set_uniform_grid_gradients_2d(tl, tr, grid_start.x, grid_start.y, grid_indices.y, num_loops.y, &distances.y);
+        self.set_uniform_grid_gradients_2d(tl, tr, grid_start.x, grid_start.y, grid_indices.y, &distances.y);
 
         // Iterate through single x chunks but full y chunks.
         let mut x_cur_index: usize = 0;
-        for x_it in 0..num_loops.x {
+        let x_num_loops = grid_indices.x.count_ones() + 1;
+        for x_it in 0..x_num_loops {
             let x_cur_fract = distances.x[x_cur_index];
             let x_next_index: usize = grid_indices.x.trailing_zeros() as usize;
 
             // Set bottom gradients.
             let (bl, br) = d_vecs.bl_br_mut();
-            self.set_uniform_grid_gradients_2d(bl, br, grid_start.x + x_it as i32 + 1, grid_start.y, grid_indices.y, num_loops.y, &distances.y);
+            self.set_uniform_grid_gradients_2d(bl, br, grid_start.x + x_it as i32 + 1, grid_start.y, grid_indices.y, &distances.y);
         
             // Perform dot products on x and trilinear interpolation (with quintic fade).
             Self::uniform_grid_interpolate_2d::<INITIALIZE>(
@@ -89,7 +85,7 @@ impl Perlin {
         }
     }
 
-
+    #[inline(never)]
     pub(super) fn uniform_grid_octave_3d<const INITIALIZE: bool>(
         &mut self,
         result: &mut PerlinVol,
@@ -126,21 +122,14 @@ impl Perlin {
         self.random_gen.set_channel(channel_seed ^ (octave.scale + octave_offset).sum() as u64);
 
         // Identify the number of loops to iterate through (better compiler optimization when known).
-        let mut num_loops: Vec3<u32> = Vec3::splat(1);
-        let mut grid_indices: Vec3<SimdArray<u32, 32>> = Vec3::new(
-            SimdArray::new(32),
-            SimdArray::new(32),
-            SimdArray::new(32)
-        );
-
+        let mut grid_indices: Vec3<u32> = Vec3::splat(0);
+        
         for axis in 0..3 {
-            let mut cur_grid_index: usize = 0;
-            for i in 1..ROW_SIZE {
-                if distances[axis][i-1] > distances[axis][i] {
-                    grid_indices[axis][cur_grid_index] = i as u32;
-                    cur_grid_index += 1;
-                    num_loops[axis] += 1;
-                }
+            for i in (1..ROW_SIZE).step_by(ArchSimd::<f32>::LANES) {
+                let cur = distances[axis].load_simd(i);
+                let prev = distances[axis].load_simd(i - 1);
+                let bits = prev.simd_gt(cur).to_bits() as u32;
+                grid_indices[axis] ^= bits << i;
             }
         }
 
@@ -149,36 +138,37 @@ impl Perlin {
         
         // Iterate through single x chunks but full y chunks.
         let mut x_cur_index: usize = 0;
-        for x_it in 0..num_loops.x {
+        let x_num_loops = grid_indices.x.count_ones() + 1;
+        for x_it in 0..x_num_loops {
             let x_cur_fract = distances.x[x_cur_index];
-            let x_next_index: usize = grid_indices.x[x_it as usize] as usize;
+            let x_next_index: usize = grid_indices.x.trailing_zeros() as usize;
 
             // Set the top gradients.
             let (tlf, trf, tlb, trb) = d_vecs.tlf_trf_tlb_trb_mut();
             self.set_uniform_grid_gradients_3d(
                 tlf, trf, tlb, trb, grid_start.x + x_it as i32, 
                 grid_start.y, grid_start.z, 
-                &grid_indices.z, octave.scale.z, 
-                num_loops.z, &distances.z
+                grid_indices.z, &distances.z
             );
 
             // Iterate through single x chunks but full y chunks.
             let mut y_cur_index: usize = 0;
-            for y_it in 0..num_loops.y {
+            let mut y_indices = grid_indices.y;
+            let y_num_loops = grid_indices.y.count_ones() + 1;
+            for y_it in 0..y_num_loops {
                 let y_cur_fract = distances.y[y_cur_index];
+                debug_assert!(y_cur_fract >= 0.0 && y_cur_fract.is_finite());
 
                 // Set the bottom gradients.
                 let (blf, brf, blb, brb) = d_vecs.blf_brf_blb_brb_mut();
                 self.set_uniform_grid_gradients_3d(
                     blf, brf, blb, brb, grid_start.x + x_it as i32, 
                     grid_start.y + y_it as i32 + 1, grid_start.z, 
-                    &grid_indices.z, octave.scale.z, 
-                    num_loops.z, &distances.z
+                    grid_indices.z, &distances.z
                 );
 
                 // Identify the current range of y gradients.
-                debug_assert!(y_cur_fract >= 0.0 && y_cur_fract.is_finite());
-                let y_next_index: usize = grid_indices.y[y_it as usize] as usize;
+                let y_next_index: usize = y_indices.trailing_zeros() as usize;
 
                 // Perform dot products on x,y and trilinear interpolation (with quintic fade).
                 Self::uniform_grid_interpolate_3d::<INITIALIZE>(
@@ -190,8 +180,10 @@ impl Perlin {
                 // Reuse the top and bottom gradients.
                 d_vecs.swap_top_bottom();
 
+                y_indices ^= 1 << y_next_index;
                 y_cur_index = y_next_index;
             }
+            grid_indices.x ^= 1 << x_next_index;
             x_cur_index = x_next_index;
         }
     }

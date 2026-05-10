@@ -88,5 +88,5 @@ fn main() {
         1,
     );
 
-    grayscale::write_perlin_height_map_3d("noise_images/single_pass_3d.png", 32, 1, 32.0, 2.0, 0.5);
+    grayscale::write_perlin_height_map_3d("noise_images/single_pass_3d_2.png", 32, 1, 32.0, 2.0, 0.5);
 }
