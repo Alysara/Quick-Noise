@@ -326,9 +326,9 @@ impl SimdLaneShiftImpl for Neon {
     #[inline(always)] fn left_lane_shift_32<const N: i32>(self) -> Self {
         match N {
             0 => self,
-            1 => self_from_const_op!(vextq_u8, 4, self, Self::zero),
-            2 => self_from_const_op!(vextq_u8, 8, self, Self::zero),
-            3 => self_from_const_op!(vextq_u8, 12, self, Self::zero),
+            1 => self_from_const_op!(vextq_u8, 4, self, Self::zero()),
+            2 => self_from_const_op!(vextq_u8, 8, self, Self::zero()),
+            3 => self_from_const_op!(vextq_u8, 12, self, Self::zero()),
             _ => Self::zero()
         }
     }
