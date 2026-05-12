@@ -48,16 +48,16 @@ fn main() {
     //     ],
     //     0
     // );
-    grayscale::write_perlin_height_map("noise_images/single_pass.png", 32, 1, 15.0, 2.0, 0.5);
+    grayscale::write_perlin_height_map("noise_images/single_pass.png", 32, 1, 64.0, 2.0, 0.5, 1.0);
 
-    grayscale::write_perlin_height_map("noise_images/glossy.png", 32, 11, 256.0, 1.5, 0.7);
-    grayscale::write_perlin_height_map("noise_images/chiseled.png", 32, 6, 256.0, 2.0, 0.8);
-    grayscale::write_perlin_height_map("noise_images/smooth.png", 32, 20, 512.0, 1.2, 0.9);
-    grayscale::write_perlin_height_map("noise_images/sharp.png", 32, 6, 64.0, 2.0, 0.9);
+    grayscale::write_perlin_height_map("noise_images/glossy.png", 16, 11, 256.0, 1.5, 0.7, 0.5);
+    grayscale::write_perlin_height_map("noise_images/chiseled.png", 32, 6, 256.0, 2.0, 0.8, 1.0);
+    grayscale::write_perlin_height_map("noise_images/smooth.png", 32, 20, 512.0, 1.2, 0.9, 1.0);
+    grayscale::write_perlin_height_map("noise_images/sharp.png", 32, 6, 64.0, 2.0, 0.9, 1.0);
 
     // For more control, determine the scale and weight of each octave:
     grayscale::write_perlin_octaves_height_map(
-        "noise_images/custom.png",
+        "noise_images/custom.png",  
         256,
         [
             (300.0, 8.0),

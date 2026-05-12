@@ -12,6 +12,7 @@ pub fn write_perlin_height_map(
     scale: f32,
     lacunarity: f32,
     persistence: f32,
+    scale_multiplier: f32,
 ) {
     if let Some(parent) = path.as_ref().parent()
         && !parent.exists()
@@ -39,7 +40,7 @@ pub fn write_perlin_height_map(
                 lacunarity,
                 persistence,
                 1,
-                0.0,
+                scale_multiplier,
             );
 
             noise = (noise + PerlinMap::new(1.0)) * PerlinMap::new(127.5);
@@ -96,7 +97,7 @@ pub fn write_perlin_octaves_height_map(
                 &octaves_vec,
                 1.0,
                 channel,
-                0.0,
+                1.0,
             );
 
             noise = (noise + PerlinMap::new(1.0)) * PerlinMap::new(127.5);
@@ -155,7 +156,7 @@ pub fn write_perlin_height_map_3d(
                 lacunarity,
                 persistence,
                 1,
-                0.0,
+                1.0,
             );
 
             array = (array + PerlinVol::new(1.0)) * PerlinVol::new(127.5);
@@ -283,7 +284,7 @@ pub fn write_perlin_height_map_batched(
                 &octave,
                 1.0,
                 1,
-                0.0,
+                1.0,
             );
 
             noise = (noise + PerlinMap::new(1.0)) * PerlinMap::new(127.5);
@@ -356,7 +357,7 @@ pub fn write_simplex_height_map_batched(
                 scale,
                 1.0,
                 1,
-                0.0,
+                1.0,
             );
 
             noise = (noise + PerlinMap::new(1.0)) * PerlinMap::new(127.5);
@@ -429,7 +430,7 @@ pub fn write_value_height_map_batched(
                 scale,
                 1.0,
                 1,
-                0.0,
+                1.0,
             );
 
             noise = (noise + PerlinMap::new(1.0)) * PerlinMap::new(127.5);
@@ -501,7 +502,7 @@ pub fn write_cellular_height_map_batched(
                 scale,
                 1.0,
                 1,
-                0.0,
+                1.0,
             );
 
             noise = noise * PerlinMap::new(256.0);
@@ -580,7 +581,7 @@ pub fn write_perlin_height_map_batched_3d(
                 &octave,
                 1.0,
                 1,
-                0.0,
+                1.0,
             );
 
             noise = (noise + PerlinVol::new(1.0)) * PerlinVol::new(127.5);
@@ -657,7 +658,7 @@ pub fn write_value_height_map_batched_3d(
                 scale,
                 1.0,
                 1,
-                0.0,
+                1.0,
             );
 
             noise = (noise + PerlinVol::new(1.0)) * PerlinVol::new(127.5);
@@ -735,7 +736,7 @@ pub fn write_simplex_height_map_batched_3d(
                 scale,
                 1.0,
                 1,
-                0.0,
+                1.0,
             );
 
             noise = (noise + PerlinVol::new(1.0)) * PerlinVol::new(127.5);
@@ -809,7 +810,7 @@ pub fn write_cellular_height_map_batched_3d(
                 scale,
                 1.0,
                 1,
-                0.0,
+                1.0,
             );
 
             noise = noise * PerlinVol::new(256.0);

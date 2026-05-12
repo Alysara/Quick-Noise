@@ -16,9 +16,9 @@ impl Perlin {
         octave: &Octave2D,
         weight_coef: f32,
         channel_seed: u64,
-        octave_offset: f32,
+        scale_multiplier: f32,
     ) {
-        let increment: Vec2<f32> = 1.0 / octave.scale;
+        let increment: Vec2<f32> = 1.0 / (octave.scale * scale_multiplier);
         let block_pos: Vec2<i32> = pos * 32;
         let weight: f32 = octave.weight * weight_coef;
 
@@ -40,7 +40,7 @@ impl Perlin {
 
         // Set the channel for random number generation based on the octave scale and selected channel.
         // Note: Octave offset does not currently work.
-        self.random_gen.set_channel(channel_seed ^ (octave.scale + octave_offset).sum() as u64);
+        self.random_gen.set_channel(channel_seed ^ octave.scale.sum() as u64);
 
         let mut grid_indices: Vec2<u32> = Vec2::splat(0);
         
@@ -93,9 +93,9 @@ impl Perlin {
         octave: &Octave3D,
         weight_coef: f32,
         channel_seed: u64,
-        octave_offset: f32,
+        scale_multiplier: f32,
     ) {
-        let increment: Vec3<f32> = 1.0 / octave.scale;
+        let increment: Vec3<f32> = 1.0 / (octave.scale * scale_multiplier);
         let block_pos: Vec3<i32> = pos * 32;
         let weight: f32 = octave.weight * weight_coef;
 
@@ -119,7 +119,7 @@ impl Perlin {
 
         // Set the channel for random number generation based on the octave scale and selected channel.
         // Note: Octave offset does not currently work.
-        self.random_gen.set_channel(channel_seed ^ (octave.scale + octave_offset).sum() as u64);
+        self.random_gen.set_channel(channel_seed ^ octave.scale.sum() as u64);
 
         // Identify the number of loops to iterate through (better compiler optimization when known).
         let mut grid_indices: Vec3<u32> = Vec3::splat(0);
