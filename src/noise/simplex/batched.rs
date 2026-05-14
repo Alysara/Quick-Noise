@@ -59,6 +59,8 @@ impl Simplex {
         let hi_skew_offset: ArchSimd<f32> = ArchSimd::splat(2.0 * UNSKEW_2D - 1.0);
         let half: ArchSimd<f32> = ArchSimd::splat(0.5);
         let zero: ArchSimd<f32> = ArchSimd::splat(0.0);
+        let t_hi_coef = ArchSimd::splat(2.0 * SQRT_3 / 3.0);
+        let neg_two_thirds = ArchSimd::splat(-2.0 / 3.0);
 
         // Hash constants.
         const BYTE_SHUFFLE: [u8; 64] = [
@@ -133,9 +135,13 @@ impl Simplex {
             let y_grads_hi = indices_hi.gather(&Y_GRADIENTS_2D);
             
             // Sum of products: 27
-            let t_lo = (half - x_dist_lo.mul_add(x_dist_lo, y_dist_lo * y_dist_lo)).max(zero);
-            let t_mi = (half - x_dist_mi.mul_add(x_dist_mi, y_dist_mi * y_dist_mi)).max(zero);
-            let t_hi = (half - x_dist_hi.mul_add(x_dist_hi, y_dist_hi * y_dist_hi)).max(zero);
+            let t_lo_pre = half - x_dist_lo.mul_add(x_dist_lo, y_dist_lo * y_dist_lo);
+            let t_mi_pre = half - x_dist_mi.mul_add(x_dist_mi, y_dist_mi * y_dist_mi);
+            let t_hi_pre = t_lo_pre + t_hi_coef.mul_add(x_dist_lo + y_dist_lo, neg_two_thirds);
+
+            let t_lo = t_lo_pre.max(zero);
+            let t_mi = t_mi_pre.max(zero);
+            let t_hi = t_hi_pre.max(zero);
 
             let t2_lo = t_lo * t_lo;
             let t2_mi = t_mi * t_mi;
