@@ -290,4 +290,39 @@ impl Random {
         data1 ^= data1 >> 16;
         data1
     }
+
+    #[inline(always)]
+    pub fn cartesian_quad_hi_bit_shuf(
+        &self,
+        x_lo: ArchSimd<u32>,
+        y_lo: ArchSimd<u32>
+    ) -> (ArchSimd<u32>, ArchSimd<u32>, ArchSimd<u32>, ArchSimd<u32>) {
+        const BYTE_SHUFFLE: [u8; 64] = [
+            3,0,2,1, 7,4,6,5, 11,8,10,9, 15,12,14,13,
+            3,0,2,1, 7,4,6,5, 11,8,10,9, 15,12,14,13,
+            3,0,2,1, 7,4,6,5, 11,8,10,9, 15,12,14,13,
+            3,0,2,1, 7,4,6,5, 11,8,10,9, 15,12,14,13,
+        ];
+
+        let seed = ArchSimd::splat(self.channel_seed as u32);
+        let prime = ArchSimd::splat(0x85ebca6b_u32);
+        let shuffle_indices = ArchSimd::load(&BYTE_SHUFFLE[..]);
+
+        let x1 = x_lo * seed;
+        let y1 = y_lo * seed;
+        let x2 = x1 + seed;
+        let y2 = y1 + seed;
+
+        let x1_shuf = x1.permute_8(shuffle_indices) ^ prime;
+        let y1_shuf = y1.permute_8(shuffle_indices) ^ prime;
+        let x2_shuf = x2.permute_8(shuffle_indices) ^ prime;
+        let y2_shuf = y2.permute_8(shuffle_indices) ^ prime;
+
+        let mix_tl = x1_shuf * y1_shuf;
+        let mix_tr = x1_shuf * y2_shuf;
+        let mix_bl = x2_shuf * y1_shuf;
+        let mix_br = x2_shuf * y2_shuf;
+
+        (mix_tl, mix_tr, mix_bl, mix_br)
+    }
 }
