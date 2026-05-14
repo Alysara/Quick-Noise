@@ -61,7 +61,7 @@ impl Perlin {
 
             unsafe {
                 let l = grad_array.get_unchecked(y_it as usize) as usize;
-                let r = grad_array.get_unchecked    (y_it as usize + 1) as usize;
+                let r = grad_array.get_unchecked(y_it as usize + 1) as usize;
 
                 debug_assert!(l < 32);
                 debug_assert!(r < 32);
