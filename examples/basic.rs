@@ -32,7 +32,9 @@ fn main() {
     grayscale::write_cellular_height_map_batched_3d("noise_images/batched_cellular_3d.png", 32, 1.0/32.0);
     grayscale::write_simplex_height_map_batched_3d("noise_images/batched_simplex_3d.png",32, 1, 1.0/64.0, 2.0, 0.5);
 
-    grayscale::write_perlin_height_map_3d("noise_images/single_pass_3d.png", 256, 8, 600., 1.9, 0.5);
+    grayscale::write_perlin_height_map_3d("noise_images/single_pass_3d.png", 32, 8, 600., 1.9, 0.5);
+
+    grayscale::write_perlin_height_map_warped("noise_images/perlin_warp.png", 32, 7, 64.0, 1.5, 0.5);
     // grayscale::write_perlin_height_map_3d_octaves(
     //     "noise_images/perlin_3d_custom.png",
     //     256,

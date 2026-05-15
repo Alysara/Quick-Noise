@@ -485,12 +485,12 @@ fn simplex_3d_benchmark_fn2(c: &mut Criterion) {
 }
 
 // criterion_group!(benches, perlin_2d_benchmark, perlin_3d_benchmark, perlin_2d_benchmark_fn2, perlin_3d_benchmark_fn2);
-// criterion_group!(benches, perlin_2d_benchmark_batch, perlin_2d_benchmark_fn2, perlin_3d_benchmark_batch, perlin_3d_benchmark_fn2);
+criterion_group!(benches, perlin_2d_benchmark_batch, perlin_2d_benchmark_fn2, perlin_3d_benchmark_batch, perlin_3d_benchmark_fn2);
 // criterion_group!(benches, simplex_2d_benchmark_batch, simplex_2d_benchmark_fn2);
 // criterion_group!(benches, value_2d_benchmark_batch, perlin_2d_benchmark_batch, simplex_2d_benchmark_batch);
 // criterion_group!(benches, cellular_2d_benchmark_batch, cellular_2d_benchmark_fn2);
 // criterion_group!(benches, cellular_3d_benchmark_batch, cellular_3d_benchmark_fn2);
 // criterion_group!(benches, value_3d_benchmark_batch, value_3d_benchmark_fn2);
 // criterion_group!(benches, simplex_3d_benchmark_batch, simplex_3d_benchmark_fn2);
-criterion_group!(benches, perlin_3d_benchmark);
+// criterion_group!(benches, perlin_3d_benchmark);
 criterion_main!(benches);
