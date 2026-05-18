@@ -50,10 +50,21 @@ impl<T: SimdElement, F: SimdFamily> SimdMaskedStore<T, F> for SimdVec<T, F> {
         }
     }
 
+    // TODO: Support all bit sizes, and also use integer comparisons rather than floats.
     fn partial_store(self, slice: &mut [T], amount: usize) {
-        let amount_vec = Self::splat(<T as NumCast>::from(amount).unwrap());
-        let mask = Self::iota(<T as NumCast>::from(0).unwrap()).simd_lt(amount_vec);
-        Self::masked_store(self, slice, mask);
+        match T::BIT_SIZE {
+            BitSize::Size64 => {
+                let amount_vec = SimdVec::<f64, F>::splat(amount as f64);
+                let mask = SimdVec::<f64, F>::iota(0.0).simd_lt(amount_vec);
+                Self::masked_store(self, slice, mask.raw_cast());
+            },
+            BitSize::Size32 => {
+                let amount_vec = SimdVec::<f32, F>::splat(amount as f32);
+                let mask = SimdVec::<f32, F>::iota(0.0).simd_lt(amount_vec);
+                Self::masked_store(self, slice, mask.raw_cast());
+            },
+            _ => unreachable!()
+        }
     }
 }
 
