@@ -157,36 +157,18 @@ impl<T: SimdElement, const N: usize> Default for SimdArray<T, N> {
 // ————————————————————————————————————————————————————————————————
 // ————— Indexing —————————————————————————————————————————————————
 // ————————————————————————————————————————————————————————————————
-impl<T: SimdElement, const N: usize> Index<usize> for SimdArray<T, N> {
-    type Output = T;
 
-    /// Obtains the value at a given index.
-    ///
-    /// # Example
-    /// ```
-    /// use quick_noise::simd::simd_array::SimdArray;
-    /// let arr = SimdArray::<i32, 5>::iota(0);
-    /// assert_eq!(arr[2], 2);
-    /// ```
-    fn index(&self, index: usize) -> &Self::Output {
-        debug_assert!(index < N);
-        unsafe { &self.data[index].assume_init_ref() }
+impl<T: SimdElement, const N: usize> Deref for SimdArray<T, N> {
+    type Target = [T];
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { std::slice::from_raw_parts(self.data.as_ptr() as *const T, N) }
     }
 }
 
-impl<T: SimdElement, const N: usize> IndexMut<usize> for SimdArray<T, N> {
-    /// Obtains the mutable reference of a given index.
-    ///
-    /// # Example
-    /// ```
-    /// use quick_noise::simd::simd_array::SimdArray;
-    /// let mut arr = SimdArray::<i32, 5>::new(0);
-    /// arr[0] = 100;
-    /// assert_eq!(arr[0], 100);
-    /// ```
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        debug_assert!(index < N);
-        unsafe { self.data[index].assume_init_mut() }
+impl<T: SimdElement, const N: usize> DerefMut for SimdArray<T, N> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe { std::slice::from_raw_parts_mut(self.data.as_mut_ptr() as *mut T, N) }
     }
 }
 
@@ -618,9 +600,7 @@ impl<T: SimdFloat, const N: usize> SimdArray<T, N> {
     ///
     /// assert_eq!(new_arr[0], 0.5);
     pub fn fract(&self) -> Self {
-        self.iter()
-            .map(|x| x.fract())
-            .collect()
+        self.iter().map(|x| x.fract()).collect()
     }
 
     // TODO: extend max and min to integer types.
@@ -643,9 +623,7 @@ impl<T: SimdFloat, const N: usize> SimdArray<T, N> {
     /// assert_eq!(max_arr[0], 15.0);
     pub fn max(&self, val: T) -> Self {
         let max_vec = ArchSimd::splat(val);
-        self.iter()
-            .map(|x| x.max(max_vec))
-            .collect()
+        self.iter().map(|x| x.max(max_vec)).collect()
     }
 
     /// Creates a new [`SimdArray`] containing the values of another
@@ -667,9 +645,7 @@ impl<T: SimdFloat, const N: usize> SimdArray<T, N> {
     /// assert_eq!(min_arr[0], 14.5);
     pub fn min(&self, val: T) -> Self {
         let min_vec = ArchSimd::splat(val);
-        self.iter()
-            .map(|x| x.min(min_vec))
-            .collect()
+        self.iter().map(|x| x.min(min_vec)).collect()
     }
 }
 
@@ -911,7 +887,8 @@ impl<T: SimdElement, const N: usize> SimdArray<T, N> {
     /// let mut arr = SimdArray::<f32, 35>::iota_custom(0.0, 0.4);
     /// let scale = ArchSimd::splat(2.0);
     ///
-    /// arr.iter_mut().for_each(|mut x| *x *= scale);
+    /// arr.iter_mut()
+    ///    .for_each(|mut x| *x *= scale);
     ///
     /// assert_eq!(arr[2], 1.6);
     /// ```
