@@ -111,7 +111,7 @@ impl<T: SimdElement, const N: usize> TailInfo for SimdArray<T, N> {
 impl<T: SimdElement, const N: usize> SimdArray<T, N> {
     /// Creates a new simd array with uninitialized memory.
     /// Ideal for avoiding initialization overhead in performance-critical code.
-    pub fn new_uninit() -> Self {
+    pub unsafe fn new_uninit() -> Self {
         Self {
             data: unsafe { MaybeUninit::uninit().assume_init() },
         }
@@ -269,7 +269,11 @@ impl<T: SimdElement, const N: usize> SimdArray<T, N> {
     /// ```
     #[inline(always)]
     pub fn store_simd(&mut self, index: usize, vec: ArchSimd<T>) {
-        debug_assert!(index + ArchSimd::<T>::LANES <= N);
+        assert!(
+            index + ArchSimd::<T>::LANES <= N,
+            "Attempted to store to an out of bounds index! (Indices [{index}-{}] > [0-{N}]) ",
+            index + ArchSimd::<T>::LANES
+        );
         // debug_assert!(index % ArchSimd::<T>::LANES == 0);
         unsafe {
             vec.store(&mut self.data.assume_init_mut().get_unchecked_mut(index..));
@@ -532,7 +536,7 @@ where
         let iota_vec = ArchSimd::iota(NumCast::from(0).unwrap()) * increment_vec;
 
         let mut cur_vec = ArchSimd::splat(offset) + iota_vec;
-        let mut result = Self::new_uninit();
+        let mut result = unsafe { Self::new_uninit() };
         let mut iter = result.iter_mut();
 
         // Set first chunk first to avoid unnecessary tail increment.
@@ -565,7 +569,7 @@ where
         let lanes_increment_vec = ArchSimd::splat(NumCast::from(ArchSimd::<T>::LANES).unwrap());
         let mut cur_vec = ArchSimd::iota(offset);
 
-        let mut result = Self::new_uninit();
+        let mut result = unsafe { Self::new_uninit() };
         let mut iter = result.iter_mut();
 
         // Set first chunk first to avoid unnecessary tail increment.
@@ -749,20 +753,28 @@ impl<'a, T: SimdElement, const N: usize> Iterator for SimdArrayIter<'a, T, N> {
             None
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = (N - self.index + ArchSimd::<T>::LANES - 1) / ArchSimd::<T>::LANES;
+        (remaining, Some(remaining))
+    }
 }
 
 impl<T: SimdElement, const N: usize> FromIterator<ArchSimd<T>> for SimdArray<T, N> {
     fn from_iter<I: IntoIterator<Item = ArchSimd<T>>>(iter: I) -> Self {
-        let mut result = Self::new_uninit();
+        let mut result = unsafe { Self::new_uninit() };
 
         let mut cur_index = 0;
         for chunk in iter {
             // Handle tail case, use compile-constants to help compiler optimize.
             if Self::HAS_TAIL && (cur_index >= Self::TAIL_START) {
-                result.partial_store_simd(Self::TAIL_START, chunk, Self::TAIL_SIZE)
-            } else {
+                result.partial_store_simd(Self::TAIL_START, chunk, Self::TAIL_SIZE);
+                break;
+            } else if cur_index < N {
                 result.store_simd(cur_index, chunk);
                 cur_index += ArchSimd::<T>::LANES;
+            } else {
+                break;
             }
         }
 
@@ -791,6 +803,11 @@ impl<'a, T: SimdElement, const N: usize> Iterator for SimdArrayIterMut<'a, T, N>
         } else {
             None
         }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = (N - self.index + ArchSimd::<T>::LANES - 1) / ArchSimd::<T>::LANES;
+        (remaining, Some(remaining))
     }
 }
 
@@ -843,6 +860,52 @@ impl<'a, T: SimdElement, const N: usize> Deref for SimdArrayChunk<'a, T, N> {
 impl<'a, T: SimdElement, const N: usize> DerefMut for SimdArrayChunk<'a, T, N> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.register
+    }
+}
+
+// ————————————————————————————————————————————————————————————————
+// ————— Into Iterator ————————————————————————————————————————————
+// ————————————————————————————————————————————————————————————————
+
+pub struct SimdArrayIntoIter<T: SimdElement, const N: usize> {
+    array: SimdArray<T, N>,
+    index: usize,
+}
+
+impl<T: SimdElement, const N: usize> SimdArrayIntoIter<T, N> {
+    pub fn new(array: SimdArray<T, N>) -> Self {
+        Self {
+            array,
+            index: 0,
+        }
+    }
+}
+
+impl<T: SimdElement, const N: usize> Iterator for SimdArrayIntoIter<T, N> {
+    type Item = ArchSimd<T>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.index < N {
+            let item = self.array.load_simd(self.index);
+            self.index += ArchSimd::<T>::LANES;
+            Some(item)
+        } else {
+            None
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = (N - self.index + ArchSimd::<T>::LANES - 1) / ArchSimd::<T>::LANES;
+        (remaining, Some(remaining))
+    }
+}
+
+impl<T: SimdElement, const N: usize> IntoIterator for SimdArray<T, N> {
+    type Item = ArchSimd<T>;
+    type IntoIter = SimdArrayIntoIter<T, N>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        SimdArrayIntoIter::new(self)
     }
 }
 

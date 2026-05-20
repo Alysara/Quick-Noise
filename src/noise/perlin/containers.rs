@@ -78,18 +78,20 @@ pub struct PerlinContainer2D {
 }
 
 impl PerlinContainer2D {
-    pub fn new_uninit() -> Self {
-        PerlinContainer2D {
-            vecs: [
-                PerlinVecPair::new(PerlinVec::new_uninit(), PerlinVec::new_uninit()),
-                PerlinVecPair::new(PerlinVec::new_uninit(), PerlinVec::new_uninit()),
-                PerlinVecPair::new(PerlinVec::new_uninit(), PerlinVec::new_uninit()),
-                PerlinVecPair::new(PerlinVec::new_uninit(), PerlinVec::new_uninit()),
-            ],
-            tl: 0,
-            tr: 1,
-            bl: 2,
-            br: 3,
+    pub unsafe fn new_uninit() -> Self {
+        unsafe {
+            PerlinContainer2D {
+                vecs: [
+                    PerlinVecPair::new(PerlinVec::new_uninit(), PerlinVec::new_uninit()),
+                    PerlinVecPair::new(PerlinVec::new_uninit(), PerlinVec::new_uninit()),
+                    PerlinVecPair::new(PerlinVec::new_uninit(), PerlinVec::new_uninit()),
+                    PerlinVecPair::new(PerlinVec::new_uninit(), PerlinVec::new_uninit()),
+                ],
+                tl: 0,
+                tr: 1,
+                bl: 2,
+                br: 3,
+            }
         }
     }
 
@@ -134,26 +136,28 @@ pub struct PerlinContainer3D {
 }
 
 impl PerlinContainer3D {
-    pub fn new_uninit() -> Self {
-        PerlinContainer3D {
-            vecs: [
-                PerlinVecTriple::splat(PerlinVec::new_uninit()),
-                PerlinVecTriple::splat(PerlinVec::new_uninit()),
-                PerlinVecTriple::splat(PerlinVec::new_uninit()),
-                PerlinVecTriple::splat(PerlinVec::new_uninit()),
-                PerlinVecTriple::splat(PerlinVec::new_uninit()),
-                PerlinVecTriple::splat(PerlinVec::new_uninit()),
-                PerlinVecTriple::splat(PerlinVec::new_uninit()),
-                PerlinVecTriple::splat(PerlinVec::new_uninit()),
-            ],
-            tlf: 0,
-            trf: 1,
-            tlb: 2,
-            trb: 3,
-            blf: 4,
-            brf: 5,
-            blb: 6,
-            brb: 7,
+    pub unsafe fn new_uninit() -> Self {
+        unsafe {
+            PerlinContainer3D {
+                vecs: [
+                    PerlinVecTriple::splat(PerlinVec::new_uninit()),
+                    PerlinVecTriple::splat(PerlinVec::new_uninit()),
+                    PerlinVecTriple::splat(PerlinVec::new_uninit()),
+                    PerlinVecTriple::splat(PerlinVec::new_uninit()),
+                    PerlinVecTriple::splat(PerlinVec::new_uninit()),
+                    PerlinVecTriple::splat(PerlinVec::new_uninit()),
+                    PerlinVecTriple::splat(PerlinVec::new_uninit()),
+                    PerlinVecTriple::splat(PerlinVec::new_uninit()),
+                ],
+                tlf: 0,
+                trf: 1,
+                tlb: 2,
+                trb: 3,
+                blf: 4,
+                brf: 5,
+                blb: 6,
+                brb: 7,
+            }
         }
     }
 

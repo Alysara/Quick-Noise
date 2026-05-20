@@ -1,10 +1,32 @@
 use criterion::{Criterion, Throughput, criterion_group, criterion_main};
 use fastnoise2::Node;
+use itertools::izip;
 use quick_noise::perlin::{Octave2D, Octave3D, Perlin, PerlinMap, PerlinVol};
+use quick_noise::simd::simd_array::SimdArray;
 use quick_noise::simplex::Simplex;
 use quick_noise::value::Value;
 use quick_noise::cellular::Cellular;
+use quick_noise::pipeline::Node as QNode;
+use std::hint::black_box;
+
 const SCALES: [f32; 11] = [64.0, 48.0, 32.0, 24.0, 16.0, 12.0, 8.0, 6.0, 4.0, 3.0, 2.0];
+
+fn simd_array_benchmark(c: &mut Criterion) {
+    let mut group = c.benchmark_group("simd_array");
+    group.throughput(Throughput::Elements(1024));
+
+    let arr1: SimdArray<f32, 2050> = SimdArray::iota(0.);
+    let arr2: SimdArray<f32, 2050> = SimdArray::iota(2.);
+    let arr3: SimdArray<f32, 2050> = SimdArray::iota(4.);
+    group.bench_function("mul_add", |b| {
+        b.iter(|| {
+            // black_box(&arr1).mul_add(black_box(*&arr2), black_box(*&arr3))
+            black_box(SimdArray::<f32, 2050>::iota_custom(black_box(0.), black_box(0.4)));
+        })
+    });
+    
+    group.finish();
+}
 
 fn perlin_2d_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("perlin_noise_2d");
@@ -51,19 +73,36 @@ fn simplex_2d_benchmark_batch(c: &mut Criterion) {
     let scale = 1.0 / 32.0;
     group.throughput(Throughput::Elements(1024)); 
     group.bench_function(format!("scale: {scale}"), |b| {
-        let mut simplex = Simplex::new(0);
-        let mut x_array = PerlinMap::new_uninit();
-        let mut y_array = PerlinMap::new_uninit();
-        let mut output = PerlinMap::new_uninit();
-        for x in 0..32 {
-            for y in 0..32 {
-                x_array[x * 32 + y] = x as f32;
-                y_array[x * 32 + y] = y as f32;
-            }
-        }
-
+        
         b.iter(|| {
-            simplex.batched_2d(&mut output, &x_array, &y_array, scale, 1.0, 1, 0.0)
+            let mut simplex = Simplex::new(0);
+            let mut x_array = PerlinMap::new_uninit();
+            let mut y_array = PerlinMap::new_uninit();
+            let mut output = PerlinMap::new_uninit();
+            for x in black_box(0..32) {
+                for y in black_box(0..32) {
+                    x_array[x * 32 + y] = x as f32;
+                    y_array[x * 32 + y] = y as f32;
+                }
+            }
+            simplex.batched_2d(&mut output, &x_array, &y_array, scale, 1.0, 1, 0.0);
+
+            output
+        });
+    });
+}
+
+fn simplex_2d_benchmark_iter_batch(c: &mut Criterion) {
+    let mut group = c.benchmark_group("simplex_noise_2d_iter_batch");
+    let scale = 1.0 / 32.0;
+    group.throughput(Throughput::Elements(1024)); 
+    group.bench_function(format!("scale: {scale}"), |b| {
+        b.iter(|| {
+            let arr: SimdArray::<f32, 1024> =
+                izip!(QNode::x_iter_2d(black_box(0.0)), QNode::y_iter_2d(black_box(0.0)))
+                    .map(|(x, y)| Simplex::batch_2d(x, y, scale, 12345676543))
+                    .collect();
+            arr
         });
     });
 }
@@ -259,8 +298,8 @@ fn simplex_2d_benchmark_fn2(c: &mut Criterion) {
         let mut i = 0;
         let scale = 1f32 / scale as f32;
         b.iter(|| {
-            i = i + 1 & 0xFFFFFF;
-            let offset = (i * 32) as f32;
+            i = black_box(i + 1 & 0xFFFFFF);
+            let offset = black_box((i * 32) as f32);
             unsafe {
                 node.gen_uniform_grid_2d_unchecked(
                     &mut array,
@@ -273,6 +312,7 @@ fn simplex_2d_benchmark_fn2(c: &mut Criterion) {
                     0
                 );
             }
+            array
         });
     });
 }
@@ -484,10 +524,11 @@ fn simplex_3d_benchmark_fn2(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, perlin_2d_benchmark, perlin_3d_benchmark);
+// criterion_group!(benches, simd_array_benchmark);
+// criterion_group!(benches, perlin_2d_benchmark, perlin_3d_benchmark);
 // criterion_group!(benches, perlin_2d_benchmark, perlin_3d_benchmark, perlin_2d_benchmark_fn2, perlin_3d_benchmark_fn2);
 // criterion_group!(benches, perlin_2d_benchmark_batch, perlin_2d_benchmark_fn2, perlin_3d_benchmark_batch, perlin_3d_benchmark_fn2);
-// criterion_group!(benches, simplex_2d_benchmark_batch, simplex_2d_benchmark_fn2);
+criterion_group!(benches, simplex_2d_benchmark_batch, simplex_2d_benchmark_iter_batch, simplex_2d_benchmark_fn2);
 // criterion_group!(benches, value_2d_benchmark_batch, perlin_2d_benchmark_batch, simplex_2d_benchmark_batch);
 // criterion_group!(benches, cellular_2d_benchmark_batch, cellular_2d_benchmark_fn2);
 // criterion_group!(benches, cellular_3d_benchmark_batch, cellular_3d_benchmark_fn2);

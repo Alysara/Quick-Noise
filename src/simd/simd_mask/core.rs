@@ -38,6 +38,14 @@ impl<T: SimdElement, F: SimdFamily> SimdMask<T, F> {
     pub fn all_false(self) -> bool {
         self.data.all_zero()
     }
+
+    // TODO: Support other bit_sizes
+    #[inline(always)]
+    pub fn first_n_true(n: u32) -> SimdMask<T, F> {
+        let iota = SimdVec::iota(0u32);
+        let n_vec = SimdVec::splat(n);
+        n_vec.simd_gt(iota).raw_cast()
+    }
 }
 
 impl<T: SimdElement, F: SimdFamily> BitAnd for SimdMask<T, F> {

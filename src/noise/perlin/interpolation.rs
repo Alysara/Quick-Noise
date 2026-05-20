@@ -165,20 +165,20 @@ impl Perlin {
         let y_upper_increment = ArchSimd::splat(y_frac_start);
         let y_lower_increment = ArchSimd::splat(y_frac_start - 1.0);
 
-        let mut y_tf_offset = PerlinVec::new_uninit();
-        let mut y_bf_offset = PerlinVec::new_uninit();
-        let mut y_top_offset_dif = PerlinVec::new_uninit();
-        let mut y_bottom_offset_dif = PerlinVec::new_uninit();
+        let mut y_tf_offset = unsafe { PerlinVec::new_uninit() };
+        let mut y_bf_offset = unsafe { PerlinVec::new_uninit() };
+        let mut y_top_offset_dif = unsafe { PerlinVec::new_uninit() };
+        let mut y_bottom_offset_dif = unsafe { PerlinVec::new_uninit() };
 
-        let mut x_tf_offset = PerlinVec::new_uninit();
-        let mut x_bf_offset = PerlinVec::new_uninit();
-        let mut x_top_offset_dif = PerlinVec::new_uninit();
-        let mut x_bottom_offset_dif = PerlinVec::new_uninit();
+        let mut x_tf_offset = unsafe { PerlinVec::new_uninit() };
+        let mut x_bf_offset = unsafe { PerlinVec::new_uninit() };
+        let mut x_top_offset_dif = unsafe { PerlinVec::new_uninit() };
+        let mut x_bottom_offset_dif = unsafe { PerlinVec::new_uninit() };
 
-        let mut tf_base = PerlinVec::new_uninit();
-        let mut bf_base = PerlinVec::new_uninit();
-        let mut top_base_dif = PerlinVec::new_uninit();
-        let mut bottom_base_dif = PerlinVec::new_uninit();
+        let mut tf_base = unsafe { PerlinVec::new_uninit() };
+        let mut bf_base = unsafe { PerlinVec::new_uninit() };
+        let mut top_base_dif = unsafe { PerlinVec::new_uninit() };
+        let mut bottom_base_dif = unsafe { PerlinVec::new_uninit() };
 
         for z_it in (0..ROW_SIZE).step_by(ArchSimd::<f32>::LANES) {
             let z_lerp = interpolations.z.load_simd(z_it);

@@ -9,6 +9,7 @@ use crate::simd::simd_traits::*;
 // use crate::simd::simd_vec::core::SimdVec;
 // use crate::simd::architectures::families::Avx2Family;
 
+// TODO: Adjust seed inputs.
 impl Perlin {
     pub fn batched_2d(
         &mut self,
@@ -35,7 +36,7 @@ impl Perlin {
         ];
         
         let shuffle_indices = ArchSimd::<u8>::load(&BYTE_SHUFFLE[..]);
-        let channel_seed = ArchSimd::splat(self.random_gen.channel_seed as u32);
+        let channel_seed = ArchSimd::splat(0u32);
         let prime = ArchSimd::splat(0x85ebca6b_u32 as u32);
     
         // Frequency constant.
@@ -150,8 +151,8 @@ impl Perlin {
         ];
 
         let shuffle_indices = ArchSimd::<u8>::load(&BYTE_SHUFFLE[..]);
-        let channel_seed = ArchSimd::splat(self.random_gen.channel_seed as u32);
-        let prime = ArchSimd::splat(0x85ebca6b_u32 as u32);
+        let channel_seed = ArchSimd::splat(0u32);
+        let prime = ArchSimd::splat(0x85ebca6b_u32);
     
         // Frequency constant.
         let freq = ArchSimd::<f32>::splat(octave.scale.x);

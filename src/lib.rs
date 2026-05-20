@@ -17,5 +17,11 @@ pub mod emit {
     pub mod grayscale;
 }
 
+pub mod api {
+    pub mod builders;
+    pub mod batch;
+    pub mod grid;
+}
+
 mod noise;
 pub use noise::*;

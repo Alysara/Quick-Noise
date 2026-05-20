@@ -1,3 +1,4 @@
+use crate::math::random::Random;
 use crate::noise::perlin::Perlin;
 use crate::noise::perlin::constants::*;
 use crate::simd::arch_simd::{ArchSimd, ArchMask};
@@ -7,7 +8,7 @@ use crate::simd::simd_traits::*;
 impl Perlin {
     #[inline(always)]
     pub(super) fn set_uniform_grid_gradients_2d (
-        &mut self,
+        random_gen: &mut Random,
         left: &mut PerlinVecPair,
         right: &mut PerlinVecPair,
         x_start: i32,
@@ -15,10 +16,10 @@ impl Perlin {
         y_grid_indices: u32,
         y_distances: &PerlinVec,
     ) {
-        let iota_vec = ArchSimd::iota(0) * ArchSimd::splat(self.random_gen.channel_seed as u32);
-        let x_vec = ArchSimd::splat((x_start as u32).wrapping_mul(self.random_gen.channel_seed as u32));
-        let mut y_vec = ArchSimd::splat((y_start as u32).wrapping_mul(self.random_gen.channel_seed as u32)) + iota_vec;
-        let y_vec_stride = ArchSimd::splat((ArchSimd::<f32>::LANES as u32).wrapping_mul(self.random_gen.channel_seed as u32));
+        let iota_vec = ArchSimd::iota(0) * ArchSimd::splat(random_gen.channel_seed as u32);
+        let x_vec = ArchSimd::splat((x_start as u32).wrapping_mul(random_gen.channel_seed as u32));
+        let mut y_vec = ArchSimd::splat((y_start as u32).wrapping_mul(random_gen.channel_seed as u32)) + iota_vec;
+        let y_vec_stride = ArchSimd::splat((ArchSimd::<f32>::LANES as u32).wrapping_mul(random_gen.channel_seed as u32));
 
         const BYTE_SHUFFLE: [u8; 64] = [
             3,0,2,1, 7,4,6,5, 11,8,10,9, 15,12,14,13,
@@ -33,7 +34,7 @@ impl Perlin {
         let x_shuf = x_vec.permute_8(shuffle_indices) ^ prime;
 
         // Temporary buffer to store indices for gradient values.
-        let mut grad_array = SimdArray::<u32, 64>::new_uninit();
+        let mut grad_array = unsafe { SimdArray::<u32, 64>::new_uninit() };
 
         // Main vectorized bit mixing loop.
         let y_num_loops = y_grid_indices.count_ones() + 1;
@@ -84,7 +85,7 @@ impl Perlin {
 
     #[inline(never)]
     pub(super) fn set_uniform_grid_gradients_3d (
-        &mut self,
+        random_gen: &mut Random,
         lf: &mut PerlinVecTriple,
         rf: &mut PerlinVecTriple,
         lb: &mut PerlinVecTriple,
@@ -102,15 +103,15 @@ impl Perlin {
         let y_vec = ArchSimd::splat(y_start);
         let lane_increment = ArchSimd::splat(ArchSimd::<f32>::LANES as i32);
 
-        let mut front_grad_array = SimdArray::<u32, 64>::new_uninit();
+        let mut front_grad_array = unsafe { SimdArray::<u32, 64>::new_uninit() };
         let mut z_vec = ArchSimd::splat(z_start) + iota_vec;
-        let grad: ArchSimd<u32> = self.random_gen.mix_i32_simd_triple(x_front_vec, y_vec, z_vec) & ArchSimd::splat(15);
+        let grad: ArchSimd<u32> = random_gen.mix_i32_simd_triple(x_front_vec, y_vec, z_vec) & ArchSimd::splat(15);
         front_grad_array.store_simd(0, grad);
         
         let z_num_loops = z_grid_indices.count_ones() + 1;
         for i in (ArchSimd::<f32>::LANES..z_num_loops as usize + 1).step_by(ArchSimd::<f32>::LANES) {
             z_vec += lane_increment;
-            let grad: ArchSimd<u32> = self.random_gen.mix_i32_simd_triple(x_front_vec, y_vec, z_vec) & ArchSimd::splat(15);
+            let grad: ArchSimd<u32> = random_gen.mix_i32_simd_triple(x_front_vec, y_vec, z_vec) & ArchSimd::splat(15);
             front_grad_array.store_simd(i, grad);
         }
 
@@ -139,13 +140,13 @@ impl Perlin {
             z_cur_index = z_next_index;
         }
 
-        let mut back_grad_array = SimdArray::<u32, 64>::new_uninit();
+        let mut back_grad_array = unsafe { SimdArray::<u32, 64>::new_uninit() };
         let mut z_vec = ArchSimd::splat(z_start) + iota_vec;
-        let grad: ArchSimd<u32> = self.random_gen.mix_i32_simd_triple(x_back_vec, y_vec, z_vec) & ArchSimd::splat(15);
+        let grad: ArchSimd<u32> = random_gen.mix_i32_simd_triple(x_back_vec, y_vec, z_vec) & ArchSimd::splat(15);
         back_grad_array.store_simd(0, grad);
         for i in (ArchSimd::<f32>::LANES..z_num_loops as usize + 1).step_by(ArchSimd::<f32>::LANES) {
             z_vec += lane_increment;
-            let grad: ArchSimd<u32> = self.random_gen.mix_i32_simd_triple(x_back_vec, y_vec, z_vec) & ArchSimd::splat(15);
+            let grad: ArchSimd<u32> = random_gen.mix_i32_simd_triple(x_back_vec, y_vec, z_vec) & ArchSimd::splat(15);
             back_grad_array.store_simd(i, grad);
         }
 

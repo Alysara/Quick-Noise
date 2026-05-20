@@ -3,19 +3,11 @@ use crate::math::vec::{Vec2, Vec3};
 use crate::noise::perlin::constants::*;
 use crate::noise::perlin::containers::*;
 
-pub struct Perlin {
-    pub(super) random_gen: Random,
-}
+pub struct Perlin {}
 
 impl Perlin {
-    pub fn new(seed: i64) -> Self {
-        Self {
-            random_gen: Random::new(seed as u64),
-        }
-    }
-
     pub fn uniform_grid_2d(
-        &mut self,
+        random_gen: &mut Random,
         result: &mut PerlinMap,
         pos: Vec2<i32>,
         octaves: u32,
@@ -43,7 +35,8 @@ impl Perlin {
         let mut cur_octave = Octave2D::splat(scale, 1.0);
 
         // Add each noise pass to result. Slight performance boost for initializing on the first pass.
-        self.uniform_grid_octave_2d::<true>(
+        Self::uniform_grid_octave_2d::<true>(
+            random_gen,
             result,
             pos,
             &cur_octave,
@@ -55,7 +48,8 @@ impl Perlin {
             cur_octave.scale *= lacunarity_inv;
             cur_octave.weight *= persistence;
 
-            self.uniform_grid_octave_2d::<false>(
+            Self::uniform_grid_octave_2d::<false>(
+                random_gen,
                 result,
                 pos,
                 &cur_octave,
@@ -67,7 +61,7 @@ impl Perlin {
     }
 
     pub fn uniform_grid_2d_octaves(
-        &mut self,
+        random_gen: &mut Random,
         result: &mut PerlinMap,
         pos: Vec2<i32>,
         octaves: impl IntoIterator<Item = impl Into<Octave2D>>,
@@ -87,7 +81,8 @@ impl Perlin {
         let weight_coef = amplitude / weight_sum;
 
         // Add each noise pass to result. Slight performance boost for initialize on the first pass.
-        self.uniform_grid_octave_2d::<true>(
+        Self::uniform_grid_octave_2d::<true>(
+            random_gen,
             result,
             pos,
             &octaves_vec[0],
@@ -96,7 +91,8 @@ impl Perlin {
             octave_offset,
         );
         for i in 1..octaves_vec.len() {
-            self.uniform_grid_octave_2d::<false>(
+            Self::uniform_grid_octave_2d::<false>(
+                random_gen,
                 result,
                 pos,
                 &octaves_vec[i],
@@ -108,7 +104,7 @@ impl Perlin {
     }
 
     pub fn uniform_grid_3d(
-        &mut self,
+        random_gen: &mut Random,
         result: &mut PerlinVol,
         pos: Vec3<i32>,
         octaves: u32,
@@ -136,7 +132,8 @@ impl Perlin {
         let mut cur_octave = Octave3D::splat(scale, 1.0);
 
         // Add each noise pass to result. Slight performance boost for initializing on the first pass.
-        self.uniform_grid_octave_3d::<true>(
+        Self::uniform_grid_octave_3d::<true>(
+            random_gen,
             result,
             pos,
             &cur_octave,
@@ -148,7 +145,8 @@ impl Perlin {
             cur_octave.scale *= lacunarity_inv;
             cur_octave.weight *= persistence;
 
-            self.uniform_grid_octave_3d::<false>(
+            Self::uniform_grid_octave_3d::<false>(
+                random_gen,
                 result,
                 pos,
                 &cur_octave,
@@ -160,7 +158,7 @@ impl Perlin {
     }
 
     pub fn uniform_grid_3d_octaves(
-        &mut self,
+        random_gen: &mut Random,
         result: &mut PerlinVol,
         pos: Vec3<i32>,
         octaves: impl IntoIterator<Item = impl Into<Octave3D>>,
@@ -180,7 +178,8 @@ impl Perlin {
         let weight_coef = amplitude / weight_sum;
 
         // Add each noise pass to result. Slight performance boost for initialize on the first pass.
-        self.uniform_grid_octave_3d::<true>(
+        Self::uniform_grid_octave_3d::<true>(
+            random_gen,
             result,
             pos,
             &octaves_vec[0],
@@ -189,7 +188,8 @@ impl Perlin {
             octave_offset,
         );
         for i in 1..octaves_vec.len() {
-            self.uniform_grid_octave_3d::<false>(
+            Self::uniform_grid_octave_3d::<false>(
+                random_gen,
                 result,
                 pos,
                 &octaves_vec[i],

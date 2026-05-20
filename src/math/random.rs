@@ -87,7 +87,7 @@ impl Random {
 
     // === Bit mixing implementations | From MurmurHash ===
 
-    fn mix_u64_impl(mut data: u64) -> u64 {
+    pub fn mix_u64_impl(mut data: u64) -> u64 {
         data ^= data >> 33;
         data = data.wrapping_mul(0xff51afd7ed558ccd);
         data ^= data >> 33;
