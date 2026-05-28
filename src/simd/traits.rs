@@ -1,6 +1,8 @@
 use std::fmt::Debug;
-use num_traits::{NumCast, NumOps};
 use std::ops::*;
+
+use num_traits::{NumCast, NumOps};
+
 use crate::simd::architectures::arch_impl::SimdFamily;
 use crate::simd::array_trait::Array;
 
@@ -23,7 +25,6 @@ mod private {
     impl SealedSizes for super::B16 {}
     impl SealedSizes for super::B8 {}
 }
-
 
 pub enum BitSize {
     Size64,
@@ -60,10 +61,18 @@ pub trait BitWidth: private::SealedSizes {
     const BIT_SIZE: usize;
 }
 
-impl BitWidth for B64 { const BIT_SIZE: usize = 64; }
-impl BitWidth for B32 { const BIT_SIZE: usize = 32; }
-impl BitWidth for B16 { const BIT_SIZE: usize = 16; }
-impl BitWidth for B8 { const BIT_SIZE: usize = 8; }
+impl BitWidth for B64 {
+    const BIT_SIZE: usize = 64;
+}
+impl BitWidth for B32 {
+    const BIT_SIZE: usize = 32;
+}
+impl BitWidth for B16 {
+    const BIT_SIZE: usize = 16;
+}
+impl BitWidth for B8 {
+    const BIT_SIZE: usize = 8;
+}
 
 // pub trait Array<T> {
 //     fn from_fn(f: impl FnMut(usize) -> T) -> Self;
@@ -92,15 +101,8 @@ impl BitWidth for B8 { const BIT_SIZE: usize = 8; }
 // }
 
 // Need both enum and associated type for matching and bounds.
-pub trait SimdElement: 
-    private::SealedTypes +
-    PartialEq +
-    Sized +
-    Default +
-    Copy +
-    NumCast +
-    NumOps +
-    Debug +
+pub trait SimdElement:
+    private::SealedTypes + PartialEq + Sized + Default + Copy + NumCast + NumOps + Debug
 {
     const BIT_SIZE: BitSize;
     const PRIMITIVE_TYPE: PrimitiveType;
@@ -250,8 +252,12 @@ pub trait SimdFloat: SimdElement + HasSigned + HasUnsigned + SimdMulType {
     const SIGN_MASK: usize;
 }
 
-impl SimdFloat for f64 { const SIGN_MASK: usize = 0x8000000000000000; }
-impl SimdFloat for f32 { const SIGN_MASK: usize = 0x80000000; }
+impl SimdFloat for f64 {
+    const SIGN_MASK: usize = 0x8000000000000000;
+}
+impl SimdFloat for f32 {
+    const SIGN_MASK: usize = 0x80000000;
+}
 
 pub trait SimdWideType: SimdElement {}
 impl SimdWideType for f64 {}
@@ -295,7 +301,6 @@ impl SimdMulType for u16 {}
 // impl BitSize8 for i8 {}
 // impl BitSize8 for u8 {}
 
-
 pub trait HasFloat: SimdElement {
     type Float: SimdElement;
 }
@@ -309,23 +314,55 @@ pub trait HasUnsigned: SimdElement {
 }
 
 // Floats.
-impl HasSigned for f64 { type Signed = i64; }
-impl HasUnsigned for f64 { type Unsigned = u64; }
-impl HasSigned for f32 { type Signed = i32; }
-impl HasUnsigned for f32 { type Unsigned = u32; }
+impl HasSigned for f64 {
+    type Signed = i64;
+}
+impl HasUnsigned for f64 {
+    type Unsigned = u64;
+}
+impl HasSigned for f32 {
+    type Signed = i32;
+}
+impl HasUnsigned for f32 {
+    type Unsigned = u32;
+}
 
 // Signed Integers.
-impl HasFloat for i64 { type Float = f64; }
-impl HasUnsigned for i64 { type Unsigned = u64; }
-impl HasFloat for i32 { type Float = f32; }
-impl HasUnsigned for i32 { type Unsigned = u32; }
-impl HasUnsigned for i16 { type Unsigned = u16; }
-impl HasUnsigned for i8 { type Unsigned = u8; }
+impl HasFloat for i64 {
+    type Float = f64;
+}
+impl HasUnsigned for i64 {
+    type Unsigned = u64;
+}
+impl HasFloat for i32 {
+    type Float = f32;
+}
+impl HasUnsigned for i32 {
+    type Unsigned = u32;
+}
+impl HasUnsigned for i16 {
+    type Unsigned = u16;
+}
+impl HasUnsigned for i8 {
+    type Unsigned = u8;
+}
 
 // Unsigned Integers.
-impl HasFloat for u64 { type Float = f64; }
-impl HasSigned for u64 { type Signed = i64; }
-impl HasFloat for u32 { type Float = f32; }
-impl HasSigned for u32 { type Signed = i32; }
-impl HasSigned for u16 { type Signed = i16; }
-impl HasSigned for u8 { type Signed = i8; }
+impl HasFloat for u64 {
+    type Float = f64;
+}
+impl HasSigned for u64 {
+    type Signed = i64;
+}
+impl HasFloat for u32 {
+    type Float = f32;
+}
+impl HasSigned for u32 {
+    type Signed = i32;
+}
+impl HasSigned for u16 {
+    type Signed = i16;
+}
+impl HasSigned for u8 {
+    type Signed = i8;
+}

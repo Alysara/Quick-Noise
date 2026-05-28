@@ -4,17 +4,17 @@ use crate::simd::architectures::macros::*;
 
 #[derive(Copy, Clone)]
 #[repr(align(8))]
-pub struct Scalar<const N: usize>(pub [u8; N]);
+pub struct ScalarReg<const N: usize>(pub [u8; N]);
 #[derive(Copy, Clone)]
 pub struct ScalarMask<const N: usize>(pub [bool; N]);
 
-impl<const N: usize> SimdArch for Scalar<N> {}
+impl<const N: usize> SimdArch for ScalarReg<N> {}
 impl<const N: usize> MaskArch for ScalarMask<N> {}
 
 macro_rules! scalar_token_op {
     ($type:ty, $op:tt, $self:ident, $rhs:ident, $size:expr) => {
         unsafe {
-            let mut new = Scalar::<$size>([0; $size]);
+            let mut new = ScalarReg::<$size>([0; $size]);
 
             let self_ptr: *const $type = $self.0.as_ptr() as *const $type;
             let rhs_ptr: *const $type = $rhs.0.as_ptr() as *const $type;
@@ -32,7 +32,7 @@ macro_rules! scalar_token_op {
 macro_rules! scalar_token_op_usize_rhs {
     ($type:ty, $op:tt, $self:ident, $rhs:ident, $size:expr) => {
         unsafe {
-            let mut new = Scalar::<$size>([0; $size]);
+            let mut new = ScalarReg::<$size>([0; $size]);
 
             let self_ptr: *const $type = $self.0.as_ptr() as *const $type;
             let rhs_ptr: *const $type = $rhs.0.as_ptr() as *const $type;
@@ -50,7 +50,7 @@ macro_rules! scalar_token_op_usize_rhs {
 macro_rules! scalar_func_op {
     ($type:ty, $op:ident, $self:ident, $rhs:ident, $size:expr) => {
         unsafe {
-            let mut new = Scalar::<$size>([0; $size]);
+            let mut new = ScalarReg::<$size>([0; $size]);
 
             let self_ptr: *const $type = $self.0.as_ptr() as *const $type;
             let rhs_ptr: *const $type = $rhs.0.as_ptr() as *const $type;
@@ -68,7 +68,7 @@ macro_rules! scalar_func_op {
 macro_rules! scalar_self_op {
     ($type:ty, $op:ident, $self:ident, $size:expr) => {
         unsafe {
-            let mut new = Scalar::<$size>([0; $size]);
+            let mut new = ScalarReg::<$size>([0; $size]);
 
             let self_ptr: *const $type = $self.0.as_ptr() as *const $type;
             let new_ptr: *mut $type = new.0.as_mut_ptr() as *mut $type;
@@ -84,7 +84,7 @@ macro_rules! scalar_self_op {
 macro_rules! scalar_fma_expr_op {
     ($type:ty, $self:ident, $mult:ident, $add:ident, $size:expr, |$a:ident, $b:ident, $c:ident| $op:expr) => {
         unsafe {
-            let mut new = Scalar::<$size>([0; $size]);
+            let mut new = ScalarReg::<$size>([0; $size]);
 
             let a_ptr: *const $type = $self.0.as_ptr() as *const $type;
             let b_ptr: *const $type = $mult.0.as_ptr() as *const $type;
@@ -122,7 +122,7 @@ macro_rules! scalar_cmp {
 macro_rules! scalar_splat {
     {$type:ty, $self:ident, $val:expr, $size:expr} => {
         unsafe {
-            let mut new = Scalar::<$size>([0; $size]);
+            let mut new = ScalarReg::<$size>([0; $size]);
             let new_ptr = new.0.as_mut_ptr() as *mut $type;
 
             for i in 0..(N / size_of::<$type>()) {
@@ -134,7 +134,7 @@ macro_rules! scalar_splat {
     }
 }
 
-impl<const N: usize> SimdAddImpl for Scalar<N> {
+impl<const N: usize> SimdAddImpl for ScalarReg<N> {
     #[inline(always)] fn f64_add(self, rhs: Self) -> Self { scalar_token_op!(f64, +, self, rhs, N) }
     #[inline(always)] fn f32_add(self, rhs: Self) -> Self { scalar_token_op!(f32, +, self, rhs, N) }
     #[inline(always)] fn i64_add(self, rhs: Self) -> Self { scalar_func_op!(i64, wrapping_add, self, rhs, N) }
@@ -143,7 +143,7 @@ impl<const N: usize> SimdAddImpl for Scalar<N> {
     #[inline(always)] fn i8_add(self, rhs: Self) -> Self { scalar_func_op!(i8, wrapping_add, self, rhs, N) }
 }
 
-impl<const N: usize> SimdSubImpl for Scalar<N> {
+impl<const N: usize> SimdSubImpl for ScalarReg<N> {
     #[inline(always)] fn f64_sub(self, rhs: Self) -> Self { scalar_token_op!(f64, -, self, rhs, N) }
     #[inline(always)] fn f32_sub(self, rhs: Self) -> Self { scalar_token_op!(f32, -, self, rhs, N) }
     #[inline(always)] fn i64_sub(self, rhs: Self) -> Self { scalar_func_op!(i64, wrapping_sub, self, rhs, N) }
@@ -152,19 +152,19 @@ impl<const N: usize> SimdSubImpl for Scalar<N> {
     #[inline(always)] fn i8_sub(self, rhs: Self) -> Self { scalar_func_op!(i8, wrapping_sub, self, rhs, N) }
 }
 
-impl<const N: usize> SimdMulImpl for Scalar<N> {
+impl<const N: usize> SimdMulImpl for ScalarReg<N> {
     #[inline(always)] fn f64_mul(self, rhs: Self) -> Self { scalar_token_op!(f64, *, self, rhs, N) }
     #[inline(always)] fn f32_mul(self, rhs: Self) -> Self { scalar_token_op!(f32, *, self, rhs, N) }
     #[inline(always)] fn i32_mul(self, rhs: Self) -> Self { scalar_func_op!(i32, wrapping_mul, self, rhs, N) }
     #[inline(always)] fn i16_mul(self, rhs: Self) -> Self { scalar_func_op!(i16, wrapping_mul, self, rhs, N) }
 }
 
-impl<const N: usize> SimdDivImpl for Scalar<N> {
+impl<const N: usize> SimdDivImpl for ScalarReg<N> {
     #[inline(always)] fn f64_div(self, rhs: Self) -> Self { scalar_token_op!(f64, /, self, rhs, N) }
     #[inline(always)] fn f32_div(self, rhs: Self) -> Self { scalar_token_op!(f32, /, self, rhs, N) }
 }
 
-impl<const N: usize> SimdBitwiseImpl for Scalar<N> {
+impl<const N: usize> SimdBitwiseImpl for ScalarReg<N> {
     #[inline(always)] fn and(self, rhs: Self) -> Self { scalar_token_op!(u64, &, self, rhs, N) }
     #[inline(always)] fn or(self, rhs: Self) -> Self { scalar_token_op!(u64, |, self, rhs, N) }
     #[inline(always)] fn xor(self, rhs: Self) -> Self { scalar_token_op!(u64, ^, self, rhs, N) }
@@ -172,7 +172,7 @@ impl<const N: usize> SimdBitwiseImpl for Scalar<N> {
     #[inline(always)] fn and_not(self, rhs: Self) -> Self { self.and(rhs.not()) }
 }
 
-impl<const N: usize> SimdShiftImpl for Scalar<N> {
+impl<const N: usize> SimdShiftImpl for ScalarReg<N> {
     #[inline(always)] fn sllv_64(self, rhs: Self) -> Self { scalar_token_op_usize_rhs!(u64, <<, self, rhs, N) }
     #[inline(always)] fn srlv_64(self, rhs: Self) -> Self { scalar_token_op_usize_rhs!(u64, >>, self, rhs, N) }
     #[inline(always)] fn srav_64(self, rhs: Self) -> Self { scalar_token_op_usize_rhs!(i64, >>, self, rhs, N) }
@@ -184,7 +184,7 @@ impl<const N: usize> SimdShiftImpl for Scalar<N> {
     #[inline(always)] fn srav_16(self, rhs: Self) -> Self { scalar_token_op_usize_rhs!(i16, >>, self, rhs, N) }
 }
 
-impl<const N: usize> SimdLoadImpl for Scalar<N> {
+impl<const N: usize> SimdLoadImpl for ScalarReg<N> {
     type MaskType = ScalarMask<N>;
     #[inline(always)] fn load_aligned<T>(ptr: *const T) -> Self {
         unsafe {
@@ -218,7 +218,7 @@ impl<const N: usize> SimdLoadImpl for Scalar<N> {
     }
 }
 
-impl<const N: usize> SimdStoreImpl for Scalar<N> {
+impl<const N: usize> SimdStoreImpl for ScalarReg<N> {
     type MaskType = ScalarMask<N>;
     #[inline(always)] fn store_aligned<T>(self, ptr: *mut T) {
         unsafe {
@@ -250,11 +250,11 @@ impl<const N: usize> SimdStoreImpl for Scalar<N> {
     }
 }
 
-impl<const N: usize> SimdZeroImpl for Scalar<N> {
+impl<const N: usize> SimdZeroImpl for ScalarReg<N> {
     #[inline(always)] fn zero() -> Self { Self([0; N]) }
 }
 
-impl<const N: usize> SimdFloatCastsImpl for Scalar<N> {
+impl<const N: usize> SimdFloatCastsImpl for ScalarReg<N> {
     #[inline(always)] fn float_to_int_trunc(self) -> Self {
         unsafe {
             let mut new = Self([0; N]);
@@ -279,7 +279,7 @@ impl<const N: usize> SimdFloatCastsImpl for Scalar<N> {
     }
 }
 
-impl<const N: usize> SimdIntCastsImpl for Scalar<N> {
+impl<const N: usize> SimdIntCastsImpl for ScalarReg<N> {
     #[inline(always)] fn int_to_float(self) -> Self {
         unsafe {
             let mut new = Self([0; N]);
@@ -293,7 +293,7 @@ impl<const N: usize> SimdIntCastsImpl for Scalar<N> {
     }
 }
 
-impl<const N: usize> SimdPermuteImpl for Scalar<N> {
+impl<const N: usize> SimdPermuteImpl for ScalarReg<N> {
     #[inline(always)] fn permute_32(self, rhs: Self) -> Self {
         unsafe {
             let mut new = Self([0; N]);
@@ -324,10 +324,10 @@ impl<const N: usize> SimdPermuteImpl for Scalar<N> {
 }
 
 impl<const N: usize> SimdVariableBlendImpl for ScalarMask<N> {
-    type VecType = Scalar<N>;
-    #[inline(always)] fn vblend_64(self, true_values: Self::VecType, false_values: Self::VecType) -> Scalar<N> {
+    type VecType = ScalarReg<N>;
+    #[inline(always)] fn vblend_64(self, true_values: Self::VecType, false_values: Self::VecType) -> ScalarReg<N> {
         unsafe {
-            let mut new = Scalar::<N>([0; N]);
+            let mut new = ScalarReg::<N>([0; N]);
             let new_ptr = new.0.as_mut_ptr() as *mut u64;
             let false_ptr = false_values.0.as_ptr() as *const u64;
             let true_ptr = true_values.0.as_ptr() as *const u64;
@@ -337,9 +337,9 @@ impl<const N: usize> SimdVariableBlendImpl for ScalarMask<N> {
             new
         }
     }
-    #[inline(always)] fn vblend_32(self, true_values: Self::VecType, false_values: Self::VecType) -> Scalar<N> {
+    #[inline(always)] fn vblend_32(self, true_values: Self::VecType, false_values: Self::VecType) -> ScalarReg<N> {
         unsafe {
-            let mut new = Scalar::<N>([0; N]);
+            let mut new = ScalarReg::<N>([0; N]);
             let new_ptr = new.0.as_mut_ptr() as *mut u32;
             let false_ptr = false_values.0.as_ptr() as *const u32;
             let true_ptr = true_values.0.as_ptr() as *const u32;
@@ -349,9 +349,9 @@ impl<const N: usize> SimdVariableBlendImpl for ScalarMask<N> {
             new
         }
     }
-    #[inline(always)] fn vblend_8(self, true_values: Self::VecType, false_values: Self::VecType) -> Scalar<N> {
+    #[inline(always)] fn vblend_8(self, true_values: Self::VecType, false_values: Self::VecType) -> ScalarReg<N> {
         unsafe {
-            let mut new = Scalar::<N>([0; N]);
+            let mut new = ScalarReg::<N>([0; N]);
             let new_ptr = new.0.as_mut_ptr();
             let false_ptr = false_values.0.as_ptr();
             let true_ptr = true_values.0.as_ptr();
@@ -363,10 +363,10 @@ impl<const N: usize> SimdVariableBlendImpl for ScalarMask<N> {
     }
 }
 
-impl<const M: usize> SimdImmediateBlendImpl for Scalar<M> {
+impl<const M: usize> SimdImmediateBlendImpl for ScalarReg<M> {
     #[inline(always)] fn blend_64<const N: i32>(self, false_values: Self) -> Self { 
         unsafe {
-            let mut new = Scalar::<M>([0; M]);
+            let mut new = ScalarReg::<M>([0; M]);
             let new_ptr = new.0.as_mut_ptr() as *mut u64;
             let false_ptr = false_values.0.as_ptr() as *const u64;
             let true_ptr = self.0.as_ptr() as *const u64;
@@ -379,7 +379,7 @@ impl<const M: usize> SimdImmediateBlendImpl for Scalar<M> {
     }
     #[inline(always)] fn blend_32<const N: i32>(self, false_values: Self) -> Self {
         unsafe {
-            let mut new = Scalar::<M>([0; M]);
+            let mut new = ScalarReg::<M>([0; M]);
             let new_ptr = new.0.as_mut_ptr() as *mut u32;
             let false_ptr = false_values.0.as_ptr() as *const u32;
             let true_ptr = self.0.as_ptr() as *const u32;
@@ -392,7 +392,7 @@ impl<const M: usize> SimdImmediateBlendImpl for Scalar<M> {
     }
 }
 
-impl<const N: usize> SimdMulAddImpl for Scalar<N> {
+impl<const N: usize> SimdMulAddImpl for ScalarReg<N> {
     #[inline(always)] fn mul_add_f64(self, mult: Self, add: Self) -> Self { scalar_fma_expr_op!(f64, self, mult, add, N, |a, b, c| f64::mul_add(a, b, c)) }
     #[inline(always)] fn mul_sub_f64(self, mult: Self, sub: Self) -> Self { scalar_fma_expr_op!(f64, self, mult, sub, N, |a, b, c| f64::mul_add(a, b, -c)) }
     #[inline(always)] fn negated_mul_add_f64(self, mult: Self, add: Self) -> Self { scalar_fma_expr_op!(f64, self, mult, add, N, |a, b, c| f64::mul_add(-a, b, c)) }
@@ -403,7 +403,7 @@ impl<const N: usize> SimdMulAddImpl for Scalar<N> {
     #[inline(always)] fn negated_mul_sub_f32(self, mult: Self, sub: Self) -> Self { scalar_fma_expr_op!(f32, self, mult, sub, N, |a, b, c| f32::mul_add(-a, b, -c)) }
 }
 
-impl<const N: usize> SimdRoundImpl for Scalar<N> {
+impl<const N: usize> SimdRoundImpl for ScalarReg<N> {
     #[inline(always)] fn round_f64(self) -> Self { scalar_self_op!(f64, round_ties_even, self, N) }
     #[inline(always)] fn round_f32(self) -> Self { scalar_self_op!(f32, round_ties_even, self, N) }
     #[inline(always)] fn floor_f64(self) -> Self { scalar_self_op!(f64, floor, self, N) }
@@ -412,7 +412,7 @@ impl<const N: usize> SimdRoundImpl for Scalar<N> {
     #[inline(always)] fn ceil_f32(self) -> Self { scalar_self_op!(f32, ceil, self, N) }
 }
 
-impl<const N: usize> SimdPartialOrdImpl for Scalar<N> {
+impl<const N: usize> SimdPartialOrdImpl for ScalarReg<N> {
     type MaskType = ScalarMask<N>;
     #[inline(always)] fn cmp_f64_eq(self, rhs: Self) -> Self::MaskType { scalar_cmp!(f64, ==, self, rhs, N) }
     #[inline(always)] fn cmp_f64_lt(self, rhs: Self) -> Self::MaskType { scalar_cmp!(f64, <, self, rhs, N) }
@@ -454,14 +454,14 @@ impl<const N: usize> SimdPartialOrdImpl for Scalar<N> {
 }
 
 // TODO: Make a custom trait for handling this transmutation into i*.
-impl<const N: usize> SimdSplatImpl for Scalar<N> {
+impl<const N: usize> SimdSplatImpl for ScalarReg<N> {
     #[inline(always)] fn splat_64<T>(val: T) -> Self { scalar_splat!(u64, self, transmute_copy(&val), N) }
     #[inline(always)] fn splat_32<T>(val: T) -> Self { scalar_splat!(u32, self, transmute_copy(&val), N) }
     #[inline(always)] fn splat_16<T>(val: T) -> Self { scalar_splat!(u16, self, transmute_copy(&val), N) }
     #[inline(always)] fn splat_8<T>(val: T) -> Self { scalar_splat!(u8, self, transmute_copy(&val), N) }
 }
 
-impl<const N: usize> SimdGatherImpl for Scalar<N> {
+impl<const N: usize> SimdGatherImpl for ScalarReg<N> {
     #[inline(always)] fn gather_32_from_32<T, const B: i32>(self, ptr: *const T) -> Self { 
         unsafe {
             let mut new = Self([0; N]);
@@ -490,7 +490,7 @@ impl<const N: usize> SimdGatherImpl for Scalar<N> {
     }
 }
 
-impl<const N: usize> SimdSqrtImpl for Scalar<N> {
+impl<const N: usize> SimdSqrtImpl for ScalarReg<N> {
     #[inline(always)] fn sqrt_f64(self) -> Self { scalar_self_op!(f64, sqrt, self, N) }
     #[inline(always)] fn sqrt_f32(self) -> Self { scalar_self_op!(f32, sqrt, self, N) }
     #[inline(always)] fn rsqrt_f32(self) -> Self { Self::splat_32(1.0f32).f32_div(self.sqrt_f32()) }
@@ -510,12 +510,12 @@ impl<const N: usize> SimdBitwiseImpl for ScalarMask<N> {
     #[inline(always)] fn and_not(self, rhs: Self) -> Self { self.and(rhs.not()) }
 }
 
-impl<const N: usize> SimdNegateImpl for Scalar<N> {
+impl<const N: usize> SimdNegateImpl for ScalarReg<N> {
     #[inline(always)] fn negate_f64(self) -> Self { Self::splat_64(-0.0f64).xor(self) }
     #[inline(always)] fn negate_f32(self) -> Self { Self::splat_32(-0.0f64).xor(self) }
 }
 
-impl<const N: usize> SimdBlockShiftImpl for Scalar<N> {
+impl<const N: usize> SimdBlockShiftImpl for ScalarReg<N> {
     #[inline(always)] fn block_left_byte_shift<const M: i32>(self) -> Self {
         let mut new = Self::splat_8(0);
         for block_start in (0..N).step_by(16) {
@@ -562,30 +562,30 @@ impl<const N: usize> SimdMaskBitConversion for ScalarMask<N> {
     }
 }
 
-impl<const M: usize> SimdLaneShiftImpl for Scalar<M> {
+impl<const M: usize> SimdLaneShiftImpl for ScalarReg<M> {
     #[inline(always)] 
-    fn left_lane_shift_32<const N: i32>(self) -> Self {
+    fn left_lane_shift_32(self, n: u32) -> Self {
         let mut new = Self::zero();
-        if N as usize * 4 >= M {
+        if n as usize * 4 >= M {
             new
         } else {
-            let n = (N * 4) as usize;
-            for i in 0..(M - n) {
-                new.0[i] = self.0[i + n];
+            let bytes = (n * 4) as usize;
+            for i in 0..(M - bytes) {
+                new.0[i] = self.0[i + bytes];
             }
             new
         }
     }
     
     #[inline(always)] 
-    fn right_lane_shift_32<const N: i32>(self) -> Self {
+    fn right_lane_shift_32(self, n: u32) -> Self {
         let mut new = Self::zero();
-        if N as usize * 4 >= M {
+        if n as usize * 4 >= M {
             new
         } else {
-            let n = (N * 4) as usize;
-            for i in n..M {
-                new.0[i] = self.0[i - n];
+            let bytes = (n * 4) as usize;
+            for i in bytes..M {
+                new.0[i] = self.0[i - bytes];
             }
             new
         }

@@ -363,6 +363,6 @@ pub trait SimdMaskBitConversion {
 }
 
 pub trait SimdLaneShiftImpl {
-    fn right_lane_shift_32<const N: i32>(self) -> Self;
-    fn left_lane_shift_32<const N: i32>(self) -> Self;
+    fn right_lane_shift_32(self, n: u32) -> Self;
+    fn left_lane_shift_32(self, n: u32) -> Self;
 }

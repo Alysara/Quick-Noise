@@ -1,23 +1,11 @@
 use crate::math::vec::{Vec2, Vec3};
 use crate::simd::simd_array::SimdArray;
-use std::f32::consts::SQRT_2;
-
-pub const ROW_SIZE: usize = 32;
-pub const MAP_SIZE: usize = 1024;
-pub const VOL_SIZE: usize = 32768;
 
 // pub const LO_EPSILON: f64 = 1e-4;
 // pub const HI_EPSILON: f64 = 1.0 - 1e-4;
 
 // pub const LO_EPSILON: f64 = 0.0;
 // pub const HI_EPSILON: f64 = 1.0 - 0.0;
-
-pub type PerlinVec = SimdArray<f32, ROW_SIZE>;
-pub type PerlinMap = SimdArray<f32, MAP_SIZE>;
-pub type PerlinVol = SimdArray<f32, VOL_SIZE>;
-
-pub type PerlinVecPair = Vec2<PerlinVec>;
-pub type PerlinVecTriple = Vec3<PerlinVec>;
 
 // pub const GRADIENTS_2D: [Vec2<f32>; 16] = [
 //     Vec2::new(1.4142135623730951, 0.0000000000000000),

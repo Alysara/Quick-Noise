@@ -75,6 +75,10 @@ impl Random {
         Self::mix_u64_impl(data ^ 0x9e3779b97f4a7c15)
     }
 
+    pub fn static_mix_u64_pair(data1: u64, data2: u64) -> u64 {
+        Self::mix_u64_pair_impl(data1 ^ 0x9e3779b97f4a7c15, data2)
+    }
+
     pub fn static_mix_u32(data: u32) -> u32 {
         Self::mix_bits_32_impl(data ^ 0x7f4a7c15)
     }
@@ -101,6 +105,17 @@ impl Random {
         data1 = data1.wrapping_mul(0xff51afd7ed558ccd ^ data2);
         data1 ^= data1 >> 33;
         data1 = data1.wrapping_mul(0xc4ceb9fe1a85ec53 ^ data2);
+        data1 ^= data1 >> 33;
+        data1
+    }
+
+    pub fn mix_u64_triple(mut data1: u64, data2: u64, data3: u64) -> u64 {
+        data1 ^= data1 >> 33;
+        data1 = data1.wrapping_mul(0xff51afd7ed558ccd ^ data2);
+        data1 ^= data1 >> 33;
+        data1 = data1.wrapping_mul(0xc4ceb9fe1a85ec53 ^ data3);
+        data1 ^= data1 >> 33;
+        data1 = data1.wrapping_mul(0xff51afd7ed558ccd ^ data2);
         data1 ^= data1 >> 33;
         data1
     }
@@ -160,9 +175,9 @@ impl Random {
     //         -> (ArchSimd<u32>, ArchSimd<u32>, ArchSimd<u32>, ArchSimd<u32>) 
     //     {
 
-    //     // let core_seed = SimdVec::splat(self.core_seed as i32);
-    //     let channel_seed = SimdVec::splat(self.channel_seed as u32);
-    //     let prime = SimdVec::splat(0x85ebca6b_u32 as u32);
+    //     // let core_seed = Simd::splat(self.core_seed as i32);
+    //     let channel_seed = Simd::splat(self.channel_seed as u32);
+    //     let prime = Simd::splat(0x85ebca6b_u32 as u32);
 
     //     x1 *= channel_seed;
     //     let mut x2 = x1 + channel_seed;

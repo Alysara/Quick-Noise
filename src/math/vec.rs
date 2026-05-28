@@ -1,45 +1,87 @@
 // TODO: Potentially make this a wrapper for simd_array under the hood.
 
-use std::ops::{Add, AddAssign, Sub, SubAssign, Mul, MulAssign, Div, DivAssign, Rem, RemAssign, Index, IndexMut};
-use num_traits::float::*;
 use std::cmp::PartialOrd;
+use std::ops::{
+    Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Rem, RemAssign, Sub, SubAssign,
+};
 
-#[derive(Debug, Clone, Copy)]
+use num_traits::float::*;
+
+#[derive(Debug, Clone, Copy, Default)]
 pub struct Vec2<T> {
     pub x: T,
-    pub y: T
+    pub y: T,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct Vec3<T> {
     pub x: T,
     pub y: T,
     pub z: T,
 }
 
+mod private {
+    use crate::math::vec::{Vec2, Vec3};
+
+    pub trait SealedTypes {}
+    impl<T> SealedTypes for Vec3<T> {}
+    impl<T> SealedTypes for Vec2<T> {}
+}
+
+pub enum VecType {
+    Vec2,
+    Vec3,
+}
+
 // === Constructors ===
+
+pub trait VecN<T>: private::SealedTypes {
+    const TYPE: VecType;
+
+    fn len(&self) -> usize;
+}
+
+impl<T> VecN<T> for Vec2<T> {
+    const TYPE: VecType = VecType::Vec2;
+
+    fn len(&self) -> usize {
+        2
+    }
+}
+
+impl<T> VecN<T> for Vec3<T> {
+    const TYPE: VecType = VecType::Vec2;
+
+    fn len(&self) -> usize {
+        3
+    }
+}
 
 impl<T> Vec2<T> {
     pub const fn new(x: T, y: T) -> Self {
-        Vec2::<T> {x, y}
+        Vec2::<T> { x, y }
     }
 }
 
 impl<T: Copy> Vec2<T> {
     pub fn splat(val: T) -> Self {
-        Vec2::<T> {x: val, y: val}
+        Vec2::<T> { x: val, y: val }
     }
 }
 
 impl<T> Vec3<T> {
     pub const fn new(x: T, y: T, z: T) -> Self {
-        Vec3::<T> {x, y, z}
+        Vec3::<T> { x, y, z }
     }
 }
 
 impl<T: Copy> Vec3<T> {
     pub fn splat(val: T) -> Self {
-        Vec3::<T> {x: val, y: val, z: val}
+        Vec3::<T> {
+            x: val,
+            y: val,
+            z: val,
+        }
     }
 }
 
@@ -120,6 +162,7 @@ impl<T> Index<usize> for Vec3<T> {
 // === Conversions and Casting ===
 
 impl<T> Vec2<T> {
+    #[inline(always)]
     pub fn map<U, F>(self, f: F) -> Vec2<U>
     where
         F: Fn(T) -> U,
@@ -132,6 +175,7 @@ impl<T> Vec2<T> {
 }
 
 impl<T> Vec2<T> {
+    #[inline(always)]
     pub fn cast<U>(self) -> Vec2<U>
     where
         T: Into<U>,
@@ -144,6 +188,7 @@ impl<T> Vec2<T> {
 }
 
 impl<T> Vec3<T> {
+    #[inline(always)]
     pub fn map<U, F>(self, f: F) -> Vec3<U>
     where
         F: Fn(T) -> U,
@@ -157,6 +202,7 @@ impl<T> Vec3<T> {
 }
 
 impl<T> Vec3<T> {
+    #[inline(always)]
     pub fn cast<U>(self) -> Vec3<U>
     where
         T: Into<U>,
@@ -170,48 +216,70 @@ impl<T> Vec3<T> {
 }
 
 impl Vec2<f32> {
+    #[inline(always)]
+    pub fn as_i32(self) -> Vec2<i32> {
+        self.map(|x| x as i32)
+    }
+}
+
+impl Vec2<u32> {
+    #[inline(always)]
     pub fn as_i32(self) -> Vec2<i32> {
         self.map(|x| x as i32)
     }
 }
 
 impl Vec2<i32> {
+    #[inline(always)]
     pub fn as_f32(self) -> Vec2<f32> {
         self.map(|x| x as f32)
     }
 }
 
 impl Vec3<f32> {
+    #[inline(always)]
+    pub fn as_i32(self) -> Vec3<i32> {
+        self.map(|x| x as i32)
+    }
+}
+
+impl Vec3<u32> {
+    #[inline(always)]
     pub fn as_i32(self) -> Vec3<i32> {
         self.map(|x| x as i32)
     }
 }
 
 impl Vec3<i32> {
+    #[inline(always)]
     pub fn as_f32(self) -> Vec3<f32> {
         self.map(|x| x as f32)
     }
 }
 
 impl Vec2<f32> {
+    #[inline(always)]
     pub fn as_u32(self) -> Vec2<u32> {
         self.map(|x| x as u32)
     }
 }
 
 impl Vec2<u32> {
+    #[inline(always)]
     pub fn as_f32(self) -> Vec2<f32> {
         self.map(|x| x as f32)
     }
 }
 
 impl Vec3<f32> {
+    #[inline(always)]
     pub fn as_u32(self) -> Vec3<u32> {
         self.map(|x| x as u32)
     }
 }
 
 impl Vec3<u32> {
+    #[inline(always)]
     pub fn as_f32(self) -> Vec3<f32> {
         self.map(|x| x as f32)
     }
@@ -347,6 +415,21 @@ impl<T: Float> Vec3<T> {
 
 // === Horizontal Operations ===
 
+pub trait VecHorzMax<T: PartialOrd + Copy>: VecN<T> + Index<usize, Output = T> {
+    fn horizontal_max(&self) -> T {
+        let mut max = self[0];
+        for i in 1..self.len() {
+            if self[i] > max {
+                max = self[i];
+            }
+        }
+        max
+    }
+}
+
+impl<T: PartialOrd + Copy> VecHorzMax<T> for Vec2<T> {}
+impl<T: PartialOrd + Copy> VecHorzMax<T> for Vec3<T> {}
+
 impl<T: Add<Output = T>> Vec2<T> {
     pub fn sum(self) -> T {
         self.x + self.y
@@ -376,7 +459,7 @@ macro_rules! impl_vec_ops {(
             }
         }
     };
-    
+
     (
         $VecType:ident { $($field:ident),+ },
         $OpTrait:ident,
@@ -390,7 +473,7 @@ macro_rules! impl_vec_ops {(
             }
         }
     };
-    
+
     (
         $VecType:ident { $($field:ident),+ },
         $OpTrait:ident, $op_method:ident,
@@ -406,7 +489,7 @@ macro_rules! impl_vec_ops {(
             }
         }
     };
-    
+
     (
         $VecType:ident { $($field:ident),+ },
         $OpTrait:ident,
@@ -429,19 +512,19 @@ macro_rules! impl_all_vec_ops {
         impl_vec_ops!($VecType { $($field),+ }, Mul, mul, *);
         impl_vec_ops!($VecType { $($field),+ }, Div, div, /);
         impl_vec_ops!($VecType { $($field),+ }, Rem, rem, %);
-        
+
         impl_vec_ops!($VecType { $($field),+ }, AddAssign, add_assign, +=, assign);
         impl_vec_ops!($VecType { $($field),+ }, SubAssign, sub_assign, -=, assign);
         impl_vec_ops!($VecType { $($field),+ }, MulAssign, mul_assign, *=, assign);
         impl_vec_ops!($VecType { $($field),+ }, DivAssign, div_assign, /=, assign);
         impl_vec_ops!($VecType { $($field),+ }, RemAssign, rem_assign, %=, assign);
-        
+
         impl_vec_ops!($VecType { $($field),+ }, Add, add, +, scalar);
         impl_vec_ops!($VecType { $($field),+ }, Sub, sub, -, scalar);
         impl_vec_ops!($VecType { $($field),+ }, Mul, mul, *, scalar);
         impl_vec_ops!($VecType { $($field),+ }, Div, div, /, scalar);
         impl_vec_ops!($VecType { $($field),+ }, Rem, rem, %, scalar);
-        
+
         impl_vec_ops!($VecType { $($field),+ }, AddAssign, add_assign, +=, scalar_assign);
         impl_vec_ops!($VecType { $($field),+ }, SubAssign, sub_assign, -=, scalar_assign);
         impl_vec_ops!($VecType { $($field),+ }, MulAssign, mul_assign, *=, scalar_assign);
@@ -462,7 +545,7 @@ macro_rules! impl_scalar_ops {(
     ) => {
         impl $OpTrait<$VecType<$ScalarType>> for $ScalarType {
             type Output = $VecType<$ScalarType>;
-            
+
             fn $op_method(self, vec: $VecType<$ScalarType>) -> Self::Output {
                 $VecType {
                     $($field: self $op vec.$field,)+

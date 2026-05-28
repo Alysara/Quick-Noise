@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = [".", "fuzz-benchmark"]
+members = ["."]
 
 [package]
 name = "quick-noise"

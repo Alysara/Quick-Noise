@@ -6,12 +6,12 @@ use std::ops::*;
 use num_traits::NumCast;
 use crate::simd::traits::*;
 use std::marker::PhantomData;
-use crate::simd::simd_vec::core::SimdVec;
+use crate::simd::simd_reg::core::Simd;
 use crate::simd::simd_mask::core::SimdMask;
 use crate::simd::simd_traits::*;
 use std::mem::transmute_copy;
 
-impl<T: SimdFloat, F: SimdFamily> SimdRound for SimdVec<T, F> {
+impl<T: SimdFloat, F: SimdFamily> SimdRound for Simd<T, F> {
     #[inline(always)]
     fn floor(self) -> Self {
         Self::new(match T::TYPE {
@@ -42,7 +42,7 @@ impl<T: SimdFloat, F: SimdFamily> SimdRound for SimdVec<T, F> {
     }
 }
 
-impl<T: SimdFloat, F: SimdFamily> SimdMulAdd for SimdVec<T, F> {
+impl<T: SimdFloat, F: SimdFamily> SimdMulAdd for Simd<T, F> {
     #[inline(always)]
     fn mul_add(self, mult: Self, add: Self) -> Self {
         Self::new(match T::TYPE {
@@ -76,7 +76,7 @@ impl<T: SimdFloat, F: SimdFamily> SimdMulAdd for SimdVec<T, F> {
     }
 }
 
-impl<T: SimdElement, F: SimdFamily> SimdEq for SimdVec<T, F> {
+impl<T: SimdElement, F: SimdFamily> SimdEq for Simd<T, F> {
     #[inline(always)]
     fn simd_eq(self, rhs: Self) -> SimdMask<T, F> {
         SimdMask::new(match T::TYPE {
@@ -104,7 +104,7 @@ impl<T: SimdElement, F: SimdFamily> SimdEq for SimdVec<T, F> {
     }
 }
 
-impl<T: SimdElement, F: SimdFamily> SimdPartialOrd for SimdVec<T, F> {
+impl<T: SimdElement, F: SimdFamily> SimdPartialOrd for Simd<T, F> {
     #[inline(always)]
     fn simd_gt(self, rhs: Self) -> SimdMask<T, F> {
         SimdMask::new(match T::TYPE {
@@ -190,32 +190,32 @@ impl<T: SimdElement, F: SimdFamily> SimdPartialOrd for SimdVec<T, F> {
 
 // === Casts ===
 
-impl<T: SimdFloat, F: SimdFamily> SimdVec<T, F> {
+impl<T: SimdFloat, F: SimdFamily> Simd<T, F> {
     #[inline(always)]
-    pub fn cast_int_trunc(self) -> SimdVec<T::Signed, F> {
-        SimdVec::new(self.data.float_to_int_trunc())
+    pub fn cast_int_trunc(self) -> Simd<T::Signed, F> {
+        Simd::new(self.data.float_to_int_trunc())
     }
     #[inline(always)]
-    pub fn cast_int_round(self) -> SimdVec<T::Signed, F> {
-        SimdVec::new(self.data.float_to_int_round())
+    pub fn cast_int_round(self) -> Simd<T::Signed, F> {
+        Simd::new(self.data.float_to_int_round())
     }
 
     // TODO: INCORRECT for edge cases.
     #[inline(always)]
-    pub fn cast_uint_trunc(self) -> SimdVec<T::Unsigned, F> {
-        SimdVec::new(self.data.float_to_int_trunc())
+    pub fn cast_uint_trunc(self) -> Simd<T::Unsigned, F> {
+        Simd::new(self.data.float_to_int_trunc())
     }
     #[inline(always)]
-    pub fn cast_uint_round(self) -> SimdVec<T::Unsigned, F> {
-        SimdVec::new(self.data.float_to_int_round())
+    pub fn cast_uint_round(self) -> Simd<T::Unsigned, F> {
+        Simd::new(self.data.float_to_int_round())
     }
     // #[inline(always)]
-    // pub fn cast_int_raw(self) -> SimdVec<T::Signed, F> {
-    //     unsafe { SimdVec::new(transmute_copy(&self.data)) }
+    // pub fn cast_int_raw(self) -> Simd<T::Signed, F> {
+    //     unsafe { Simd::new(transmute_copy(&self.data)) }
     // }
     // #[inline(always)]
-    // pub fn cast_uint_raw(self) -> SimdVec<T::Unsigned, F> {
-    //     unsafe { SimdVec::new(transmute_copy(&self.data)) }
+    // pub fn cast_uint_raw(self) -> Simd<T::Unsigned, F> {
+    //     unsafe { Simd::new(transmute_copy(&self.data)) }
     // }
 
     // TODO: Move this into quick-noise later.
@@ -229,7 +229,7 @@ impl<T: SimdFloat, F: SimdFamily> SimdVec<T, F> {
     }
 }
 
-impl<T: SimdFloat, F: SimdFamily> SimdSqrt for SimdVec<T, F> {
+impl<T: SimdFloat, F: SimdFamily> SimdSqrt for Simd<T, F> {
     fn sqrt(self) -> Self {
         Self::new(match T::TYPE {
             SimdType::F64 => self.data.sqrt_f64(),
@@ -239,17 +239,17 @@ impl<T: SimdFloat, F: SimdFamily> SimdSqrt for SimdVec<T, F> {
     }
 }
 
-impl<T: SimdFloat, F: SimdFamily> SimdVec<T, F> {
+impl<T: SimdFloat, F: SimdFamily> Simd<T, F> {
     pub fn abs(self) -> Self {
         Self::new(match T::TYPE {
-            SimdType::F64 => SimdVec::<u64, F>::splat(T::SIGN_MASK as u64).data.and_not(self.data),
-            SimdType::F32 => SimdVec::<u32, F>::splat(T::SIGN_MASK as u32).data.and_not(self.data),
+            SimdType::F64 => Simd::<u64, F>::splat(T::SIGN_MASK as u64).data.and_not(self.data),
+            SimdType::F32 => Simd::<u32, F>::splat(T::SIGN_MASK as u32).data.and_not(self.data),
             _ => unreachable!()
         })
     }
 }
 
-impl<F: SimdFamily> SimdRecipSqrt for SimdVec<f32, F> {
+impl<F: SimdFamily> SimdRecipSqrt for Simd<f32, F> {
     fn rsqrt(self) -> Self {
         Self::new(self.data.rsqrt_f32())
     }

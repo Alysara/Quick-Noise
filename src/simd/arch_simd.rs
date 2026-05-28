@@ -1,13 +1,12 @@
 // use std::simd::{Simd, SimdElement, StdFloat};
-use crate::simd::simd_vec::core::SimdVec;
-use crate::simd::simd_mask::core::SimdMask;
 use crate::simd::architectures::arch_impl::SimdFamily;
-
-#[cfg(target_arch = "x86_64")]
-use crate::simd::architectures::families::{SseFamily, Avx2Family, Avx512Family};
-use crate::simd::architectures::families::ScalarFamily128;
 #[cfg(target_arch = "aarch64")]
-use crate::simd::architectures::families::{NeonFamily};
+use crate::simd::architectures::families::Neon;
+use crate::simd::architectures::families::Scalar128;
+#[cfg(target_arch = "x86_64")]
+use crate::simd::architectures::families::{Avx2, Avx512, Sse};
+use crate::simd::simd_mask::core::SimdMask;
+use crate::simd::simd_reg::core::Simd;
 
 // Static dispatch for identifying lane sizes and number of simd registers.
 
@@ -16,71 +15,70 @@ cfg_if::cfg_if! {
     if #[cfg(all(target_arch = "x86_64", target_feature = "avx512f"))] {
         pub const SIMD_WIDTH: usize = 64;
         pub const NUM_SIMD_REG: usize = 32;
-        pub type ArchSimd<T> = SimdVec<T, Avx512Family>;
-        pub type ArchMask<T> = SimdMask<T, Avx512Family>;
-        pub type ArchFamily = Avx512Family;
+        pub type ArchSimd<T> = Simd<T, Avx512>;
+        pub type ArchMask<T> = SimdMask<T, Avx512>;
+        pub type ArchFamily = Avx512;
     } else if #[cfg(all(target_arch = "x86_64", target_feature = "avx2"))] {
         pub const SIMD_WIDTH: usize = 32;
         pub const NUM_SIMD_REG: usize = 16;
-        pub type ArchSimd<T> = SimdVec<T, Avx2Family>;
-        pub type ArchMask<T> = SimdMask<T, Avx2Family>;
-        pub type ArchFamily = Avx2Family;
+        pub type ArchSimd<T> = Simd<T, Avx2>;
+        pub type ArchMask<T> = SimdMask<T, Avx2>;
+        pub type ArchFamily = Avx2;
     } else if #[cfg(all(target_arch = "x86_64", target_feature = "sse2"))] {
         pub const SIMD_WIDTH: usize = 16;
         pub const NUM_SIMD_REG: usize = 16;
-        pub type ArchSimd<T> = SimdVec<T, SseFamily>;
-        pub type ArchMask<T> = SimdMask<T, SseFamily>;
-        pub type ArchFamily = SseFamily;
+        pub type ArchSimd<T> = Simd<T, Sse>;
+        pub type ArchMask<T> = SimdMask<T, Sse>;
+        pub type ArchFamily = Sse;
     }
 
     // aarch64
     // else if #[cfg(all(target_arch = "aarch64", target_feature = "sve"))] {
     //     pub const SIMD_WIDTH: usize = 32;
     //     pub const NUM_SIMD_REG: usize = 32;
-    //     pub type ArchSimd<T> = SimdVec<T, SseFamily>;
-    //     pub type ArchMask<T> = SimdMask<T, SseFamily>;
-    //     pub type ArchFamily = SseFamily;
+    //     pub type ArchSimd<T> = Simd<T, Sse>;
+    //     pub type ArchMask<T> = SimdMask<T, Sse>;
+    //     pub type ArchFamily = Sse;
 
     else if #[cfg(all(target_arch = "aarch64", target_feature = "neon"))] {
         pub const SIMD_WIDTH: usize = 16;
         pub const NUM_SIMD_REG: usize = 32;
-        pub type ArchSimd<T> = SimdVec<T, NeonFamily>;
-        pub type ArchMask<T> = SimdMask<T, NeonFamily>;
-        pub type ArchFamily = NeonFamily;
+        pub type ArchSimd<T> = Simd<T, Neon>;
+        pub type ArchMask<T> = SimdMask<T, Neon>;
+        pub type ArchFamily = Neon;
     }
 
     // wasm
     else if #[cfg(all(any(target_arch = "wasm32", target_arch = "wasm64"), target_feature = "simd128"))] {
         pub const SIMD_WIDTH: usize = 16;
         pub const NUM_SIMD_REG: usize = 16;
-        pub type ArchSimd<T> = SimdVec<T, ScalerFamily128>;
-        pub type ArchMask<T> = SimdMask<T, ScalerFamily128>;
-        pub type ArchFamily = ScalerFamily128;
+        pub type ArchSimd<T> = Simd<T, Scaler128>;
+        pub type ArchMask<T> = SimdMask<T, Scaler128>;
+        pub type ArchFamily = Scaler128;
     }
 
     // riscv
     else if #[cfg(all(any(target_arch = "riscv64", target_arch = "riscv32"), target_feature = "v"))] {
         pub const SIMD_WIDTH: usize = 32;
         pub const NUM_SIMD_REG: usize = 32;
-        pub type ArchSimd<T> = SimdVec<T, ScalerFamily128>;
-        pub type ArchMask<T> = SimdMask<T, ScalerFamily128>;
-        pub type ArchFamily = ScalerFamily128;
+        pub type ArchSimd<T> = Simd<T, Scaler128>;
+        pub type ArchMask<T> = SimdMask<T, Scaler128>;
+        pub type ArchFamily = Scaler128;
     }
 
     // fallback
     else {
         pub const SIMD_WIDTH: usize = 4;
         pub const NUM_SIMD_REG: usize = 8;
-        pub type ArchSimd<T> = SimdVec<T, ScalerFamily128>;
-        pub type ArchMask<T> = SimdMask<T, ScalerFamily128>;
-        pub type ArchFamily = ScalerFamily128;
+        pub type ArchSimd<T> = Simd<T, Scaler128>;
+        pub type ArchMask<T> = SimdMask<T, Scaler128>;
+        pub type ArchFamily = Scaler128;
     }
 }
 
 pub type ScalarFamily = <ArchFamily as SimdFamily>::ScalarFamily;
-pub type ScalarSimd<T> = SimdVec<T, ScalarFamily>;
+pub type ScalarSimd<T> = Simd<T, ScalarFamily>;
 pub type ScalarMask<T> = SimdMask<T, ScalarFamily>;
-
 
 // pub type ArchSimd<T: SimdInfo> = Simd<T, { T::LANES }>;
 
@@ -92,8 +90,8 @@ pub type ScalarMask<T> = SimdMask<T, ScalarFamily>;
 //     const LANES: usize = SIMD_WIDTH / std::mem::size_of::<T>();
 // }
 
-// pub trait ArchSimdExt<T: SimdInfo> 
-// where 
+// pub trait ArchSimdExt<T: SimdInfo>
+// where
 //     ArchSimd<T>: StdFloat,
 //     ArchSimd<T>: Mul<Output = ArchSimd<T>>,
 // {
@@ -104,8 +102,8 @@ pub type ScalarMask<T> = SimdMask<T, ScalarFamily>;
 //     fn fast_cos(self) -> Self;
 // }
 
-// impl<T: SimdInfo + Float> ArchSimdExt<T> for ArchSimd<T> 
-// where 
+// impl<T: SimdInfo + Float> ArchSimdExt<T> for ArchSimd<T>
+// where
 //     ArchSimd<T>: StdFloat,
 //     ArchSimd<T>: Mul<Output = ArchSimd<T>>,
 //     ArchSimd<T>: Neg<Output = ArchSimd<T>>,

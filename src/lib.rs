@@ -17,11 +17,13 @@ pub mod emit {
     pub mod grayscale;
 }
 
-pub mod api {
-    pub mod builders;
-    pub mod batch;
-    pub mod grid;
-}
+mod api;
+pub use api::parameters::*;
+pub use api::defaults::*;
+pub use api::grid::fbm::{PerlinGrid2D, PerlinGrid3D};
+pub use api::grid::custom::{CustomPerlinGrid2D, CustomPerlinGrid3D};
+pub use api::grid::interface::{Grid2D, Grid3D};
+pub use api::batch::interface::{Batch2D, Batch3D};
 
 mod noise;
 pub use noise::*;

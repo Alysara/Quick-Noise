@@ -2,16 +2,16 @@ use std::ops::*;
 use crate::simd::architectures::arch_impl::SimdFamily;
 use crate::simd::traits::*;
 use crate::simd::simd_mask::core::SimdMask;
-use crate::simd::simd_vec::core::SimdVec;
+use crate::simd::simd_reg::core::Simd;
 
-pub trait SimdVecBasic<T: SimdElement, F: SimdFamily>:
+pub trait SimdBasic<T: SimdElement, F: SimdFamily>:
     Sized +
     SimdToArray<T, F> +
 {}
 
-impl<T: SimdElement, F: SimdFamily> SimdVecBasic<T, F> for SimdVec<T, F> {}
+impl<T: SimdElement, F: SimdFamily> SimdBasic<T, F> for Simd<T, F> {}
 
-pub trait SimdVecInteger:
+pub trait SimdRegInteger:
     Sized +
     Shl<Self> +
     ShlAssign<Self> +
@@ -29,7 +29,7 @@ pub trait SimdVecInteger:
     BitXorAssign +
 {}
 
-pub trait SimdVecFloat: 
+pub trait SimdRegFloat: 
     Sized +
     SimdRound +
     SimdMulAdd +
@@ -110,9 +110,9 @@ pub trait SimdPartialOrd: SimdContext {
 
 pub trait SimdSelect: SimdContext {
     fn select(self,
-        true_values: SimdVec<Self::Element, Self::Family>,
-        false_values: SimdVec<Self::Element, Self::Family>
-    ) -> SimdVec<Self::Element,Self::Family>;
+        true_values: Simd<Self::Element, Self::Family>,
+        false_values: Simd<Self::Element, Self::Family>
+    ) -> Simd<Self::Element,Self::Family>;
 }
 
 pub trait SimdMaskToBits {
@@ -148,7 +148,7 @@ pub trait SimdImmediateBlend {
 // }
 
 // pub trait SimdGather<T>: SimdContext {
-//     fn gather<S: SimdElement + SimdElement<BitWidth>, const N: usize>(self, slice: &[S; N]) -> SimdVec<S, Self::Family>;
+//     fn gather<S: SimdElement + SimdElement<BitWidth>, const N: usize>(self, slice: &[S; N]) -> Simd<S, Self::Family>;
 // }
 
 //  pub fn zero() -> Self {

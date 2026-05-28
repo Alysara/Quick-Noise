@@ -5,11 +5,11 @@ use crate::simd::architectures::macros::*;
 
 #[derive(Copy, Clone)]
 #[repr(transparent)]
-pub struct Neon(pub float32x4_t);
-impl SimdArch for Neon {}
-impl MaskArch for Neon {}
+pub struct NeonReg(pub float32x4_t);
+impl SimdArch for NeonReg {}
+impl MaskArch for NeonReg {}
 
-impl SimdAddImpl for Neon {
+impl SimdAddImpl for NeonReg {
     #[inline(always)] fn f64_add(self, rhs: Self) -> Self { self_from_op!(vaddq_f64, self, rhs) }
     #[inline(always)] fn f32_add(self, rhs: Self) -> Self { self_from_op!(vaddq_f32, self, rhs) }
     #[inline(always)] fn i64_add(self, rhs: Self) -> Self { self_from_op!(vaddq_s64, self, rhs) }
@@ -18,7 +18,7 @@ impl SimdAddImpl for Neon {
     #[inline(always)] fn i8_add(self, rhs: Self) -> Self { self_from_op!(vaddq_s8, self, rhs) }
 }
 
-impl SimdSubImpl for Neon {
+impl SimdSubImpl for NeonReg {
     #[inline(always)] fn f64_sub(self, rhs: Self) -> Self { self_from_op!(vsubq_f64, self, rhs) }
     #[inline(always)] fn f32_sub(self, rhs: Self) -> Self { self_from_op!(vsubq_f32, self, rhs) }
     #[inline(always)] fn i64_sub(self, rhs: Self) -> Self { self_from_op!(vsubq_s64, self, rhs) }
@@ -27,19 +27,19 @@ impl SimdSubImpl for Neon {
     #[inline(always)] fn i8_sub(self, rhs: Self) -> Self { self_from_op!(vsubq_s8, self, rhs) }
 }
 
-impl SimdMulImpl for Neon {
+impl SimdMulImpl for NeonReg {
     #[inline(always)] fn f64_mul(self, rhs: Self) -> Self { self_from_op!(vmulq_f64, self, rhs) }
     #[inline(always)] fn f32_mul(self, rhs: Self) -> Self { self_from_op!(vmulq_f32, self, rhs) }
     #[inline(always)] fn i32_mul(self, rhs: Self) -> Self { self_from_op!(vmulq_s32, self, rhs) }
     #[inline(always)] fn i16_mul(self, rhs: Self) -> Self { self_from_op!(vmulq_s16, self, rhs) }
 }
 
-impl SimdDivImpl for Neon {
+impl SimdDivImpl for NeonReg {
     #[inline(always)] fn f64_div(self, rhs: Self) -> Self { self_from_op!(vdivq_f64, self, rhs) }
     #[inline(always)] fn f32_div(self, rhs: Self) -> Self { self_from_op!(vdivq_f32, self, rhs) }
 }
 
-impl SimdBitwiseImpl for Neon {
+impl SimdBitwiseImpl for NeonReg {
     #[inline(always)] fn and(self, rhs: Self) -> Self { self_from_op!(vandq_u32, self, rhs) }
     #[inline(always)] fn or(self, rhs: Self) -> Self { self_from_op!(vorrq_u32, self, rhs) }
     #[inline(always)] fn xor(self, rhs: Self) -> Self { self_from_op!(veorq_u32, self, rhs) }
@@ -47,7 +47,7 @@ impl SimdBitwiseImpl for Neon {
     #[inline(always)] fn and_not(self, rhs: Self) -> Self { self_from_op!(vbicq_u32, self, rhs) }
 }
 
-impl SimdShiftImpl for Neon {
+impl SimdShiftImpl for NeonReg {
     #[inline(always)] fn sllv_64(self, rhs: Self) -> Self { self_from_op!(vshlq_s64, self, rhs) }
     #[inline(always)] fn srlv_64(self, rhs: Self) -> Self { self_from_op!(vshlq_u64, self, self_from_op!(vnegq_s64, rhs)) }
     #[inline(always)] fn srav_64(self, rhs: Self) -> Self { self_from_op!(vshlq_s64, self, self_from_op!(vnegq_s64, rhs)) }
@@ -59,7 +59,7 @@ impl SimdShiftImpl for Neon {
     #[inline(always)] fn srav_16(self, rhs: Self) -> Self { self_from_op!(vshlq_s16, self, self_from_op!(vnegq_s16, rhs)) }
 }
 
-impl SimdLoadImpl for Neon {
+impl SimdLoadImpl for NeonReg {
     type MaskType = Self;
     #[inline(always)] fn load_aligned<T>(ptr: *const T) -> Self { self_from_op!(vld1q_u32, ptr) }
     #[inline(always)] fn load_unaligned<T>(ptr: *const T) -> Self { self_from_op!(vld1q_u32, ptr) }
@@ -67,7 +67,7 @@ impl SimdLoadImpl for Neon {
     #[inline(always)] fn masked_load_32<T>(ptr: *const T, mask: Self::MaskType) -> Self { unsafe { Self(transmute(vandq_u32(transmute(vld1q_u32(ptr as *const u32)), transmute(mask.0)))) } }
 }
 
-impl SimdStoreImpl for Neon {
+impl SimdStoreImpl for NeonReg {
     type MaskType = Self;
     #[inline(always)] fn store_aligned<T>(self, ptr: *mut T) { execute_intrinsic!(vst1q_u32, ptr, self); }
     #[inline(always)] fn store_unaligned<T>(self, ptr: *mut T) { execute_intrinsic!(vst1q_u32, ptr, self); }
@@ -88,20 +88,20 @@ impl SimdStoreImpl for Neon {
     }
 }
 
-impl SimdZeroImpl for Neon {
+impl SimdZeroImpl for NeonReg {
     #[inline(always)] fn zero() -> Self { unsafe { Self(transmute(vdupq_n_u32(0))) } }
 }
 
-impl SimdFloatCastsImpl for Neon {
+impl SimdFloatCastsImpl for NeonReg {
     #[inline(always)] fn float_to_int_trunc(self) -> Self { self_from_op!(vcvtq_s32_f32, self) }
     #[inline(always)] fn float_to_int_round(self) -> Self { self_from_op!(vcvtnq_s32_f32, self) }
 }
 
-impl SimdIntCastsImpl for Neon {
+impl SimdIntCastsImpl for NeonReg {
     #[inline(always)] fn int_to_float(self) -> Self { self_from_op!(vcvtq_f32_s32, self) }
 }
 
-impl SimdPermuteImpl for Neon {
+impl SimdPermuteImpl for NeonReg {
     #[inline(always)] fn permute_32(self, rhs: Self) -> Self {
         let mult = Self::splat_32(0x04040404);
         let add = Self::splat_32(0x03020100);
@@ -111,14 +111,14 @@ impl SimdPermuteImpl for Neon {
     #[inline(always)] fn permute_8(self, rhs: Self) -> Self { self_from_op!(vqtbl1q_u8, self, rhs) }
 }
 
-impl SimdVariableBlendImpl for Neon {
+impl SimdVariableBlendImpl for NeonReg {
     type VecType = Self;
     #[inline(always)] fn vblend_64(self, true_values: Self, false_values: Self) -> Self { self_from_op!(vbslq_f64, self, true_values, false_values) }
     #[inline(always)] fn vblend_32(self, true_values: Self, false_values: Self) -> Self { self_from_op!(vbslq_f32, self, true_values, false_values) }
     #[inline(always)] fn vblend_8(self, true_values: Self, false_values: Self) -> Self { self_from_op!(vbslq_u8, self, true_values, false_values) }
 }
 
-impl SimdImmediateBlendImpl for Neon {
+impl SimdImmediateBlendImpl for NeonReg {
     #[inline(always)]
     fn blend_64<const N: i32>(self, false_values: Self) -> Self {
         const { assert!(N < 4, "N must be less than 4"); }
@@ -162,7 +162,7 @@ impl SimdImmediateBlendImpl for Neon {
     }
 }
 
-impl SimdMulAddImpl for Neon {
+impl SimdMulAddImpl for NeonReg {
     #[inline(always)] fn mul_add_f64(self, mult: Self, add: Self) -> Self { self_from_op!(vfmaq_f64, add, self, mult) }
     #[inline(always)] fn mul_sub_f64(self, mult: Self, sub: Self) -> Self { self_from_op!(vfmsq_f64, sub, self, mult).negate_f64() }
     #[inline(always)] fn negated_mul_add_f64(self, mult: Self, add: Self) -> Self { self_from_op!(vfmsq_f64, add, self, mult) }
@@ -173,7 +173,7 @@ impl SimdMulAddImpl for Neon {
     #[inline(always)] fn negated_mul_sub_f32(self, mult: Self, sub: Self) -> Self { self_from_op!(vfmaq_f32, sub, self, mult).negate_f32() }
 }
 
-impl SimdRoundImpl for Neon {
+impl SimdRoundImpl for NeonReg {
     #[inline(always)] fn round_f64(self) -> Self { self_from_op!(vrndnq_f64, self) }
     #[inline(always)] fn round_f32(self) -> Self { self_from_op!(vrndnq_f32, self) }
     #[inline(always)] fn floor_f64(self) -> Self { self_from_op!(vrndmq_f64, self) }
@@ -182,7 +182,7 @@ impl SimdRoundImpl for Neon {
     #[inline(always)] fn ceil_f32(self) -> Self { self_from_op!(vrndpq_f32, self) }
 }
 
-impl SimdPartialOrdImpl for Neon {
+impl SimdPartialOrdImpl for NeonReg {
     type MaskType = Self;
     #[inline(always)] fn cmp_f64_eq(self, rhs: Self) -> Self { self_from_op!(vceqq_f64, self, rhs) }
     #[inline(always)] fn cmp_f64_lt(self, rhs: Self) -> Self { self_from_op!(vcltq_f64, self, rhs) }
@@ -223,14 +223,14 @@ impl SimdPartialOrdImpl for Neon {
     #[inline(always)] fn min_u8(self, rhs: Self) -> Self { self_from_op!(vminq_u8, self, rhs) }
 }
 
-impl SimdSplatImpl for Neon {
+impl SimdSplatImpl for NeonReg {
     #[inline(always)] fn splat_64<T>(val: T) -> Self { self_from_op!(vdupq_n_s64, val) }
     #[inline(always)] fn splat_32<T>(val: T) -> Self { self_from_op!(vdupq_n_s32, val) }
     #[inline(always)] fn splat_16<T>(val: T) -> Self { self_from_op!(vdupq_n_s16, val) }
     #[inline(always)] fn splat_8<T>(val: T) -> Self { self_from_op!(vdupq_n_s8, val) }
 }
 
-impl SimdGatherImpl for Neon {
+impl SimdGatherImpl for NeonReg {
     fn gather_32_from_32<T, const B: i32>(self, ptr: *const T) -> Self {
         unsafe {
             let ptr_32 = ptr as *const u32;
@@ -256,25 +256,25 @@ impl SimdGatherImpl for Neon {
     }
 }
 
-impl SimdSqrtImpl for Neon {
+impl SimdSqrtImpl for NeonReg {
     #[inline(always)] fn sqrt_f64(self) -> Self { self_from_op!(vsqrtq_f64, self) }
     #[inline(always)] fn sqrt_f32(self) -> Self { self_from_op!(vsqrtq_f32, self) }
     #[inline(always)] fn rsqrt_f32(self) -> Self { self_from_op!(vrsqrteq_f32, self) }
 }
 
-impl SimdAllBitsImpl for Neon {
+impl SimdAllBitsImpl for NeonReg {
     #[inline(always)]
     fn all_zero(self) -> bool { unsafe {
         vmaxvq_u8(transmute_copy(&self.0)) == 0
     }}
 }
 
-impl SimdNegateImpl for Neon {
+impl SimdNegateImpl for NeonReg {
     #[inline(always)] fn negate_f64(self) -> Self { self_from_op!(vnegq_f64, self) }
     #[inline(always)] fn negate_f32(self) -> Self { self_from_op!(vnegq_f32, self) }
 }
 
-impl SimdBlockShiftImpl for Neon {
+impl SimdBlockShiftImpl for NeonReg {
     // Stabilize const generic expr plssssss.
     #[inline(always)]
     fn block_left_byte_shift<const N: i32>(self) -> Self {
@@ -305,7 +305,7 @@ impl SimdBlockShiftImpl for Neon {
 }
 
 // TODO: Add to_bits for other bit sizes for NEON.
-impl SimdMaskBitConversion for Neon {
+impl SimdMaskBitConversion for NeonReg {
     #[inline(always)] fn to_bits_64(self) -> u64 {
         0u64 
     }
@@ -322,9 +322,9 @@ impl SimdMaskBitConversion for Neon {
     }
 }
 
-impl SimdLaneShiftImpl for Neon {
-    #[inline(always)] fn left_lane_shift_32<const N: i32>(self) -> Self {
-        match N {
+impl SimdLaneShiftImpl for NeonReg {
+    #[inline(always)] fn left_lane_shift_32(self, n: u32) -> Self {
+        match n {
             0 => self,
             1 => self_from_const_op!(vextq_u8, 4, self, Self::zero()),
             2 => self_from_const_op!(vextq_u8, 8, self, Self::zero()),
@@ -332,8 +332,8 @@ impl SimdLaneShiftImpl for Neon {
             _ => Self::zero()
         }
     }
-    #[inline(always)] fn right_lane_shift_32<const N: i32>(self) -> Self {
-        match N {
+    #[inline(always)] fn right_lane_shift_32(self, n: u32) -> Self {
+        match n {
             0 => self,
             1 => self_from_const_op!(vextq_u8, 12, Self::zero(), self),
             2 => self_from_const_op!(vextq_u8, 8, Self::zero(), self),

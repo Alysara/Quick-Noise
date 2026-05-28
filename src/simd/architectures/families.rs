@@ -1,26 +1,26 @@
 use crate::simd::architectures::arch_impl::SimdFamily;
 
 #[cfg(target_arch = "x86_64")]
-use crate::simd::architectures::intrinsics::avx2::Avx2;
+use crate::simd::architectures::intrinsics::avx2::Avx2Reg;
 #[cfg(target_arch = "x86_64")]
-use crate::simd::architectures::intrinsics::avx512::{Avx512, Avx512Mask};
+use crate::simd::architectures::intrinsics::avx512::{Avx512Reg, Avx512Mask};
 #[cfg(target_arch = "x86_64")]
-use crate::simd::architectures::intrinsics::sse::Sse;
+use crate::simd::architectures::intrinsics::sse::SseReg;
 #[cfg(target_arch = "aarch64")]
 use crate::simd::architectures::intrinsics::neon::Neon;
 
-use crate::simd::architectures::intrinsics::scalar::{Scalar, ScalarMask};
+use crate::simd::architectures::intrinsics::scalar::{ScalarReg, ScalarMask};
 use std::fmt::Debug;
 
 #[derive(Copy, Clone)]
 #[cfg(target_arch = "x86_64")]
-pub struct SseFamily;
+pub struct Sse;
 #[cfg(target_arch = "x86_64")]
-impl SimdFamily for SseFamily {
+impl SimdFamily for Sse {
     const SIMD_WIDTH: usize = 16;
-    type Vec = Sse;
-    type Mask = Sse;
-    type ScalarFamily = ScalarFamily128;
+    type Vec = SseReg;
+    type Mask = SseReg;
+    type ScalarFamily = Scalar128;
 
     type Array64<T: Debug + Copy> = [T; 2];
     type Array32<T: Debug + Copy> = [T; 4];
@@ -30,13 +30,13 @@ impl SimdFamily for SseFamily {
 
 #[cfg(target_arch = "x86_64")]
 #[derive(Copy, Clone)]
-pub struct Avx2Family;
+pub struct Avx2;
 #[cfg(target_arch = "x86_64")]
-impl SimdFamily for Avx2Family {
+impl SimdFamily for Avx2 {
     const SIMD_WIDTH: usize = 32;
-    type Vec = Avx2;
-    type Mask = Avx2;
-    type ScalarFamily = ScalarFamily256;
+    type Vec = Avx2Reg;
+    type Mask = Avx2Reg;
+    type ScalarFamily = Scalar256;
 
     type Array64<T: Debug + Copy> = [T; 4];
     type Array32<T: Debug + Copy> = [T; 8];
@@ -46,13 +46,13 @@ impl SimdFamily for Avx2Family {
 
 #[cfg(target_arch = "x86_64")]
 #[derive(Copy, Clone)]
-pub struct Avx512Family;
+pub struct Avx512;
 #[cfg(target_arch = "x86_64")]
-impl SimdFamily for Avx512Family {
+impl SimdFamily for Avx512 {
     const SIMD_WIDTH: usize = 64;
-    type Vec = Avx512;
+    type Vec = Avx512Reg;
     type Mask = Avx512Mask;
-    type ScalarFamily = ScalarFamily512;
+    type ScalarFamily = Scalar512;
 
     type Array64<T: Debug + Copy> = [T; 8];
     type Array32<T: Debug + Copy> = [T; 16];
@@ -62,13 +62,13 @@ impl SimdFamily for Avx512Family {
 
 #[cfg(target_arch = "aarch64")]
 #[derive(Copy, Clone)]
-pub struct NeonFamily;
+pub struct Neon;
 #[cfg(target_arch = "aarch64")]
-impl SimdFamily for NeonFamily {
+impl SimdFamily for Neon {
     const SIMD_WIDTH: usize = 16;
-    type Vec = Neon;
-    type Mask = Neon;
-    type ScalarFamily = ScalarFamily128;
+    type Vec = NeonReg;
+    type Mask = NeonReg;
+    type ScalarFamily = Scalar128;
 
     type Array64<T: Debug + Copy> = [T; 2];
     type Array32<T: Debug + Copy> = [T; 4];
@@ -77,10 +77,10 @@ impl SimdFamily for NeonFamily {
 }
 
 #[derive(Copy, Clone)]
-pub struct ScalarFamily128;
-impl SimdFamily for ScalarFamily128 {
+pub struct Scalar128;
+impl SimdFamily for Scalar128 {
     const SIMD_WIDTH: usize = 16;
-    type Vec = Scalar<16>;
+    type Vec = ScalarReg<16>;
     type Mask = ScalarMask<16>;
     type ScalarFamily = Self;
 
@@ -91,10 +91,10 @@ impl SimdFamily for ScalarFamily128 {
 }
 
 #[derive(Copy, Clone)]
-pub struct ScalarFamily256;
-impl SimdFamily for ScalarFamily256 {
+pub struct Scalar256;
+impl SimdFamily for Scalar256 {
     const SIMD_WIDTH: usize = 32;
-    type Vec = Scalar<32>;
+    type Vec = ScalarReg<32>;
     type Mask = ScalarMask<32>;
     type ScalarFamily = Self;
 
@@ -105,10 +105,10 @@ impl SimdFamily for ScalarFamily256 {
 }
 
 #[derive(Copy, Clone)]
-pub struct ScalarFamily512;
-impl SimdFamily for ScalarFamily512 {
+pub struct Scalar512;
+impl SimdFamily for Scalar512 {
     const SIMD_WIDTH: usize = 64;
-    type Vec = Scalar<64>;
+    type Vec = ScalarReg<64>;
     type Mask = ScalarMask<64>;
     type ScalarFamily = Self;
 

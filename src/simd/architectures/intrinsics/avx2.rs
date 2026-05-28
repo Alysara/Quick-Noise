@@ -5,11 +5,11 @@ use crate::simd::architectures::macros::*;
 
 #[derive(Copy, Clone)]
 #[repr(transparent)]
-pub struct Avx2(pub __m256i);
-impl SimdArch for Avx2 {}
-impl MaskArch for Avx2 {}
+pub struct Avx2Reg(pub __m256i);
+impl SimdArch for Avx2Reg {}
+impl MaskArch for Avx2Reg {}
 
-impl SimdAddImpl for Avx2 {
+impl SimdAddImpl for Avx2Reg {
     #[inline(always)] fn f64_add(self, rhs: Self) -> Self { self_from_op!(_mm256_add_pd, self, rhs) }
     #[inline(always)] fn f32_add(self, rhs: Self) -> Self { self_from_op!(_mm256_add_ps, self, rhs) }
     #[inline(always)] fn i64_add(self, rhs: Self) -> Self { self_from_op!(_mm256_add_epi64, self, rhs) }
@@ -18,7 +18,7 @@ impl SimdAddImpl for Avx2 {
     #[inline(always)] fn i8_add(self, rhs: Self) -> Self { self_from_op!(_mm256_add_epi8, self, rhs) }
 }
 
-impl SimdSubImpl for Avx2 {
+impl SimdSubImpl for Avx2Reg {
     #[inline(always)] fn f64_sub(self, rhs: Self) -> Self { self_from_op!(_mm256_sub_pd, self, rhs) }
     #[inline(always)] fn f32_sub(self, rhs: Self) -> Self { self_from_op!(_mm256_sub_ps, self, rhs) }
     #[inline(always)] fn i64_sub(self, rhs: Self) -> Self { self_from_op!(_mm256_sub_epi64, self, rhs) }
@@ -27,19 +27,19 @@ impl SimdSubImpl for Avx2 {
     #[inline(always)] fn i8_sub(self, rhs: Self) -> Self { self_from_op!(_mm256_sub_epi8, self, rhs) }
 }
 
-impl SimdMulImpl for Avx2 {
+impl SimdMulImpl for Avx2Reg {
     #[inline(always)] fn f64_mul(self, rhs: Self) -> Self { self_from_op!(_mm256_mul_pd, self, rhs) }
     #[inline(always)] fn f32_mul(self, rhs: Self) -> Self { self_from_op!(_mm256_mul_ps, self, rhs) }
     #[inline(always)] fn i32_mul(self, rhs: Self) -> Self { self_from_op!(_mm256_mullo_epi32, self, rhs) }
     #[inline(always)] fn i16_mul(self, rhs: Self) -> Self { self_from_op!(_mm256_mullo_epi16, self, rhs) }
 }
 
-impl SimdDivImpl for Avx2 {
+impl SimdDivImpl for Avx2Reg {
     #[inline(always)] fn f64_div(self, rhs: Self) -> Self { self_from_op!(_mm256_div_pd, self, rhs) }
     #[inline(always)] fn f32_div(self, rhs: Self) -> Self { self_from_op!(_mm256_div_ps, self, rhs) }
 }
 
-impl SimdBitwiseImpl for Avx2 {
+impl SimdBitwiseImpl for Avx2Reg {
     #[inline(always)] fn and(self, rhs: Self) -> Self { self_from_op!(_mm256_and_si256, self, rhs) }
     #[inline(always)] fn or(self, rhs: Self) -> Self { self_from_op!(_mm256_or_si256, self, rhs) }
     #[inline(always)] fn xor(self, rhs: Self) -> Self { self_from_op!(_mm256_xor_si256, self, rhs) }
@@ -47,7 +47,7 @@ impl SimdBitwiseImpl for Avx2 {
     #[inline(always)] fn and_not(self, rhs: Self) -> Self { self_from_op!(_mm256_andnot_si256, rhs, self) }
 }
 
-impl SimdShiftImpl for Avx2 {
+impl SimdShiftImpl for Avx2Reg {
     #[inline(always)] fn sllv_64(self, rhs: Self) -> Self { self_from_op!(_mm256_sllv_epi64, self, rhs) }
     #[inline(always)] fn srlv_64(self, rhs: Self) -> Self { self_from_op!(_mm256_srlv_epi64, self, rhs) }
     #[inline(always)] fn srav_64(self, rhs: Self) -> Self { self_from_op!(_mm256_srav_epi64, self, rhs) }
@@ -59,7 +59,7 @@ impl SimdShiftImpl for Avx2 {
     #[inline(always)] fn srav_16(self, rhs: Self) -> Self { self_from_op!(_mm256_srav_epi16, self, rhs) }
 }
 
-impl SimdLoadImpl for Avx2 {
+impl SimdLoadImpl for Avx2Reg {
     type MaskType = Self;
     #[inline(always)] fn load_aligned<T>(ptr: *const T) -> Self { self_from_op!(_mm256_load_si256, ptr) }
     #[inline(always)] fn load_unaligned<T>(ptr: *const T) -> Self { self_from_op!(_mm256_loadu_si256, ptr) }
@@ -67,7 +67,7 @@ impl SimdLoadImpl for Avx2 {
     #[inline(always)] fn masked_load_32<T>(ptr: *const T, mask: Self::MaskType) -> Self { self_from_op!(_mm256_maskload_epi32, ptr, mask) }
 }
 
-impl SimdStoreImpl for Avx2 {
+impl SimdStoreImpl for Avx2Reg {
     type MaskType = Self;
     #[inline(always)] fn store_aligned<T>(self, ptr: *mut T) { execute_intrinsic!(_mm256_store_si256, ptr, self); }
     #[inline(always)] fn store_unaligned<T>(self, ptr: *mut T) { execute_intrinsic!(_mm256_storeu_si256, ptr, self); }
@@ -75,37 +75,37 @@ impl SimdStoreImpl for Avx2 {
     #[inline(always)] fn masked_store_32<T>(self, ptr: *mut T, mask: Self::MaskType) { execute_intrinsic!(_mm256_maskstore_epi32, ptr, mask, self); }
 }
 
-impl SimdZeroImpl for Avx2 {
+impl SimdZeroImpl for Avx2Reg {
     #[inline(always)] fn zero() -> Self { self_from_op!(_mm256_setzero_si256,) }
 }
 
-impl SimdFloatCastsImpl for Avx2 {
+impl SimdFloatCastsImpl for Avx2Reg {
     #[inline(always)] fn float_to_int_trunc(self) -> Self { self_from_op!(_mm256_cvttps_epi32, self) }
     #[inline(always)] fn float_to_int_round(self) -> Self { self_from_op!(_mm256_cvtps_epi32, self) }
 }
 
-impl SimdIntCastsImpl for Avx2 {
+impl SimdIntCastsImpl for Avx2Reg {
     #[inline(always)] fn int_to_float(self) -> Self { self_from_op!(_mm256_cvtepi32_ps, self) }
 }
 
-impl SimdPermuteImpl for Avx2 {
+impl SimdPermuteImpl for Avx2Reg {
     #[inline(always)] fn permute_32(self, rhs: Self) -> Self { self_from_op!(_mm256_permutevar8x32_epi32, self, rhs) }
     #[inline(always)] fn permute_8(self, rhs: Self) -> Self { self_from_op!(_mm256_shuffle_epi8, self, rhs) }
 }
 
-impl SimdVariableBlendImpl for Avx2 {
+impl SimdVariableBlendImpl for Avx2Reg {
     type VecType = Self;
     #[inline(always)] fn vblend_64(self, true_values: Self::VecType, false_values: Self::VecType) -> Self::VecType { self_from_op!(_mm256_blendv_pd, false_values, true_values, self) }
     #[inline(always)] fn vblend_32(self, true_values: Self::VecType, false_values: Self::VecType) -> Self::VecType { self_from_op!(_mm256_blendv_ps, false_values, true_values, self) }
     #[inline(always)] fn vblend_8(self, true_values: Self::VecType, false_values: Self::VecType) -> Self::VecType { self_from_op!(_mm256_blendv_epi8, false_values, true_values, self) }
 }
 
-impl SimdImmediateBlendImpl for Avx2 {
+impl SimdImmediateBlendImpl for Avx2Reg {
     #[inline(always)] fn blend_64<const N: i32>(self, false_values: Self) -> Self { self_from_const_op!(_mm256_blend_pd, N, false_values, self) }
     #[inline(always)] fn blend_32<const N: i32>(self, false_values: Self) -> Self { self_from_const_op!(_mm256_blend_ps, N, false_values, self) }
 }
 
-impl SimdMulAddImpl for Avx2 {
+impl SimdMulAddImpl for Avx2Reg {
     #[inline(always)] fn mul_add_f64(self, mult: Self, add: Self) -> Self { self_from_op!(_mm256_fmadd_pd, self, mult, add) }
     #[inline(always)] fn mul_sub_f64(self, mult: Self, sub: Self) -> Self { self_from_op!(_mm256_fmsub_pd, self, mult, sub) }
     #[inline(always)] fn negated_mul_add_f64(self, mult: Self, add: Self) -> Self { self_from_op!(_mm256_fnmadd_pd, self, mult, add) }
@@ -116,7 +116,7 @@ impl SimdMulAddImpl for Avx2 {
     #[inline(always)] fn negated_mul_sub_f32(self, mult: Self, sub: Self) -> Self { self_from_op!(_mm256_fnmsub_ps, self, mult, sub) }
 }
 
-impl SimdRoundImpl for Avx2 {
+impl SimdRoundImpl for Avx2Reg {
     #[inline(always)] fn round_f64(self) -> Self { self_from_const_op!(_mm256_round_pd, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC, self) }
     #[inline(always)] fn round_f32(self) -> Self { self_from_const_op!(_mm256_round_ps, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC, self) }
     #[inline(always)] fn floor_f64(self) -> Self { self_from_const_op!(_mm256_round_pd, _MM_FROUND_TO_NEG_INF | _MM_FROUND_NO_EXC, self) }
@@ -125,7 +125,7 @@ impl SimdRoundImpl for Avx2 {
     #[inline(always)] fn ceil_f32(self) -> Self { self_from_const_op!(_mm256_round_ps, _MM_FROUND_TO_POS_INF | _MM_FROUND_NO_EXC, self) }
 }
 
-impl SimdPartialOrdImpl for Avx2 {
+impl SimdPartialOrdImpl for Avx2Reg {
     type MaskType = Self;
     #[inline(always)] fn cmp_f64_eq(self, rhs: Self) -> Self { self_from_const_op!(_mm256_cmp_pd, _CMP_EQ_OQ, self, rhs) }
     #[inline(always)] fn cmp_f64_lt(self, rhs: Self) -> Self { self_from_const_op!(_mm256_cmp_pd, _CMP_LT_OQ, self, rhs) }
@@ -167,49 +167,49 @@ impl SimdPartialOrdImpl for Avx2 {
 }
 
 // TODO: Make a custom trait for handling this transmutation into i*.
-impl SimdSplatImpl for Avx2 {
+impl SimdSplatImpl for Avx2Reg {
     #[inline(always)] fn splat_64<T>(val: T) -> Self { self_from_op!(_mm256_set1_epi64x, val) }
     #[inline(always)] fn splat_32<T>(val: T) -> Self { self_from_op!(_mm256_set1_epi32, val) }
     #[inline(always)] fn splat_16<T>(val: T) -> Self { self_from_op!(_mm256_set1_epi16, val) }
     #[inline(always)] fn splat_8<T>(val: T) -> Self { self_from_op!(_mm256_set1_epi8, val) }
 }
 
-impl SimdGatherImpl for Avx2 {
+impl SimdGatherImpl for Avx2Reg {
     #[inline(always)] fn gather_32_from_32<T, const B: i32>(self, ptr: *const T) -> Self { self_from_const_op!(_mm256_i32gather_epi32, B, ptr, self) }
     // #[inline(always)] fn gather_64_from_32<T, const B: i32>(self, ptr: *const T) -> Self { self_from_const_op!(_mm256_i32gather_epi64, B, ptr, self) }
     // #[inline(always)] fn gather_32_from_64<T, const B: i32>(self, ptr: *const T) -> Self { self_from_const_op!(_mm256_i64gather_epi32, B, ptr, self) }
     #[inline(always)] fn gather_64_from_64<T, const B: i32>(self, ptr: *const T) -> Self { self_from_const_op!(_mm256_i64gather_epi64, B, ptr, self) }
 }
 
-impl SimdSqrtImpl for Avx2 {
+impl SimdSqrtImpl for Avx2Reg {
     #[inline(always)] fn sqrt_f64(self) -> Self { self_from_op!(_mm256_sqrt_pd, self) }
     #[inline(always)] fn sqrt_f32(self) -> Self { self_from_op!(_mm256_sqrt_ps, self) }
     #[inline(always)] fn rsqrt_f32(self) -> Self { self_from_op!(_mm256_rsqrt_ps, self) }
 }
 
-impl SimdAllBitsImpl for Avx2 {
+impl SimdAllBitsImpl for Avx2Reg {
     #[inline(always)] fn all_zero(self) -> bool { execute_intrinsic!(_mm256_testz_si256, self, self) != 0}
 }
 
-impl SimdNegateImpl for Avx2 {
+impl SimdNegateImpl for Avx2Reg {
     #[inline(always)] fn negate_f64(self) -> Self { Self::splat_64(-0.0f64).xor(self) }
     #[inline(always)] fn negate_f32(self) -> Self { Self::splat_32(-0.0f64).xor(self) }
 }
 
-impl SimdBlockShiftImpl for Avx2 {
+impl SimdBlockShiftImpl for Avx2Reg {
     #[inline(always)] fn block_left_byte_shift<const N: i32>(self) -> Self { self_from_const_op!(_mm256_bslli_epi128, N, self) }
     #[inline(always)] fn block_right_byte_shift<const N: i32>(self) -> Self { self_from_const_op!(_mm256_bsrli_epi128, N, self) }
 }
 
-impl SimdMaskBitConversion for Avx2 {
+impl SimdMaskBitConversion for Avx2Reg {
     #[inline(always)] fn to_bits_64(self) -> u64 { execute_intrinsic!(_mm256_movemask_pd, self) as u64 }
     #[inline(always)] fn to_bits_32(self) -> u64 { execute_intrinsic!(_mm256_movemask_ps, self) as u64 }
     #[inline(always)] fn to_bits_8(self) -> u64 { execute_intrinsic!(_mm256_movemask_epi8, self) as u64 }
 }
 
-impl SimdLaneShiftImpl for Avx2 {
-    #[inline(always)] fn left_lane_shift_32<const N: i32>(self) -> Self {
-        match N {
+impl SimdLaneShiftImpl for Avx2Reg {
+    #[inline(always)] fn left_lane_shift_32(self, n: u32) -> Self {
+        match n {
             0 => self,
             1 => Self::zero().blend_32::<1>(self)
                 .permute_32(self_from_op!(_mm256_setr_epi32, 1, 2, 3, 4, 5, 6, 7, 0)),
@@ -228,8 +228,8 @@ impl SimdLaneShiftImpl for Avx2 {
             _ => Self::zero()
         }
     }
-    #[inline(always)] fn right_lane_shift_32<const N: i32>(self) -> Self {
-        match N {
+    #[inline(always)] fn right_lane_shift_32(self, n: u32) -> Self {
+        match n {
             0 => self,
             1 => Self::zero().blend_32::<0x80>(self)
                 .permute_32(self_from_op!(_mm256_setr_epi32, 7, 0, 1, 2, 3, 4, 5, 6)),

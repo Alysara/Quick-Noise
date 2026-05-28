@@ -5,15 +5,15 @@ use crate::simd::architectures::macros::*;
 
 #[derive(Copy, Clone)]
 #[repr(transparent)]
-pub struct Avx512(pub __m512i);
-impl SimdArch for Avx512 {
+pub struct Avx512Reg(pub __m512i);
+impl SimdArch for Avx512Reg {
 }
 
 #[derive(Copy, Clone)]
 pub struct Avx512Mask(pub __mmask64);
 impl MaskArch for Avx512Mask {}
 
-impl SimdAddImpl for Avx512 {
+impl SimdAddImpl for Avx512Reg {
     #[inline(always)] fn f64_add(self, rhs: Self) -> Self { self_from_op!(_mm512_add_pd, self, rhs) }
     #[inline(always)] fn f32_add(self, rhs: Self) -> Self { self_from_op!(_mm512_add_ps, self, rhs) }
     #[inline(always)] fn i64_add(self, rhs: Self) -> Self { self_from_op!(_mm512_add_epi64, self, rhs) }
@@ -22,7 +22,7 @@ impl SimdAddImpl for Avx512 {
     #[inline(always)] fn i8_add(self, rhs: Self) -> Self { self_from_op!(_mm512_add_epi8, self, rhs) }
 }
 
-impl SimdSubImpl for Avx512 {
+impl SimdSubImpl for Avx512Reg {
     #[inline(always)] fn f64_sub(self, rhs: Self) -> Self { self_from_op!(_mm512_sub_pd, self, rhs) }
     #[inline(always)] fn f32_sub(self, rhs: Self) -> Self { self_from_op!(_mm512_sub_ps, self, rhs) }
     #[inline(always)] fn i64_sub(self, rhs: Self) -> Self { self_from_op!(_mm512_sub_epi64, self, rhs) }
@@ -31,19 +31,19 @@ impl SimdSubImpl for Avx512 {
     #[inline(always)] fn i8_sub(self, rhs: Self) -> Self { self_from_op!(_mm512_sub_epi8, self, rhs) }
 }
 
-impl SimdMulImpl for Avx512 {
+impl SimdMulImpl for Avx512Reg {
     #[inline(always)] fn f64_mul(self, rhs: Self) -> Self { self_from_op!(_mm512_mul_pd, self, rhs) }
     #[inline(always)] fn f32_mul(self, rhs: Self) -> Self { self_from_op!(_mm512_mul_ps, self, rhs) }
     #[inline(always)] fn i32_mul(self, rhs: Self) -> Self { self_from_op!(_mm512_mullo_epi32, self, rhs) }
     #[inline(always)] fn i16_mul(self, rhs: Self) -> Self { self_from_op!(_mm512_mullo_epi16, self, rhs) }
 }
 
-impl SimdDivImpl for Avx512 {
+impl SimdDivImpl for Avx512Reg {
     #[inline(always)] fn f64_div(self, rhs: Self) -> Self { self_from_op!(_mm512_div_pd, self, rhs) }
     #[inline(always)] fn f32_div(self, rhs: Self) -> Self { self_from_op!(_mm512_div_ps, self, rhs) }
 }
 
-impl SimdBitwiseImpl for Avx512 {
+impl SimdBitwiseImpl for Avx512Reg {
     #[inline(always)] fn and(self, rhs: Self) -> Self { self_from_op!(_mm512_and_si512, self, rhs) }
     #[inline(always)] fn or(self, rhs: Self) -> Self { self_from_op!(_mm512_or_si512, self, rhs) }
     #[inline(always)] fn xor(self, rhs: Self) -> Self { self_from_op!(_mm512_xor_si512, self, rhs) }
@@ -51,7 +51,7 @@ impl SimdBitwiseImpl for Avx512 {
     #[inline(always)] fn and_not(self, rhs: Self) -> Self { self_from_op!(_mm512_andnot_si512, rhs, self) }
 }
 
-impl SimdShiftImpl for Avx512 {
+impl SimdShiftImpl for Avx512Reg {
     #[inline(always)] fn sllv_64(self, rhs: Self) -> Self { self_from_op!(_mm512_sllv_epi64, self, rhs) }
     #[inline(always)] fn srlv_64(self, rhs: Self) -> Self { self_from_op!(_mm512_srlv_epi64, self, rhs) }
     #[inline(always)] fn srav_64(self, rhs: Self) -> Self { self_from_op!(_mm512_srav_epi64, self, rhs) }
@@ -63,7 +63,7 @@ impl SimdShiftImpl for Avx512 {
     #[inline(always)] fn srav_16(self, rhs: Self) -> Self { self_from_op!(_mm512_srav_epi16, self, rhs) }
 }
 
-impl SimdLoadImpl for Avx512 {
+impl SimdLoadImpl for Avx512Reg {
     type MaskType = Avx512Mask;
     #[inline(always)] fn load_aligned<T>(ptr: *const T) -> Self { self_from_op!(_mm512_load_si512, ptr) }
     #[inline(always)] fn load_unaligned<T>(ptr: *const T) -> Self { self_from_op!(_mm512_loadu_si512, ptr) }
@@ -71,7 +71,7 @@ impl SimdLoadImpl for Avx512 {
     #[inline(always)] fn masked_load_32<T>(ptr: *const T, mask: Self::MaskType) -> Self { self_from_op!(_mm512_mask_load_epi32, Self::zero(), ptr, mask) }
 }
 
-impl SimdStoreImpl for Avx512 {
+impl SimdStoreImpl for Avx512Reg {
     type MaskType = Avx512Mask;
     #[inline(always)] fn store_aligned<T>(self, ptr: *mut T) { execute_intrinsic!(_mm512_store_si512, ptr, self); }
     #[inline(always)] fn store_unaligned<T>(self, ptr: *mut T) { execute_intrinsic!(_mm512_storeu_si512, ptr, self); }
@@ -79,39 +79,39 @@ impl SimdStoreImpl for Avx512 {
     #[inline(always)] fn masked_store_32<T>(self, ptr: *mut T, mask: Self::MaskType) { execute_intrinsic!(_mm512_mask_store_epi32, ptr, mask, self); }
 }
 
-impl SimdZeroImpl for Avx512 {
+impl SimdZeroImpl for Avx512Reg {
     #[inline(always)] fn zero() -> Self { self_from_op!(_mm512_setzero_si512,) }
 }
 
-impl SimdFloatCastsImpl for Avx512 {
+impl SimdFloatCastsImpl for Avx512Reg {
     #[inline(always)] fn float_to_int_trunc(self) -> Self { self_from_op!(_mm512_cvttps_epi32, self) }
     #[inline(always)] fn float_to_int_round(self) -> Self { self_from_op!(_mm512_cvtps_epi32, self) }
 }
 
-impl SimdIntCastsImpl for Avx512 {
+impl SimdIntCastsImpl for Avx512Reg {
     #[inline(always)] fn int_to_float(self) -> Self { self_from_op!(_mm512_cvtepi32_ps, self) }
 }
 
-impl SimdPermuteImpl for Avx512 {
+impl SimdPermuteImpl for Avx512Reg {
     // type BlockVec = Sse;
     #[inline(always)] fn permute_32(self, rhs: Self) -> Self { self_from_op!(_mm512_permutexvar_epi32, self, rhs) }
     #[inline(always)] fn permute_8(self, rhs: Self) -> Self { self_from_op!(_mm512_shuffle_epi8, self, rhs) }
 }
 
 impl SimdVariableBlendImpl for Avx512Mask {
-    type VecType = Avx512;
+    type VecType = Avx512Reg;
     #[inline(always)] fn vblend_64(self, true_values: Self::VecType, false_values: Self::VecType) -> Self::VecType {
-        unsafe { Avx512(transmute(execute_intrinsic!(_mm512_mask_blend_pd, self, false_values, true_values))) }
+        unsafe { Avx512Reg(transmute(execute_intrinsic!(_mm512_mask_blend_pd, self, false_values, true_values))) }
     }
     #[inline(always)] fn vblend_32(self, true_values: Self::VecType, false_values: Self::VecType) -> Self::VecType {
-        unsafe { Avx512(transmute(execute_intrinsic!(_mm512_mask_blend_ps, self, false_values, true_values))) }
+        unsafe { Avx512Reg(transmute(execute_intrinsic!(_mm512_mask_blend_ps, self, false_values, true_values))) }
     }
     #[inline(always)] fn vblend_8(self, true_values: Self::VecType, false_values: Self::VecType) -> Self::VecType {
-        unsafe { Avx512(transmute(execute_intrinsic!(_mm512_mask_blend_epi8, self, false_values, true_values))) }
+        unsafe { Avx512Reg(transmute(execute_intrinsic!(_mm512_mask_blend_epi8, self, false_values, true_values))) }
     }
 }
 
-impl SimdImmediateBlendImpl for Avx512 {
+impl SimdImmediateBlendImpl for Avx512Reg {
     #[inline(always)] fn blend_64<const N: i32>(self, false_values: Self) -> Self {
         let mask = Avx512Mask(N as u64);
         mask.vblend_64(self, false_values)
@@ -123,7 +123,7 @@ impl SimdImmediateBlendImpl for Avx512 {
 }
 
 
-impl SimdMulAddImpl for Avx512 {
+impl SimdMulAddImpl for Avx512Reg {
     #[inline(always)] fn mul_add_f64(self, mult: Self, add: Self) -> Self { self_from_op!(_mm512_fmadd_pd, self, mult, add) }
     #[inline(always)] fn mul_sub_f64(self, mult: Self, sub: Self) -> Self { self_from_op!(_mm512_fmsub_pd, self, mult, sub) }
     #[inline(always)] fn negated_mul_add_f64(self, mult: Self, add: Self) -> Self { self_from_op!(_mm512_fnmadd_pd, self, mult, add) }
@@ -134,7 +134,7 @@ impl SimdMulAddImpl for Avx512 {
     #[inline(always)] fn negated_mul_sub_f32(self, mult: Self, sub: Self) -> Self { self_from_op!(_mm512_fnmsub_ps, self, mult, sub) }
 }
 
-impl SimdRoundImpl for Avx512 {
+impl SimdRoundImpl for Avx512Reg {
     #[inline(always)] fn round_f64(self) -> Self { self_from_const_op!(_mm512_roundscale_pd, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC, self) }
     #[inline(always)] fn round_f32(self) -> Self { self_from_const_op!(_mm512_roundscale_ps, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC, self) }
     #[inline(always)] fn floor_f64(self) -> Self { self_from_const_op!(_mm512_roundscale_pd, _MM_FROUND_TO_NEG_INF | _MM_FROUND_NO_EXC, self) }
@@ -143,7 +143,7 @@ impl SimdRoundImpl for Avx512 {
     #[inline(always)] fn ceil_f32(self) -> Self { self_from_const_op!(_mm512_roundscale_ps, _MM_FROUND_TO_POS_INF | _MM_FROUND_NO_EXC, self) }
 }
 
-impl SimdPartialOrdImpl for Avx512 {
+impl SimdPartialOrdImpl for Avx512Reg {
     type MaskType = Avx512Mask;
     #[inline(always)] fn cmp_f64_eq(self, rhs: Self) -> Self::MaskType { Avx512Mask(execute_const_intrinsic!(_mm512_cmp_pd_mask, _CMP_EQ_OQ, self, rhs) as u64) }
     #[inline(always)] fn cmp_f64_lt(self, rhs: Self) -> Self::MaskType { Avx512Mask(execute_const_intrinsic!(_mm512_cmp_pd_mask, _CMP_LT_OQ, self, rhs) as u64) }
@@ -185,7 +185,7 @@ impl SimdPartialOrdImpl for Avx512 {
 }
 
 // TODO: Make a custom trait for handling this transmutation into i*.
-impl SimdSplatImpl for Avx512 {
+impl SimdSplatImpl for Avx512Reg {
     #[inline(always)] fn splat_64<T>(val: T) -> Self { self_from_op!(_mm512_set1_epi64, val) }
     #[inline(always)] fn splat_32<T>(val: T) -> Self { self_from_op!(_mm512_set1_epi32, val) }
     #[inline(always)] fn splat_16<T>(val: T) -> Self { self_from_op!(_mm512_set1_epi16, val) }
@@ -200,14 +200,14 @@ impl SimdBitwiseImpl for Avx512Mask {
     #[inline(always)] fn and_not(self, rhs: Self) -> Self { self_from_op!(_kandn_mask64, self, rhs) }
 }
 
-impl SimdGatherImpl for Avx512 {
+impl SimdGatherImpl for Avx512Reg {
     #[inline(always)] fn gather_32_from_32<T, const B: i32>(self, ptr: *const T) -> Self { self_from_const_op!(_mm512_i32gather_epi32, B, self, ptr) }
     // #[inline(always)] fn gather_64_from_32<T, const B: i32>(self, ptr: *const T) -> Self { self_from_const_op!(_mm512_i32gather_epi64, B, ptr, self) }
     // #[inline(always)] fn gather_32_from_64<T, const B: i32>(self, ptr: *const T) -> Self { self_from_const_op!(_mm512_i64gather_epi32, B, ptr, self) }
     #[inline(always)] fn gather_64_from_64<T, const B: i32>(self, ptr: *const T) -> Self { self_from_const_op!(_mm512_i64gather_epi64, B, self, ptr) }
 }
 
-impl SimdSqrtImpl for Avx512 {
+impl SimdSqrtImpl for Avx512Reg {
     #[inline(always)] fn sqrt_f64(self) -> Self { self_from_op!(_mm512_sqrt_pd, self) }
     #[inline(always)] fn sqrt_f32(self) -> Self { self_from_op!(_mm512_sqrt_ps, self) }
     #[inline(always)] fn rsqrt_f32(self) -> Self { self_from_op!(_mm512_rsqrt14_ps, self) }
@@ -217,12 +217,12 @@ impl SimdAllBitsImpl for Avx512Mask {
     #[inline(always)] fn all_zero(self) -> bool { self.0 == 0 }
 }
 
-impl SimdNegateImpl for Avx512 {
+impl SimdNegateImpl for Avx512Reg {
     #[inline(always)] fn negate_f64(self) -> Self { Self::splat_64(-0.0f64).xor(self) }
     #[inline(always)] fn negate_f32(self) -> Self { Self::splat_32(-0.0f64).xor(self) }
 }
 
-impl SimdBlockShiftImpl for Avx512 {
+impl SimdBlockShiftImpl for Avx512Reg {
     #[inline(always)] fn block_left_byte_shift<const N: i32>(self) -> Self { self_from_const_op!(_mm512_bslli_epi128, N, self) }
     #[inline(always)] fn block_right_byte_shift<const N: i32>(self) -> Self { self_from_const_op!(_mm512_bsrli_epi128, N, self) }
 }
@@ -233,10 +233,10 @@ impl SimdMaskBitConversion for Avx512Mask {
     #[inline(always)] fn to_bits_8(self) -> u64 { self.0 as u64 }
 }
 
-impl SimdLaneShiftImpl for Avx512 {
+impl SimdLaneShiftImpl for Avx512Reg {
     #[inline(always)] 
-    fn left_lane_shift_32<const N: i32>(self) -> Self {
-        match N {
+    fn left_lane_shift_32(self, n: u32) -> Self {
+        match n {
             0 => self,
             1 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 15) }),
             2 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 14) }),
@@ -258,8 +258,8 @@ impl SimdLaneShiftImpl for Avx512 {
     }
     
     #[inline(always)] 
-    fn right_lane_shift_32<const N: i32>(self) -> Self {
-        match N {
+    fn right_lane_shift_32(self, n: u32) -> Self {
+        match n {
             0 => self,
             1 => Self(unsafe { _mm512_alignr_epi32(_mm512_setzero_si512(), self.0, 1) }),
             2 => Self(unsafe { _mm512_alignr_epi32(_mm512_setzero_si512(), self.0, 2) }),

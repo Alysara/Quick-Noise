@@ -2,7 +2,7 @@
 use crate::simd::traits::*;
 // use std::ops::*;
 // use num_traits::NumCast;
-// use crate::simd::simd_vec::core::SimdVec;
+// use crate::simd::simd_vec::core::Simd;
 // use crate::simd::simd_traits::*;
 // use crate::simd::arch_simd::{ArchSimd, ArchMask, ScalarSimd, ScalarMask};
 // use crate::simd::tests::simd_vec::generator::{apply};
@@ -93,7 +93,7 @@ macro_rules! simd_vec_test {
     // === 0 arg ===
     ($test_name:ident, || -> $ret_ty:ty $body:block) => {
         paste::paste! {
-            fn [<$test_name _func>]<F: SimdFamily>() -> SimdVec<$ret_ty, F> $body
+            fn [<$test_name _func>]<F: SimdFamily>() -> Simd<$ret_ty, F> $body
 
             #[test]
             fn $test_name() {
@@ -110,7 +110,7 @@ macro_rules! simd_vec_test {
     // === 1 arg, inferred return type ===
     ($test_name:ident, |$x:ident: $elem_ty:ty| $body:block) => {
         paste::paste! {
-            fn [<$test_name _func>]<F: SimdFamily>($x: SimdVec<$elem_ty, F>) -> SimdVec<$elem_ty, F> $body
+            fn [<$test_name _func>]<F: SimdFamily>($x: Simd<$elem_ty, F>) -> Simd<$elem_ty, F> $body
             #[test]
             fn $test_name() {
                 for (simd, scalar) in itertools::izip!(
@@ -132,9 +132,9 @@ macro_rules! simd_vec_test {
     ($test_name:ident, |$x1:ident: $elem_ty1:ty, $x2:ident: $elem_ty2:ty| $body:block) => {
         paste::paste! {
             fn [<$test_name _func>]<F: SimdFamily>(
-                $x1: SimdVec<$elem_ty1, F>,
-                $x2: SimdVec<$elem_ty2, F>
-            ) -> SimdVec<$elem_ty1, F> $body
+                $x1: Simd<$elem_ty1, F>,
+                $x2: Simd<$elem_ty2, F>
+            ) -> Simd<$elem_ty1, F> $body
             #[test]
             fn $test_name() {
                 let pairs1: Vec<_> = itertools::izip!(
@@ -166,10 +166,10 @@ macro_rules! simd_vec_test {
     ($test_name:ident, |$x1:ident: $elem_ty1:ty, $x2:ident: $elem_ty2:ty, $x3:ident: $elem_ty3:ty| $body:block) => {
         paste::paste! {
             fn [<$test_name _func>]<F: SimdFamily>(
-                $x1: SimdVec<$elem_ty1, F>,
-                $x2: SimdVec<$elem_ty2, F>,
-                $x3: SimdVec<$elem_ty3, F>
-            ) -> SimdVec<$elem_ty1, F> $body
+                $x1: Simd<$elem_ty1, F>,
+                $x2: Simd<$elem_ty2, F>,
+                $x3: Simd<$elem_ty3, F>
+            ) -> Simd<$elem_ty1, F> $body
             #[test]
             fn $test_name() {
                 let pairs1: Vec<_> = itertools::izip!(
@@ -207,7 +207,7 @@ macro_rules! simd_vec_test {
     // === 1 arg, explicit return type ===
     ($test_name:ident, |$x:ident: $elem_ty:ty| -> $ret_ty:ty $body:block) => {
         paste::paste! {
-            fn [<$test_name _func>]<F: SimdFamily>($x: SimdVec<$elem_ty, F>) -> SimdVec<$ret_ty, F> {
+            fn [<$test_name _func>]<F: SimdFamily>($x: Simd<$elem_ty, F>) -> Simd<$ret_ty, F> {
                 $body
             }
             #[test]
@@ -231,9 +231,9 @@ macro_rules! simd_vec_test {
     ($test_name:ident, |$x1:ident: $elem_ty1:ty, $x2:ident: $elem_ty2:ty| -> $ret_ty:ty $body:block) => {
         paste::paste! {
             fn [<$test_name _func>]<F: SimdFamily>(
-                $x1: SimdVec<$elem_ty1, F>,
-                $x2: SimdVec<$elem_ty2, F>
-            ) -> SimdVec<$ret_ty, F> {
+                $x1: Simd<$elem_ty1, F>,
+                $x2: Simd<$elem_ty2, F>
+            ) -> Simd<$ret_ty, F> {
                 $body
             }
             #[test]
@@ -267,10 +267,10 @@ macro_rules! simd_vec_test {
     ($test_name:ident, |$x1:ident: $elem_ty1:ty, $x2:ident: $elem_ty2:ty, $x3:ident: $elem_ty3:ty| -> $ret_ty:ty $body:block) => {
         paste::paste! {
             fn [<$test_name _func>]<F: SimdFamily>(
-                $x1: SimdVec<$elem_ty1, F>,
-                $x2: SimdVec<$elem_ty2, F>,
-                $x3: SimdVec<$elem_ty3, F>
-            ) -> SimdVec<$ret_ty, F> {
+                $x1: Simd<$elem_ty1, F>,
+                $x2: Simd<$elem_ty2, F>,
+                $x3: Simd<$elem_ty3, F>
+            ) -> Simd<$ret_ty, F> {
                 $body
             }
             #[test]
