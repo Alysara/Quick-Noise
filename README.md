@@ -11,6 +11,8 @@ The performance of grid noise is often magnitudes higher than batch noise, and i
 Grid noise samples a squared (2D) or cubed (3D) region uniformly.
 Quick-Noise also supports batch noise, which samples points any arbitrary input.
 
+Node: For comprehensive details, check the documentation.
+
 ## Builders
 
 Builders are used to offer extensive options while remaining approachable.
@@ -36,14 +38,14 @@ use quick_noise::{Grid2D, Perlin};
 
 // Creates an anchor into a region of sample space.
 let grid_2d = Grid2D::<500, 500, 250000>::new()
-    .position(0, 0)
-		.seed(102);
+	.position(0, 0)
+	.seed(102);
 	
 let grid_2d::fbm::<Perlin>()
-		.octaves(6)
-		.frequency(0.01)
-		.into_iter()
-		.to_grayscale_image::<500, 500>("noise_images/perlin_batch_2d.png");
+	.octaves(6)
+	.frequency(0.01)
+	.into_iter()
+	.to_grayscale_image::<500, 500>("noise_images/perlin_batch_2d.png");
 ```
 
 Currently, only Perlin is supported for grid noise. For octave sequences more complicated than FBM noise,
@@ -54,19 +56,19 @@ use quick_noise::{Grid2D, Perlin};
 
 // Custom list of octaves that can't be easily described by FBM noise.
 let octave_list = vec![
-		Octave2D::splat(0.05, 1.0),
-		Octave2D::splat(0.02, 0.8),
-		Octave2D::splat(0.03, 0.2),
-		Octave2D::splat(0.04, 0.4),
-		Octave2D::splat(0.01, 0.9),
+	Octave2D::splat(0.05, 1.0),
+	Octave2D::splat(0.02, 0.8),
+	Octave2D::splat(0.03, 0.2),
+	Octave2D::splat(0.04, 0.4),
+	Octave2D::splat(0.01, 0.9),
 ];
 
 // Takes in a slice reference for flexible array or heap usage.
-let noise = grid_2d::custom::<Perlin>::new(octave_list.as_slice())
-    .seed(1000)
-		.amplitude(2.0)
-		.normalization(true)
-		.build();
+let noise = grid_2d::custom::<Perlin>(octave_list.as_slice())
+	.seed(1000)
+	.amplitude(2.0)
+	.normalization(true)
+	.build();
 ```
 
 ## Batch Noise
@@ -79,17 +81,18 @@ use quick_noise::{Grid2D, Batch2D, Simplex};
 // Use grid for generating iters.
 let grid_2d = Grid2D::<32, 32, 1024>::new().position(0, 0);
 
-let noise = Batch2D::<Simplex, 1024>::new(grid_2d.x_iter(), grid_2d.y_iter())
-    .octaves(6)
-		.frequency(0.2)
-		.lacunarity(0.4)
-		.persistence(0.6)
-		.scaling(1.0, 0.5, 1.0)
-		.build();
+let noise = Batch2D::<Simplex, 1024>(grid_2d.x_iter(), grid_2d.y_iter())
+	.octaves(6)
+	.frequency(0.2)
+	.lacunarity(0.4)
+	.persistence(0.6)
+	.scaling(1.0, 0.5, 1.0)
+	.build();
 ```
 
 Batch noise allows for arbitrary input coordinates, enabling techniques such as domain warping.
 In this example, a uniform grid is being generated manually for demonstration purposes. Using grid noise is much faster for this use case.
+Batch noise also supports custom octaves.
 
 ## Simd
 
@@ -118,7 +121,7 @@ this simd module offers you the ability to explicitly control loops that work be
 
 # Performance
 
-## Uniform Grid
+## Grid Noise
 
 Uniform grid computes a batch of noise results positioned on a uniform grid.
 These batches are much faster than a regular noise call, but constrain the input position patterns.
@@ -145,9 +148,9 @@ Results are measured in billions of points per second single-threaded for one no
 | 4     | 2.82 B/s       | 3.20 B/s       | 4.73 B/s         | 5.42 B/s         |
 
 
-## Batched
+## Batch Noise
 
-Batched noise processing is much more flexible than uniform grid, allowing for any arbitrary input and enabling
+Batch noise processing is much more flexible than uniform grid, allowing for any arbitrary input and enabling
 techniques such as domain warping. Results are measured in millions of points per second. Performance is still WIP.
 
 |   Perlin    | 2D AVX2 | 3D AVX2 |
