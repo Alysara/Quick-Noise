@@ -1,4 +1,5 @@
 use crate::simd::arch_simd::{ArchMask, ArchSimd};
+use crate::simd::array_trait::Array;
 use crate::simd::simd_traits::*;
 use crate::simd::traits::{SimdElement, SimdFloat};
 use itertools::izip;
@@ -220,11 +221,11 @@ impl<T: SimdElement + fmt::Debug> fmt::Debug for SimdVec<T> {
     }
 }
 
+
 // ————————————————————————————————————————————————————————————————
 // ————— Simd Access ——————————————————————————————————————————————
 // ————————————————————————————————————————————————————————————————
 
-// TODO: Add partial load.
 impl<T: SimdElement> SimdVec<T> {
     /// Returns a simd register containing `ArchSimd::LANES` number
     /// of values starting from a given index.
@@ -241,16 +242,123 @@ impl<T: SimdElement> SimdVec<T> {
     /// ```
     #[inline(always)]
     pub fn load_simd(&self, index: usize) -> ArchSimd<T> {
-        self.check_bounds_range(index, ArchSimd::<T>::LANES);
-        ArchSimd::load(&self.data[index..])
-    }
+        let len = self.len();
+        assert!(index < len, "Index is out of bounds! {index} > {len}");
 
-    #[inline(always)]
-    pub unsafe fn load_simd_unchecked(&self, index: usize) -> ArchSimd<T> {
-        self.debug_check_bounds_range(index, ArchSimd::<T>::LANES);
+        // Scalar case. TODO: Make faster with simd inserts.
+        if self.len() < ArchSimd::<T>::LANES {
+            let mut array = ArchSimd::<T>::zero().to_array();
+            for i in 0..len {
+                array[i] = self[i];
+            }
+            return ArchSimd::load(array.as_mut_slice());
+        }
+
+        if index >= (len - ArchSimd::<T>::LANES) {
+            let offset = ArchSimd::<T>::LANES - (len - index);
+            let new_index = index - offset;
+            let slice = unsafe { &self.data.get_unchecked(new_index..) };
+            return ArchSimd::load(slice).left_lane_shift(offset as u32);
+        }
+
+        // Regular case.
         unsafe { ArchSimd::load(&self.data.get_unchecked(index..)) }
     }
 
+    #[inline(always)]
+    pub unsafe fn load_simd_tail_checked(&self, index: usize) -> ArchSimd<T> {
+        let len = self.len();
+        debug_assert!(index < len, "Index is out of bounds in unsafe code! {index} > {len}");
+
+        // Scalar case. TODO: Make faster with simd inserts.
+        if len < ArchSimd::<T>::LANES {
+            let mut array = ArchSimd::<T>::zero().to_array();
+            for i in 0..len {
+                array[i] = self[i];
+            }
+            return ArchSimd::load(array.as_mut_slice());
+        }
+
+        if index >= (len - ArchSimd::<T>::LANES) {
+            let offset = ArchSimd::<T>::LANES - (len - index);
+            let new_index = index - offset;
+            let slice = unsafe { &self.data.get_unchecked(new_index..) };
+            return ArchSimd::load(slice).left_lane_shift(offset as u32);
+        }
+
+        // Regular case.
+        unsafe { ArchSimd::load(&self.data.get_unchecked(index..)) }
+    }
+
+    #[inline(always)]
+    pub fn load_simd_rw(&self, index: usize) -> ArchSimd<T> {
+        let len = self.len();
+        assert!(index < len, "Index is out of bounds! {index} > {len}");
+
+        // Scalar case. TODO: Make faster with simd inserts.
+        if len < ArchSimd::<T>::LANES {
+            let mut array = ArchSimd::<T>::zero().to_array();
+            for i in 0..len {
+                array[i] = self[i];
+            }
+            return ArchSimd::load(array.as_mut_slice());
+        }
+
+        if index > (len - ArchSimd::<T>::LANES) {
+            let offset = ArchSimd::<T>::LANES - (len - index);
+            let new_index = index - offset;
+            let slice = unsafe { &self.data.get_unchecked(new_index..) };
+            return ArchSimd::load(slice);
+        }
+
+        // Regular case.
+        unsafe { ArchSimd::load(&self.data.get_unchecked(index..)) }
+    }
+
+    /// Returns a simd register containing `ArchSimd::LANES` number
+    /// of values starting from a given index.
+    ///
+    /// # Example
+    /// ```
+    /// use quick_noise::simd::simd_array::SimdVec;
+    /// use quick_noise::simd::arch_simd::ArchSimd;
+    /// use quick_noise::simd::simd_traits::SimdToArray; // TODO: Consolidate these.
+    ///
+    /// let arr = SimdVec::<i32, 12>::iota(0);
+    /// let register = arr.load_simd(0);
+    /// assert_eq!(register.to_array()[3], 3);
+    /// ```
+    #[inline(always)]
+    pub unsafe fn load_simd_unchecked(&self, index: usize) -> ArchSimd<T> {
+        let len = self.len();
+        // Scalar case. TODO: Make faster with simd inserts.
+        if len < ArchSimd::<T>::LANES {
+            debug_assert!(index < len, "Index out of bounds! {index} >= {len}");
+            let mut array = ArchSimd::<T>::zero().to_array();
+            for i in 0..len {
+                array[i] = self[i];
+            }
+            return ArchSimd::load(array.as_mut_slice());
+        }
+
+        debug_assert!(
+            index + ArchSimd::<T>::LANES <= len,
+            "Attempted to load from an out of bounds index! (Indices [{index}-{}] > [0-{len}]) ",
+            index + ArchSimd::<T>::LANES
+        );
+
+        // Regular case.
+        unsafe { ArchSimd::load(&self.data.get_unchecked(index..)) }
+    }
+
+    #[inline(always)]
+    pub fn load_simd_chunked<const IS_TAIL: bool>(&self, index: usize) -> ArchSimd<T> {
+        if IS_TAIL {
+            self.load_simd(index)
+        } else {
+            unsafe { self.load_simd_unchecked(index) }
+        }
+    }
     /// Stores a SIMD register containing `ArchSimd::LANES` number
     /// of values starting from a given index.
     ///
@@ -270,14 +378,105 @@ impl<T: SimdElement> SimdVec<T> {
     /// ```
     #[inline(always)]
     pub fn store_simd(&mut self, index: usize, vec: ArchSimd<T>) {
-        self.check_bounds_range(index, ArchSimd::<T>::LANES);
-        vec.store(&mut self.data[index..]);
+        let len = self.len();
+        assert!(index < len, "Index is out of bounds! {index} >= {len}");
+
+        // Handle scalar case.
+        if len < ArchSimd::<T>::LANES {
+            let values = vec.to_array();
+            for i in 0..len {
+                self[index + i] = values[i];
+            }
+            return;
+        }
+
+        // Handle tail case.
+        if index >= (len - ArchSimd::<T>::LANES) {
+            self.partial_store_simd(index, vec, len - index);
+            return;
+        }
+        // debug_assert!(index % ArchSimd::<T>::LANES == 0);
+        unsafe {
+            vec.store(&mut self.data.get_unchecked_mut(index..));
+        }
     }
 
     #[inline(always)]
+    pub unsafe fn store_simd_tail_checked(&mut self, index: usize, vec: ArchSimd<T>) {
+        let len = self.len();
+        debug_assert!(index < len, "Index is out of bounds in unsafe code! {index} >= {len}");
+
+        // Handle scalar case.
+        if len < ArchSimd::<T>::LANES {
+            let values = vec.to_array();
+            for i in 0..len {
+                self[index + i] = values[i];
+            }
+            return;
+        }
+
+        // Handle tail case.
+        if index >= (len - ArchSimd::<T>::LANES) {
+            unsafe { self.partial_store_simd_unchecked(index, vec, len - index) };
+            return;
+        }
+        // debug_assert!(index % ArchSimd::<T>::LANES == 0);
+        unsafe {
+            vec.store(&mut self.data.get_unchecked_mut(index..));
+        }
+    }
+
+    // Stores simd, except the tail is kept in the last slots, more performant for raw read/write operations.
+    #[inline(always)]
+    pub fn store_simd_rw(&mut self, index: usize, vec: ArchSimd<T>) {
+        let len = self.len();
+        assert!(index < len, "Index is out of bounds! {index} >= {len}");
+
+        // Handle scalar case.
+        if len < ArchSimd::<T>::LANES {
+            let values = vec.to_array();
+            for i in 0..len {
+                self[index + i] = values[i];
+            }
+            return;
+        }
+        
+        // Handle tail case.
+        if index > (len - ArchSimd::<T>::LANES) {
+            let tail_padding = ArchSimd::<T>::LANES - (len - index);
+            let mask = ArchMask::first_n_false(tail_padding as u32);
+            unsafe { self.masked_store_simd(len - ArchSimd::<T>::LANES, vec, mask) };
+            return;
+        }
+        // debug_assert!(index % ArchSimd::<T>::LANES == 0);
+        unsafe {
+            vec.store(&mut self.data.get_unchecked_mut(index..));
+        }
+    }
+
+    /// Stores a SIMD register containing `ArchSimd::LANES` number
+    /// of values starting from a given index without performing
+    /// bound checks.
+    ///
+    /// # Parameters
+    /// * `index` - Starting index
+    /// * `vec` - SIMD vector containing the values to store
+    ///
+    /// # Example
+    /// ```
+    /// use quick_noise::simd::simd_array::SimdVec;
+    /// use quick_noise::simd::arch_simd::ArchSimd;
+    ///
+    /// let mut arr = SimdVec::<i32, 12>::iota(0);
+    /// let register = ArchSimd::<i32>::splat(100);
+    /// arr.store_simd(0, register);
+    /// assert_eq!(arr[0], 100);
+    /// ```
+    #[inline(always)]
     pub unsafe fn store_simd_unchecked(&mut self, index: usize, vec: ArchSimd<T>) {
-        self.debug_check_bounds_range(index, ArchSimd::<T>::LANES);
-        unsafe { vec.store(&mut self.data.get_unchecked_mut(index..)) };
+        unsafe {
+            vec.store(&mut self.data.get_unchecked_mut(index..));
+        }
     }
 
     /// Stores the first `amount` values in a SIMD register to a [`SimdVec`]
@@ -300,19 +499,84 @@ impl<T: SimdElement> SimdVec<T> {
     /// ```
     #[inline(always)]
     pub fn partial_store_simd(&mut self, index: usize, vec: ArchSimd<T>, amount: usize) {
-        self.check_bounds_range(index, amount);
-        vec.partial_store(&mut self.data[index..], amount);
+        let len = self.len();
+        assert!(index + amount <= len);
+
+        // Handle it as a scalar if the array is tiny.
+        if len < ArchSimd::<T>::LANES {
+            let values = vec.to_array();
+            for i in 0..amount {
+                self[index + i] = values[i];
+            }
+            return;
+        }
+
+        // Handle the tail case.
+        if index >= len - ArchSimd::<T>::LANES {
+            let offset = ArchSimd::<f32>::LANES - amount;
+            let mask = ArchMask::<f32>::first_n_false(offset as u32);
+            let shifted = vec.right_lane_shift(offset as u32);
+            unsafe { self.masked_store_simd(index - offset, shifted, mask.raw_cast()) };
+            return;
+        }
+
+        // Normal case.
+        unsafe {
+            vec.partial_store(
+                &mut self.data.get_unchecked_mut(index..),
+                amount,
+            );
+        }
     }
 
+    /// Stores the first `amount` values in a SIMD register to a [`SimdVec`]
+    /// starting from a given index without performing bound checks.
+    ///
+    /// # Parameters
+    /// * `index` - Starting index
+    /// * `vec` - SIMD vector containing the values to store
+    /// * `amount` - Number of elements to store from the SIMD vector
+    ///
+    /// # Example
+    /// ```
+    /// use quick_noise::simd::simd_array::SimdVec;
+    /// use quick_noise::simd::arch_simd::ArchSimd;
+    ///
+    /// let mut arr = SimdVec::<i32, 10>::iota(0);
+    /// let register = ArchSimd::<i32>::splat(100);
+    /// arr.partial_store_simd(8, register, 2);
+    /// assert_eq!(arr[9], 100);
+    /// ```
     #[inline(always)]
-    pub unsafe fn partial_store_simd_unchecked(
-        &mut self,
-        index: usize,
-        vec: ArchSimd<T>,
-        amount: usize,
-    ) {
-        self.debug_check_bounds_range(index, amount);
-        unsafe { vec.partial_store(self.data.get_unchecked_mut(index..), amount) };
+    pub unsafe fn partial_store_simd_unchecked(&mut self, index: usize, vec: ArchSimd<T>, amount: usize) {
+        let len = self.len();
+        debug_assert!(index + amount <= len);
+
+        // Handle it as a scalar if the array is tiny.
+        if len < ArchSimd::<T>::LANES {
+            let values = vec.to_array();
+            for i in 0..amount {
+                self[index + i] = values[i];
+            }
+            return;
+        }
+
+        // Handle the tail case.
+        if index >= len - ArchSimd::<T>::LANES {
+            let offset = ArchSimd::<f32>::LANES - amount;
+            let mask = ArchMask::<f32>::first_n_false(offset as u32);
+            let shifted = vec.right_lane_shift(offset as u32);
+            unsafe { self.masked_store_simd(index - offset, shifted, mask.raw_cast()) };
+            return;
+        }
+
+        // Normal case.
+        unsafe {
+            vec.partial_store(
+                &mut self.data.get_unchecked_mut(index..),
+                amount,
+            );
+        }
     }
 
     /// Stores values from a SIMD register based on a mask to a [`SimdVec`]
@@ -343,9 +607,13 @@ impl<T: SimdElement> SimdVec<T> {
     /// ```
     #[inline(always)]
     pub unsafe fn masked_store_simd(&mut self, index: usize, vec: ArchSimd<T>, mask: ArchMask<T>) {
-        self.debug_check_bounds_range(index, ArchSimd::<T>::LANES);
+        let len = self.len();
+        debug_assert!(index < len);
         unsafe {
-            vec.masked_store(&mut self.data.get_unchecked_mut(index..), mask);
+            vec.masked_store(
+                &mut self.data.get_unchecked_mut(index..),
+                mask,
+            );
         }
     }
 }

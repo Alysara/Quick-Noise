@@ -1,5 +1,5 @@
 use crate::grid_helpers::grid_fill_indices;
-use crate::math::vec::Vec2;
+use crate::math::vec::{BasicVec, Vec2};
 use crate::noise::perlin::constants::*;
 use crate::noise::perlin::containers::*;
 use crate::simd::arch_simd::{ArchSimd, NUM_SIMD_REG};
@@ -10,7 +10,7 @@ use crate::simd::simd_traits::*;
 // ————— 2D Perlin Grid ———————————————————————————————————————————
 // ————————————————————————————————————————————————————————————————
 
-pub struct PerlinGridNoise2D<const A: usize, const X: usize, const N: usize> {}
+pub struct PerlinGridNoise2D<const X: usize, const Y: usize, const N: usize> {}
 
 const NUM_BLOCKS: usize = NUM_SIMD_REG / 8;
 const LANES: usize = ArchSimd::<f32>::LANES;
@@ -36,6 +36,10 @@ impl<const X: usize, const Y: usize, const N: usize> PerlinGridNoise2D<X, Y, N> 
         weight: f32,
         magnification: f32,
     ) {
+        println!(
+            "RUNNING OCTAVE: frequency: {:?}, weight: {weight}",
+            frequency
+        );
         let increment: Vec2<f32> = frequency * magnification;
         let block_pos: Vec2<i32> = position * Vec2::new(Y as i32, X as i32);
 
@@ -168,8 +172,8 @@ impl<const X: usize, const Y: usize, const N: usize> PerlinGridNoise2D<X, Y, N> 
                 let l = grad_array.get_unchecked(x_it as usize) as usize;
                 let r = grad_array.get_unchecked(x_it as usize + 1) as usize;
 
-                debug_assert!(l < 32);
-                debug_assert!(r < 32);
+                debug_assert!(l < X);
+                debug_assert!(r < X);
                 let values = [
                     GRADIENTS_2D.get_unchecked(l).y,
                     GRADIENTS_2D.get_unchecked(l).x,

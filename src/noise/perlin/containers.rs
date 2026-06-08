@@ -1,4 +1,4 @@
-use crate::math::vec::{Vec2, Vec3};
+use crate::math::vec::{BasicVec, Vec2, Vec3};
 use crate::simd::simd_array::SimdArray;
 
 #[derive(Copy, Clone)]

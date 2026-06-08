@@ -1,12 +1,9 @@
-use std::{fs, path::Path};
+use std::cmp::min;
+use std::fs;
+use std::path::Path;
 
-use crate::cellular::Cellular;
-use crate::noise::simplex::Simplex;
-use crate::noise::value::Value;
 use crate::simd::arch_simd::ArchSimd;
 use crate::simd::simd_traits::*;
-use crate::{noise::perlin::*, simd::simd_array::SimdArray};
-use std::cmp::min;
 
 // TODO: Add error handling here.
 pub trait NoiseImageExt: Iterator<Item = ArchSimd<f32>> + Sized {
@@ -18,8 +15,7 @@ pub trait NoiseImageExt: Iterator<Item = ArchSimd<f32>> + Sized {
         }
 
         let size = X * Y;
-        let mut pixels = Vec::<u8>::new();
-        pixels.resize(size, 0);
+        let mut pixels = vec![0; size];
 
         const LANES: usize = ArchSimd::<f32>::LANES;
         for i in (0..size).step_by(LANES) {

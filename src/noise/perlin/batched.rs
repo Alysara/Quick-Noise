@@ -9,7 +9,7 @@ use crate::simd::simd_traits::*;
 // use crate::simd::architectures::families::Avx2Family;
 
 impl BatchNoise for Perlin {
-    // #[inline(always)]
+    #[inline(always)]
     fn batch_2d(
         seed: u32,
         x_input: ArchSimd<f32>,

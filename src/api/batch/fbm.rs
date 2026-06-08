@@ -1,159 +1,152 @@
+use std::marker::PhantomData;
+
 use itertools::izip;
 
-use crate::api::batch;
-use crate::api::batch::interface::{Batch2D, Batch3D};
+use crate::api::batch::interface::BatchNoise;
 use crate::api::configs::*;
-use crate::api::methods::NoiseMethod;
+use crate::api::defaults::ZeroIter;
+use crate::api::methods::NoiseDimension;
 use crate::api::parameters::*;
-use crate::api::seed::OctaveSeed;
 use crate::math::random::Random;
-use crate::math::vec::{Vec2, Vec3, VecHorzMax};
+use crate::math::vec::{BasicVec, Vec2, Vec3};
 use crate::simd::arch_simd::ArchSimd;
 use crate::simd::simd_array::SimdArray;
 use crate::simd::simd_traits::*;
-use crate::{EmptyIter, ZeroIter};
-
-// ————————————————————————————————————————————————————————————————
-// ————— 2D FBM Batch Builder —————————————————————————————————————
-// ————————————————————————————————————————————————————————————————
+use crate::{Dim2, Dim3};
 
 const MAX_FBM_OCTAVES: usize = 32;
 
-impl<const N: usize> Batch2D<N> {
-    /// Helper static function for fbm noise.
-    #[inline(always)]
-    pub(crate) fn fbm_noise<const METHOD: u8, XIter, YIter>(
-        general_config: GeneralBuilderConfig,
-        fbm_config: FBMBuilderConfig2D,
-        batch_config: BatchBuilder2DConfig<XIter, YIter>,
-    ) -> impl Iterator<Item = ArchSimd<f32>>
-    where
-        XIter: Iterator<Item = ArchSimd<f32>>,
-        YIter: Iterator<Item = ArchSimd<f32>>,
-    {
-        let noise_method = NoiseMethod::from_u8_const(METHOD);
-
-        let octaves = 'outer: {
-            let max_octaves = fbm_config.octaves.min(MAX_FBM_OCTAVES);
-            let max_scaling = fbm_config.scaling.horizontal_max();
-            let mut cur_freq = fbm_config.frequency * max_scaling;
-            if cur_freq >= 1.0 || fbm_config.lacunarity >= 1.0 {
-                for i in 0..max_octaves {
-                    if cur_freq >= 1.0 {
-                        break 'outer i;
-                    }
-                    cur_freq *= fbm_config.lacunarity;
-                }
-            }
-            max_octaves
-        };
-
-        let frequency = fbm_config.scaling * fbm_config.frequency;
-        let weight = if general_config.normalization && octaves > 0 {
-            let mut sum = 0.0;
-            let mut cur = 1.0;
-            for _ in 0..octaves {
-                sum += cur;
-                cur *= fbm_config.persistence;
-            }
-            general_config.amplitude / sum
-        } else {
-            general_config.amplitude
-        };
-
-        let mut seeds = [0u32; 32];
-        for i in 0..octaves {
-            seeds[i as usize] =
-                (fbm_config.frequency * fbm_config.scaling).octave_seed(general_config.seed);
-        }
-
-        let x_iter = batch_config.x_iter.expect("X Iterator not present!");
-        let y_iter = batch_config.y_iter.expect("Y Iterator not present!");
-
-        let lacunarity = ArchSimd::splat(fbm_config.lacunarity);
-        let persistence = ArchSimd::splat(fbm_config.persistence);
-
-        let iter = x_iter.zip(y_iter).map(move |(x, y)| {
-            if octaves == 0 {
-                return ArchSimd::zero();
-            }
-
-            let mut seed = seeds[0];
-            let mut result = ArchSimd::zero();
-            let mut x_freq = ArchSimd::splat(frequency.x);
-            let mut y_freq = ArchSimd::splat(frequency.y);
-            let mut weight = ArchSimd::splat(weight);
-            result = noise_method
-                .batch_2d(seed, x, y, x_freq, y_freq)
-                .mul_add(weight, result);
-
-            for i in 1..octaves {
-                seed = seeds[i as usize];
-                x_freq *= lacunarity;
-                y_freq *= lacunarity;
-                weight *= persistence;
-                result = noise_method
-                    .batch_2d(seed, x, y, x_freq, y_freq)
-                    .mul_add(weight, result);
-            }
-
-            result
-        });
-
-        iter
-    }
-}
-
-#[derive(Default)]
-pub struct FBMBatchBuilder2D<const METHOD: u8, const N: usize, XIter, YIter>
+/// Helper static function for fbm noise.
+#[inline(always)]
+pub(crate) fn batch_fbm_noise<T: BatchNoise, D: NoiseDimension, const N: usize, XIter, YIter, ZIter>(
+    general_config: GeneralBuilderConfig,
+    fbm_config: FbmBuilderConfig<D>,
+    batch_config: BatchBuilderConfig<XIter, YIter, ZIter>,
+) -> impl Iterator<Item = ArchSimd<f32>>
 where
     XIter: Iterator<Item = ArchSimd<f32>>,
     YIter: Iterator<Item = ArchSimd<f32>>,
+    ZIter: Iterator<Item = ArchSimd<f32>>,
+{
+    let octaves = fbm_config.octaves;
+
+    let frequency = fbm_config.scaling * D::FVec::splat(fbm_config.frequency);
+    let weight = if general_config.normalization && octaves > 0 {
+        fbm_config.normalize_amplitude(general_config.amplitude)
+    } else {
+        general_config.amplitude
+    };
+
+    let mut seeds = [0u32; MAX_FBM_OCTAVES];
+    let mut temp_freq = frequency;
+    for seed in seeds.iter_mut().take(octaves) {
+        *seed = D::octave_seed(frequency * fbm_config.scaling, general_config.seed);
+        temp_freq *= D::FVec::splat(fbm_config.lacunarity);
+    }
+
+    let x_iter = batch_config.x_iter.expect("X Iterator not present!");
+    let y_iter = batch_config.y_iter.expect("Y Iterator not present!");
+    let z_iter = batch_config.z_iter.expect("Z Iterator not present!");
+
+    let lacunarity = ArchSimd::splat(fbm_config.lacunarity);
+    let persistence = ArchSimd::splat(fbm_config.persistence);
+
+    izip!(x_iter, y_iter, z_iter).map(move |(x, y, z)| {
+        if octaves == 0 {
+            return ArchSimd::zero();
+        }
+
+        let seed = seeds[0];
+
+        // I could not think of a better way to make this work for 2D and 3D at the same time.
+        let freq_tuple: (ArchSimd<f32>, ArchSimd<f32>, ArchSimd<f32>) = frequency.into();
+        let mut x_freq = freq_tuple.0;
+        let mut y_freq = freq_tuple.1;
+        let mut z_freq = freq_tuple.2;
+        let mut weight = ArchSimd::splat(weight);
+        let mut result = D::batch::<T, N>(seed, x, y, z, x_freq, y_freq, z_freq);
+
+        for seed in seeds.iter().take(octaves).skip(1) {
+            x_freq *= lacunarity;
+            y_freq *= lacunarity;
+            z_freq *= lacunarity;
+            weight *= persistence;
+            result =
+                D::batch::<T, N>(*seed, x, y, z, x_freq, y_freq, z_freq).mul_add(weight, result);
+        }
+
+        result
+    })
+}
+
+pub struct FbmBatchBuilder<T: BatchNoise, D: NoiseDimension, const N: usize, XIter, YIter, ZIter>
+where
+    XIter: Iterator<Item = ArchSimd<f32>>,
+    YIter: Iterator<Item = ArchSimd<f32>>,
+    ZIter: Iterator<Item = ArchSimd<f32>>,
 {
     general_config: GeneralBuilderConfig,
-    fbm_config: FBMBuilderConfig2D,
-    batch_config: BatchBuilder2DConfig<XIter, YIter>,
+    fbm_config: FbmBuilderConfig<D>,
+    batch_config: BatchBuilderConfig<XIter, YIter, ZIter>,
+    _noise_type: PhantomData<T>,
 }
 
 params_general_builder!(
-    FBMBatchBuilder2D,
-    [const METHOD: u8, const N: usize, XIter: Iterator<Item = ArchSimd<f32>>, YIter: Iterator<Item = ArchSimd<f32>>],
-    [METHOD, N, XIter, YIter]
+    FbmBatchBuilder,
+    [T: BatchNoise, D: NoiseDimension, const N: usize,
+        XIter: Iterator<Item = ArchSimd<f32>>,
+        YIter: Iterator<Item = ArchSimd<f32>>,
+        ZIter: Iterator<Item = ArchSimd<f32>>
+    ],
+    [T, D, N, XIter, YIter, ZIter]
 );
 
 params_fbm_builder!(
-    FBMBatchBuilder2D,
-    [const METHOD: u8, const N: usize, XIter: Iterator<Item = ArchSimd<f32>>, YIter: Iterator<Item = ArchSimd<f32>>],
-    [METHOD, N, XIter, YIter]
+    FbmBatchBuilder,
+    [T: BatchNoise, D: NoiseDimension, const N: usize,
+        XIter: Iterator<Item = ArchSimd<f32>>,
+        YIter: Iterator<Item = ArchSimd<f32>>,
+        ZIter: Iterator<Item = ArchSimd<f32>>
+    ],
+    [T, D, N, XIter, YIter, ZIter]
 );
 
 params_fbm_scaling_2d!(
-    FBMBatchBuilder2D,
-    [const METHOD: u8, const N: usize, XIter: Iterator<Item = ArchSimd<f32>>, YIter: Iterator<Item = ArchSimd<f32>>],
-    [METHOD, N, XIter, YIter]
+    FbmBatchBuilder,
+    [T: BatchNoise, const N: usize, XIter: Iterator<Item = ArchSimd<f32>>, YIter: Iterator<Item = ArchSimd<f32>>],
+    [T, Dim2, N, XIter, YIter, ZeroIter<N>]
 );
 
-params_batch_2d!(
-    FBMBatchBuilder2D,
-    [const METHOD: u8, const N: usize, XIter: Iterator<Item = ArchSimd<f32>>, YIter: Iterator<Item = ArchSimd<f32>>],
-    [METHOD, N, XIter, YIter],
-    [METHOD, N,], self, x_iter, y_iter, {
-        FBMBatchBuilder2D {
-            general_config: self.general_config,
-            fbm_config: self.fbm_config,
-            batch_config: BatchBuilder2DConfig {
-                x_iter: Some(x_iter),
-                y_iter: Some(y_iter),
-            },
-        }
-    }
+params_fbm_scaling_3d!(
+    FbmBatchBuilder,
+    [T: BatchNoise, const N: usize,
+        XIter: Iterator<Item = ArchSimd<f32>>,
+        YIter: Iterator<Item = ArchSimd<f32>>,
+        ZIter: Iterator<Item = ArchSimd<f32>>
+    ],
+    [T, Dim3, N, XIter, YIter, ZIter]
 );
 
-impl<const METHOD: u8, const N: usize, XIter, YIter> FBMBatchBuilder2D<METHOD, N, XIter, YIter>
+impl<T: BatchNoise, D: NoiseDimension, const N: usize, XIter, YIter, ZIter>
+    FbmBatchBuilder<T, D, N, XIter, YIter, ZIter>
 where
     XIter: Iterator<Item = ArchSimd<f32>>,
     YIter: Iterator<Item = ArchSimd<f32>>,
+    ZIter: Iterator<Item = ArchSimd<f32>>,
 {
+    pub fn new(x_iter: XIter, y_iter: YIter, z_iter: ZIter) -> Self {
+        Self {
+            general_config: Default::default(),
+            fbm_config: Default::default(),
+            batch_config: BatchBuilderConfig {
+                x_iter: Some(x_iter),
+                y_iter: Some(y_iter),
+                z_iter: Some(z_iter),
+            },
+            _noise_type: PhantomData::<T>,
+        }
+    }
+
     declare_fill!(self, output, {
         let mut i = 0;
         self.into_iter().for_each(|x| {
@@ -174,199 +167,7 @@ where
     declare_build!(self, { self.into_iter().collect() });
 
     declare_into_iter!(self, {
-        Batch2D::<N>::fbm_noise::<METHOD, XIter, YIter>(
-            self.general_config,
-            self.fbm_config,
-            self.batch_config,
-        )
-    });
-}
-
-// ————————————————————————————————————————————————————————————————
-// ————— 3D Batch FBM Builder —————————————————————————————————————
-// ————————————————————————————————————————————————————————————————
-
-impl<const N: usize> Batch3D<N> {
-    /// Helper static function for fbm noise.
-    #[inline(always)]
-    pub(crate) fn fbm_noise<const METHOD: u8, XIter, YIter, ZIter>(
-        general_config: GeneralBuilderConfig,
-        fbm_config: FBMBuilderConfig3D,
-        batch_config: BatchBuilder3DConfig<XIter, YIter, ZIter>,
-    ) -> impl Iterator<Item = ArchSimd<f32>>
-    where
-        XIter: Iterator<Item = ArchSimd<f32>>,
-        YIter: Iterator<Item = ArchSimd<f32>>,
-        ZIter: Iterator<Item = ArchSimd<f32>>,
-    {
-        let noise_method = NoiseMethod::from_u8_const(METHOD);
-
-        let octaves = 'outer: {
-            let max_octaves = fbm_config.octaves.min(MAX_FBM_OCTAVES);
-            let max_scaling = fbm_config.scaling.horizontal_max();
-            let mut cur_freq = fbm_config.frequency * max_scaling;
-            if cur_freq >= 1.0 || fbm_config.lacunarity >= 1.0 {
-                for i in 0..max_octaves {
-                    if cur_freq >= 1.0 {
-                        break 'outer i;
-                    }
-                    cur_freq *= fbm_config.lacunarity;
-                }
-            }
-            max_octaves
-        };
-
-        let frequency = fbm_config.scaling * fbm_config.frequency;
-        let weight = if general_config.normalization && octaves == 0 {
-            let mut sum = 0.0;
-            let mut cur = 1.0;
-            for _ in 0..octaves {
-                sum += cur;
-                cur *= fbm_config.persistence;
-            }
-
-            general_config.amplitude / sum
-        } else {
-            general_config.amplitude
-        };
-
-        let mut seeds = [0u32; 32];
-        for i in 0..octaves {
-            seeds[i as usize] =
-                (fbm_config.frequency * fbm_config.scaling).octave_seed(general_config.seed);
-        }
-
-        let x_iter = batch_config.x_iter.expect("X Iterator not present!");
-        let y_iter = batch_config.y_iter.expect("Y Iterator not present!");
-        let z_iter = batch_config.z_iter.expect("Z Iterator not present!");
-
-        let lacunarity = ArchSimd::splat(fbm_config.lacunarity);
-        let persistence = ArchSimd::splat(fbm_config.persistence);
-
-        let iter = izip!(x_iter, y_iter, z_iter).map(move |(x, y, z)| {
-            if octaves == 0 {
-                return ArchSimd::zero();
-            }
-
-            let mut seed = seeds[0];
-            let mut result = ArchSimd::zero();
-            let mut x_freq = ArchSimd::splat(frequency.x);
-            let mut y_freq = ArchSimd::splat(frequency.y);
-            let mut z_freq = ArchSimd::splat(frequency.z);
-            let mut weight = ArchSimd::splat(weight);
-            result = noise_method
-                .batch_3d(seed, x, y, z, x_freq, y_freq, z_freq)
-                .mul_add(weight, result);
-
-            for i in 1..octaves {
-                seed = seeds[i as usize];
-                x_freq *= lacunarity;
-                y_freq *= lacunarity;
-                z_freq *= lacunarity;
-                weight *= persistence;
-                result = noise_method
-                    .batch_3d(seed, x, y, z, x_freq, y_freq, z_freq)
-                    .mul_add(weight, result);
-            }
-
-            result
-        });
-
-        iter
-    }
-}
-
-#[derive(Default)]
-pub struct FBMBatchBuilder3D<const METHOD: u8, const N: usize, XIter, YIter, ZIter>
-where
-    XIter: Iterator<Item = ArchSimd<f32>>,
-    YIter: Iterator<Item = ArchSimd<f32>>,
-    ZIter: Iterator<Item = ArchSimd<f32>>,
-{
-    general_config: GeneralBuilderConfig,
-    fbm_config: FBMBuilderConfig3D,
-    batch_config: BatchBuilder3DConfig<XIter, YIter, ZIter>,
-}
-
-params_general_builder!(
-    FBMBatchBuilder3D,
-    [
-        const METHOD: u8, const N: usize,
-        XIter: Iterator<Item = ArchSimd<f32>>,
-        YIter: Iterator<Item = ArchSimd<f32>>,
-        ZIter: Iterator<Item = ArchSimd<f32>>
-    ],
-    [METHOD, N, XIter, YIter, ZIter]
-);
-
-params_fbm_builder!(
-    FBMBatchBuilder3D,
-    [
-        const METHOD: u8, const N: usize,
-        XIter: Iterator<Item = ArchSimd<f32>>,
-        YIter: Iterator<Item = ArchSimd<f32>>,
-        ZIter: Iterator<Item = ArchSimd<f32>>
-    ],
-    [METHOD, N, XIter, YIter, ZIter]
-);
-
-params_fbm_scaling_3d!(
-    FBMBatchBuilder3D,
-    [
-        const METHOD: u8, const N: usize,
-        XIter: Iterator<Item = ArchSimd<f32>>,
-        YIter: Iterator<Item = ArchSimd<f32>>,
-        ZIter: Iterator<Item = ArchSimd<f32>>
-    ],
-    [METHOD, N, XIter, YIter, ZIter]
-);
-
-params_batch_3d!(
-    FBMBatchBuilder3D,
-    [
-        const METHOD: u8, const N: usize,
-        XIter: Iterator<Item = ArchSimd<f32>>,
-        YIter: Iterator<Item = ArchSimd<f32>>,
-        ZIter: Iterator<Item = ArchSimd<f32>>
-    ],
-    [METHOD, N, XIter, YIter, ZIter], [METHOD, N,], 
-    self, x_iter, y_iter, z_iter, {
-        FBMBatchBuilder3D {
-            general_config: self.general_config,
-            fbm_config: self.fbm_config,
-            batch_config: BatchBuilder3DConfig {
-                x_iter: Some(x_iter),
-                y_iter: Some(y_iter),
-                z_iter: Some(z_iter),
-            }
-        }
-    }
-);
-
-impl<const METHOD: u8, const N: usize, XIter, YIter, ZIter>
-    FBMBatchBuilder3D<METHOD, N, XIter, YIter, ZIter>
-where
-    XIter: Iterator<Item = ArchSimd<f32>>,
-    YIter: Iterator<Item = ArchSimd<f32>>,
-    ZIter: Iterator<Item = ArchSimd<f32>>,
-{
-    declare_fill!(self, output, {
-        *output = self.build();
-    });
-
-    declare_fill_onto!(self, output, {
-        let mut i = 0;
-        self.into_iter().for_each(|x| {
-            let cur = output.load_simd(i);
-            output.store_simd(i, cur + x);
-            i += ArchSimd::<f32>::LANES;
-        });
-    });
-
-    declare_build!(self, { self.into_iter().collect() });
-
-    declare_into_iter!(self, {
-        Batch3D::<N>::fbm_noise::<METHOD, XIter, YIter, ZIter>(
+        batch_fbm_noise::<T, D, N, XIter, YIter, ZIter>(
             self.general_config,
             self.fbm_config,
             self.batch_config,

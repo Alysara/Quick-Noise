@@ -1,5 +1,5 @@
 use crate::grid_helpers::grid_fill_indices;
-use crate::math::vec::{Vec3};
+use crate::math::vec::{BasicVec, Vec3};
 use crate::noise::perlin::constants::*;
 use crate::noise::perlin::containers::*;
 use crate::simd::arch_simd::{ArchSimd, NUM_SIMD_REG};
@@ -14,7 +14,7 @@ const NUM_BLOCKS: usize = NUM_SIMD_REG / 8;
 const LANES: usize = ArchSimd::<f32>::LANES;
 const BLOCK_LANES: usize = NUM_BLOCKS * LANES;
 
-pub struct PerlinGridNoise3D<const A: usize, const Y: usize, const X: usize, const N: usize> {}
+pub struct PerlinGridNoise3D<const X: usize, const Y: usize, const Z: usize, const N: usize> {}
 
 impl<const X: usize, const Y: usize, const Z: usize, const N: usize> PerlinGridNoise3D<X, Y, Z, N> {
     const HAS_SIMD_TAIL: bool = SimdArray::<f32, X>::HAS_TAIL;
@@ -179,8 +179,8 @@ impl<const X: usize, const Y: usize, const Z: usize, const N: usize> PerlinGridN
         let z_shuf_back = z_vec_back.permute_8(shuffle_indices) ^ prime;
         let y_shuf = y_vec.permute_8(shuffle_indices) ^ prime;
 
-        let xy_miz_front = z_shuf_front * y_shuf;
-        let xy_miz_back = z_shuf_back * y_shuf;
+        let xy_mix_front = z_shuf_front * y_shuf;
+        let xy_mix_back = z_shuf_back * y_shuf;
 
         // Temporary buffer to store indices for gradient values.
         let mut grad_array_front = unsafe { SimdArray::<u32, X>::new_uninit() };
@@ -191,8 +191,8 @@ impl<const X: usize, const Y: usize, const Z: usize, const N: usize> PerlinGridN
         for i in (0..end_index).step_by(ArchSimd::<f32>::LANES) {
             let x_shuf = x_vec.permute_8(shuffle_indices) ^ prime;
             unsafe {
-                grad_array_front.store_simd_tail_checked(i, (xy_miz_front * x_shuf) >> 29);
-                grad_array_back.store_simd_tail_checked(i, (xy_miz_back * x_shuf) >> 29);
+                grad_array_front.store_simd_tail_checked(i, (xy_mix_front * x_shuf) >> 29);
+                grad_array_back.store_simd_tail_checked(i, (xy_mix_back * x_shuf) >> 29);
             }
             x_vec += x_vec_stride;
         }
@@ -231,8 +231,8 @@ impl<const X: usize, const Y: usize, const Z: usize, const N: usize> PerlinGridN
             unsafe {
                 let lf_grad = grad_array.get_unchecked(x_it as usize) as usize;
                 let rf_grad = grad_array.get_unchecked(x_it as usize + 1) as usize;
-                debug_assert!(lf_grad < 32);
-                debug_assert!(rf_grad < 32);
+                debug_assert!(lf_grad < X);
+                debug_assert!(rf_grad < X);
                 let values = [
                     GRADIENTS_3D.get_unchecked(lf_grad).z,
                     GRADIENTS_3D.get_unchecked(lf_grad).y,

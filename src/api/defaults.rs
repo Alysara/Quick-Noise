@@ -1,5 +1,6 @@
 use crate::api::configs::*;
-use crate::math::vec::{Vec2, Vec3};
+use crate::api::methods::NoiseDimension;
+use crate::math::vec::{BasicVec, Vec2, Vec3};
 use crate::perlin::{Octave2D, Octave3D};
 use crate::simd::arch_simd::ArchSimd;
 use crate::simd::simd_traits::SimdZero;
@@ -21,88 +22,23 @@ impl Default for GeneralBuilderConfig {
     }
 }
 
-impl Default for FBMBuilderConfig2D {
+impl<D: NoiseDimension> Default for FbmBuilderConfig<D> {
     fn default() -> Self {
         Self {
             octaves: 1,
             frequency: 0.03125,
             lacunarity: 2.0,
             persistence: 0.5,
-            scaling: Vec2::splat(1.0),
+            scaling: D::FVec::splat(1.0),
         }
     }
 }
 
-impl Default for FBMBuilderConfig3D {
-    fn default() -> Self {
-        Self {
-            octaves: 1,
-            frequency: 0.03125,
-            lacunarity: 2.0,
-            persistence: 0.5,
-            scaling: Vec3::splat(1.0),
-        }
-    }
-}
-
-impl Default for GridConfig2D {
+impl<D: NoiseDimension> Default for GridConfig<D> {
     fn default() -> Self {
         Self {
             grid_seed: 0xc4ceb9fe1a85ec53,
-            position: Vec2::splat(0),
-        }
-    }
-}
-
-impl Default for GridConfig3D {
-    fn default() -> Self {
-        Self {
-            grid_seed: 0xc4ceb9fe1a85ec53,
-            position: Vec3::splat(0),
-        }
-    }
-}
-
-impl Default for CustomBuilderConfig<'static, Octave2D> {
-    fn default() -> Self {
-        Self {
-            octave_list: DEFAULT_OCTAVES_2D,
-        }
-    }
-}
-
-impl Default for CustomBuilderConfig<'static, Octave3D> {
-    fn default() -> Self {
-        Self {
-            octave_list: DEFAULT_OCTAVES_3D,
-        }
-    }
-}
-
-impl<XIter, YIter> Default for BatchBuilder2DConfig<XIter, YIter>
-where
-    XIter: Iterator<Item = ArchSimd<f32>>,
-    YIter: Iterator<Item = ArchSimd<f32>>,
-{
-    fn default() -> Self {
-        Self {
-            x_iter: None,
-            y_iter: None,
-        }
-    }
-}
-
-impl<XIter, YIter, ZIter> Default for BatchBuilder3DConfig<XIter, YIter, ZIter>
-where
-    XIter: Iterator<Item = ArchSimd<f32>>,
-    YIter: Iterator<Item = ArchSimd<f32>>,
-    ZIter: Iterator<Item = ArchSimd<f32>>,
-{
-    fn default() -> Self {
-        Self {
-            x_iter: None,
-            y_iter: None,
-            z_iter: None,
+            position: D::IVec::splat(0),
         }
     }
 }
@@ -141,5 +77,11 @@ impl<const N: usize> Iterator for ZeroIter<N> {
         } else {
             None
         }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        const LANES: usize = ArchSimd::<f32>::LANES;
+        let left = (N - self.index + LANES - 1) / ArchSimd::<f32>::LANES;
+        (left, Some(left))
     }
 }

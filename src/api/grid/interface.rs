@@ -1,12 +1,37 @@
-use crate::EmptyIter;
-use crate::api::configs::{BatchBuilder2DConfig, GridConfig2D, GridConfig3D, WarpBuilderConfig};
-use crate::api::grid::custom::{CustomPerlinGrid2D, CustomPerlinGrid3D};
-use crate::api::grid::fbm::{PerlinGrid2D, PerlinGrid3D};
-use crate::api::grid::warp::FBMWarpBuilder2D;
-use crate::api::methods::NoiseMethod;
+use crate::api::configs::GridConfig;
+use crate::api::grid::custom::CustomGridBuilder;
+use crate::api::grid::fbm::FbmGridBuilder;
+use crate::api::methods::{Dim2, Dim3, Octave};
 use crate::api::parameters::*;
 use crate::math::random::Random;
 use crate::math::vec::{Vec2, Vec3};
+use crate::simd::simd_array::SimdArray;
+
+pub trait GridNoise: Default {
+    fn grid_2d<const X: usize, const Y: usize, const N: usize, const INITIALIZE: bool>(
+        seed: u32,
+        result: &mut SimdArray<f32, N>,
+        position: Vec2<i32>,
+        frequency: Vec2<f32>,
+        weight: f32,
+        magnification: f32,
+    );
+
+    fn grid_3d<
+        const X: usize,
+        const Y: usize,
+        const Z: usize,
+        const N: usize,
+        const INITIALIZE: bool,
+    >(
+        seed: u32,
+        result: &mut SimdArray<f32, N>,
+        position: Vec3<i32>,
+        frequency: Vec3<f32>,
+        weight: f32,
+        magnification: f32,
+    );
+}
 
 // ————————————————————————————————————————————————————————————————
 // ————— 2D Grid ——————————————————————————————————————————————————
@@ -26,7 +51,7 @@ use crate::math::vec::{Vec2, Vec3};
 /// let node = Node2D::<32, 32>::new(0, 0);
 /// ```
 pub struct Grid2D<const X: usize, const Y: usize, const N: usize> {
-    pub(crate) config: GridConfig2D,
+    pub(crate) config: GridConfig<Dim2>,
 }
 
 params_grid_2d!(Grid2D, [const X: usize, const Y: usize, const N: usize], [X, Y, N]);
@@ -40,38 +65,23 @@ impl<const X: usize, const Y: usize, const N: usize> Grid2D<X, Y, N> {
             X * Y
         );
         Self {
-            config: GridConfig2D::default(),
+            config: GridConfig::<Dim2>::default(),
         }
     }
 
-    pub(crate) fn from_config(config: GridConfig2D) -> Self {
+    pub(crate) fn from_config(config: GridConfig<Dim2>) -> Self {
         Self { config }
     }
 
-    pub fn perlin(&self) -> PerlinGrid2D<X, Y, N> {
-        PerlinGrid2D::new(self.config)
+    pub fn fbm<T: GridNoise>(&self) -> FbmGridBuilder<T, Dim2, X, Y, 0, N> {
+        FbmGridBuilder::new(self.config.clone())
     }
 
-    pub fn custom_perlin(&self) -> CustomPerlinGrid2D<'static, X, Y, N> {
-        let mut builder = CustomPerlinGrid2D::default();
-        builder.grid_config = self.config;
-        builder
-    }
-
-    pub fn perlin_warp(&self) -> FBMWarpBuilder2D<{ NoiseMethod::PERLIN_U8 }, X, Y, N, EmptyIter, EmptyIter> {
-        FBMWarpBuilder2D::default()
-    }
-
-    pub fn value_warp(&self) -> FBMWarpBuilder2D<{ NoiseMethod::VALUE_U8 }, X, Y, N, EmptyIter, EmptyIter> {
-        FBMWarpBuilder2D::default()
-    }
-
-    pub fn simplex_warp(&self) -> FBMWarpBuilder2D<{ NoiseMethod::SIMPLEX_U8 }, X, Y, N, EmptyIter, EmptyIter> {
-        FBMWarpBuilder2D::default()
-    }
-
-    pub fn cellular_warp(&self) -> FBMWarpBuilder2D<{ NoiseMethod::CELLULAR_U8 }, X, Y, N, EmptyIter, EmptyIter> {
-        FBMWarpBuilder2D::default()
+    pub fn custom<'a, T: GridNoise>(
+        &self,
+        octave_list: &'a [Octave<Dim2>],
+    ) -> CustomGridBuilder<'a, T, Dim2, X, Y, 0, N> {
+        CustomGridBuilder::new(self.config.clone(), octave_list)
     }
 }
 
@@ -94,7 +104,7 @@ impl<const X: usize, const Y: usize, const N: usize> Grid2D<X, Y, N> {
 /// let node = Grid3D::<32, 32>::new(0, 0);
 /// ```
 pub struct Grid3D<const X: usize, const Y: usize, const Z: usize, const N: usize> {
-    pub(crate) config: GridConfig3D,
+    pub(crate) config: GridConfig<Dim3>,
 }
 
 params_grid_3d!(Grid3D, [const X: usize, const Y: usize, const Z: usize, const N: usize], [X, Y, Z, N]);
@@ -108,21 +118,22 @@ impl<const X: usize, const Y: usize, const Z: usize, const N: usize> Grid3D<X, Y
             X * Y * Z
         );
         Self {
-            config: GridConfig3D::default(),
+            config: GridConfig::<Dim3>::default(),
         }
     }
 
-    pub(crate) fn from_config(config: GridConfig3D) -> Self {
+    pub(crate) fn from_config(config: GridConfig<Dim3>) -> Self {
         Self { config }
     }
 
-    pub fn perlin(&self) -> PerlinGrid3D<X, Y, Z, N> {
-        PerlinGrid3D::new(self.config)
+    pub fn fbm<T: GridNoise>(&self) -> FbmGridBuilder<T, Dim3, X, Y, Z, N> {
+        FbmGridBuilder::new(self.config.clone())
     }
 
-    pub fn custom_perlin(&self) -> CustomPerlinGrid3D<'static, X, Y, Z, N> {
-        let mut builder = CustomPerlinGrid3D::default();
-        builder.grid_config = self.config;
-        builder
+    pub fn custom<'a, T: GridNoise>(
+        &self,
+        octave_list: &'a [Octave<Dim3>],
+    ) -> CustomGridBuilder<'a, T, Dim3, X, Y, Z, N> {
+        CustomGridBuilder::new(self.config.clone(), octave_list)
     }
 }

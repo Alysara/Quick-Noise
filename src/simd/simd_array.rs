@@ -269,7 +269,10 @@ impl<T: SimdElement, const N: usize> SimdArray<T, N> {
 
     #[inline(always)]
     pub unsafe fn load_simd_tail_checked(&self, index: usize) -> ArchSimd<T> {
-        debug_assert!(index < N, "Index is out of bounds in unsafe code! {index} > {N}");
+        debug_assert!(
+            index < N,
+            "Index is out of bounds in unsafe code! {index} > {N}"
+        );
 
         // Scalar case. TODO: Make faster with simd inserts.
         if N < ArchSimd::<T>::LANES {
@@ -401,7 +404,10 @@ impl<T: SimdElement, const N: usize> SimdArray<T, N> {
 
     #[inline(always)]
     pub unsafe fn store_simd_tail_checked(&mut self, index: usize, vec: ArchSimd<T>) {
-        debug_assert!(index < N, "Index is out of bounds in unsafe code! {index} >= {N}");
+        debug_assert!(
+            index < N,
+            "Index is out of bounds in unsafe code! {index} >= {N}"
+        );
 
         // Handle scalar case.
         if N < ArchSimd::<T>::LANES {
@@ -436,7 +442,7 @@ impl<T: SimdElement, const N: usize> SimdArray<T, N> {
             }
             return;
         }
-        
+
         // Handle tail case.
         if index > (N - ArchSimd::<T>::LANES) {
             let tail_padding = ArchSimd::<T>::LANES - (N - index);
@@ -553,7 +559,12 @@ impl<T: SimdElement, const N: usize> SimdArray<T, N> {
     /// assert_eq!(arr[9], 100);
     /// ```
     #[inline(always)]
-    pub unsafe fn partial_store_simd_unchecked(&mut self, index: usize, vec: ArchSimd<T>, amount: usize) {
+    pub unsafe fn partial_store_simd_unchecked(
+        &mut self,
+        index: usize,
+        vec: ArchSimd<T>,
+        amount: usize,
+    ) {
         debug_assert!(index + amount <= N);
 
         // Handle it as a scalar if the array is tiny.

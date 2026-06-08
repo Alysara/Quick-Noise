@@ -1,13 +1,120 @@
 # Quick-Noise
 
-WIP High performance SIMD batched processing noise library. Made in Rust.
+Quick-Noise is a high-performance SIMD-accelerated batched noise generation library,
+with world-class performance in uniform grid noise generation on the CPU.
+It runs on Stable Rust.
 
-# Disclaimer
+# Usage
 
-Very early work in progress! Only 2D Perlin uniform grid and 3D Perlin uniform grid is completed. Feel free to add to or improve on the library!
+Quick-Noise offers two public facing interfaces. The first is grid noise.
+The performance of grid noise is often magnitudes higher than batch noise, and is the recommended way to create noise for high-performance procedural generation.
+Grid noise samples a squared (2D) or cubed (3D) region uniformly.
+Quick-Noise also supports batch noise, which samples points any arbitrary input.
 
-Rust nightly is not needed to use this library. It utilizes a custom simd wrapper rather than std::simd. However, only x86 systems are currently supported (ie SSE, AVX2, and AVX512) Aarch (arm) will be added
-in the future.
+## Builders
+
+Builders are used to offer extensive options while remaining approachable.
+Every builder can be executed with one of four methods: `build()`, `fill()`, `fill_onto()`, and `into_iter()`.
+`build()` returns an array of the noise result directly. `fill()` fills an array that you provide, potentially saving costly memory copies.
+`fill_onto` adds the result to an array you provide, allowing you to do certain operations in-place.
+The last executer method is `into_iter()`, which returns an iterator containing simd registers.
+Iterators allow multiple steps of the noise pipeline to fuse together, providing speedups by keeping data in registers directly.
+Note that grid noise is an exception to this rule, but makes up for it many times over in speed.
+
+All builders must have their dimensions and sizes specified at compile time.
+The current implementation uses a stack-only approach for maximum approach,
+but a heap-based alternative is in progress for larger dimensions and dimensions determined at runtime.
+
+## Grid Noise
+
+Grid noise is called through a grid region. Each noise call takes into account both the grid seed and the seed of the noise call,
+making it easier to have multiple noise maps with the same primary seed. Note that desipte specifying the dimensions explicitly,
+the total area (2D) or volume (3D) is necessary due to limitations with const generic expressions on Stable Rust.
+
+```rs
+use quick_noise::{Grid2D, Perlin};
+
+// Creates an anchor into a region of sample space.
+let grid_2d = Grid2D::<500, 500, 250000>::new()
+    .position(0, 0)
+		.seed(102);
+	
+let grid_2d::fbm::<Perlin>()
+		.octaves(6)
+		.frequency(0.01)
+		.into_iter()
+		.to_grayscale_image::<500, 500>("noise_images/perlin_batch_2d.png");
+```
+
+Currently, only Perlin is supported for grid noise. For octave sequences more complicated than FBM noise,
+`custom` can be used for granular control over frequencies and weights.
+
+```rs
+use quick_noise::{Grid2D, Perlin};
+
+// Custom list of octaves that can't be easily described by FBM noise.
+let octave_list = vec![
+		Octave2D::splat(0.05, 1.0),
+		Octave2D::splat(0.02, 0.8),
+		Octave2D::splat(0.03, 0.2),
+		Octave2D::splat(0.04, 0.4),
+		Octave2D::splat(0.01, 0.9),
+];
+
+// Takes in a slice reference for flexible array or heap usage.
+let noise = grid_2d::custom::<Perlin>::new(octave_list.as_slice())
+    .seed(1000)
+		.amplitude(2.0)
+		.normalization(true)
+		.build();
+```
+
+## Batch Noise
+
+Batch noise operates directly on static methods and takes iterators as inputs. Perlin, Value, Simplex, and Cellular all support Batch noise.
+
+```rs
+use quick_noise::{Grid2D, Batch2D, Simplex};
+
+// Use grid for generating iters.
+let grid_2d = Grid2D::<32, 32, 1024>::new().position(0, 0);
+
+let noise = Batch2D::<Simplex, 1024>::new(grid_2d.x_iter(), grid_2d.y_iter())
+    .octaves(6)
+		.frequency(0.2)
+		.lacunarity(0.4)
+		.persistence(0.6)
+		.scaling(1.0, 0.5, 1.0)
+		.build();
+```
+
+Batch noise allows for arbitrary input coordinates, enabling techniques such as domain warping.
+In this example, a uniform grid is being generated manually for demonstration purposes. Using grid noise is much faster for this use case.
+
+## Simd
+
+Quick-Noise uses a custom simd module purpose-built for noise. Unlike std::simd, it works on stable.
+However, only SSE, AVX2, AVX512, and NEON are supported currently. For other systems, a scalar fallback exists,
+but the performance is much worse. Luckily the vast majority of computers used today support one of these instruction sets.
+
+This simd module can support most basic operations, and can be used directly to benefit from it:
+
+```rs
+use quick_noise::{Grid2D, Perlin};
+use quick_noise::simd::{ArchSimd};
+use std::iter::zip;
+
+let grid_2d = Grid2D::<1024, 1024, 1048576>::new().position(0, 0);
+
+let iter_1 = grid_2d::Fbm::<Perlin>().seed(1).octaves(6).into_iter();
+let iter_2 = grid_2d::Fbm::<Perlin>().seed(2).octaves(6).into_iter();
+
+let iter_3 = zip(iter_1, iter_2).map(|(x, y)| x * y);
+```
+
+Using these iterators can fuse operations and avoid multiple vertical passes, particularly for batch noise.
+`ArchSimd` represents a raw simd register for a given architecture. Unlike std::simd which abstracts these architecture details,
+this simd module offers you the ability to explicitly control loops that work best for your CPU.
 
 # Performance
 
@@ -68,13 +175,21 @@ techniques such as domain warping. Results are measured in millions of points pe
 Height maps can be generated in `examples/basic.rs`. To run these examples, use:
 
 ```
-RUSTFLAGS='-C target-cpu=native' cargo run --release --example basic
+cargo run --example basic --release
 ```
 
-It is important that `RUSTFLAGS='-C target-cpu=native'` and `--release` is used for the best performance. Also ensure to create a folder named `noise_images` for storing image output.
+It is important that `RUSTFLAGS='-C target-cpu=native'` and `--release` is used for the best performance.
+`target-cpu=native` is specified by default in this project, but if you use it in your project using other flags,
+you may achieve worse performance.
 
 Criterion benches can be run with:
 
 ```
-RUSTFLAGS='-C target-cpu=native' cargo bench
+cargo bench
+```
+
+Simd module tests can be run with:
+
+```
+cargo test
 ```

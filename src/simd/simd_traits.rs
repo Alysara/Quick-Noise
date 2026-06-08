@@ -1,43 +1,37 @@
 use std::ops::*;
+
 use crate::simd::architectures::arch_impl::SimdFamily;
-use crate::simd::traits::*;
 use crate::simd::simd_mask::core::SimdMask;
 use crate::simd::simd_reg::core::Simd;
+use crate::simd::traits::*;
 
-pub trait SimdBasic<T: SimdElement, F: SimdFamily>:
-    Sized +
-    SimdToArray<T, F> +
-{}
+pub trait SimdBasic<T: SimdElement, F: SimdFamily>: Sized + SimdToArray<T, F> {}
 
 impl<T: SimdElement, F: SimdFamily> SimdBasic<T, F> for Simd<T, F> {}
 
 pub trait SimdRegInteger:
-    Sized +
-    Shl<Self> +
-    ShlAssign<Self> +
-    Shr<Self> +
-    ShrAssign<Self> +
-    Shl<usize> +
-    ShlAssign<usize> +
-    Shr<usize> +
-    ShrAssign<usize> +
-    BitAnd +
-    BitAndAssign +
-    BitOr +
-    BitOrAssign +
-    BitXor +    
-    BitXorAssign +
-{}
+    Sized
+    + Shl<Self>
+    + ShlAssign<Self>
+    + Shr<Self>
+    + ShrAssign<Self>
+    + Shl<usize>
+    + ShlAssign<usize>
+    + Shr<usize>
+    + ShrAssign<usize>
+    + BitAnd
+    + BitAndAssign
+    + BitOr
+    + BitOrAssign
+    + BitXor
+    + BitXorAssign
+{
+}
 
-pub trait SimdRegFloat: 
-    Sized +
-    SimdRound +
-    SimdMulAdd +
-    SimdPartialOrd +
-    SimdEq +
-    SimdSqrt +
-    SimdRecipSqrt +
-{}
+pub trait SimdRegFloat:
+    Sized + SimdRound + SimdMulAdd + SimdPartialOrd + SimdEq + SimdSqrt + SimdRecipSqrt
+{
+}
 
 pub trait SimdContext {
     type Element: SimdElement;
@@ -109,10 +103,11 @@ pub trait SimdPartialOrd: SimdContext {
 }
 
 pub trait SimdSelect: SimdContext {
-    fn select(self,
+    fn select(
+        self,
         true_values: Simd<Self::Element, Self::Family>,
-        false_values: Simd<Self::Element, Self::Family>
-    ) -> Simd<Self::Element,Self::Family>;
+        false_values: Simd<Self::Element, Self::Family>,
+    ) -> Simd<Self::Element, Self::Family>;
 }
 
 pub trait SimdMaskToBits {
@@ -189,17 +184,18 @@ pub trait SimdImmediateBlend {
 //     }
 
 //     pub fn to_array(self) -> [T; Self::LANES] {
-//         let mut array: [T; Self::LANES] = [T::default(); Self::LANES]; 
+//         let mut array: [T; Self::LANES] = [T::default(); Self::LANES];
 //         let mut slice = array.as_mut_slice();
 //         self.store(&mut slice);
 //         array
 //     }
 
-//     pub fn iota(offset: T) -> Self 
-//     where 
+//     pub fn iota(offset: T) -> Self
+//     where
 //         [T; Self::LANES]:,
-//         T: Add<Output = T>,    
+//         T: Add<Output = T>,
 //     {
 //         let iota_array: [T; Self::LANES] = std::array::from_fn(|i| <T as NumCast>::from(i).unwrap() + offset);
 //         Self::load(iota_array.as_slice())
 //     }
+

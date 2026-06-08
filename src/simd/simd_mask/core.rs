@@ -1,16 +1,14 @@
-use crate::simd::architectures::arch_impl::SimdAllBitsImpl;
-use crate::simd::architectures::arch_impl::SimdFamily;
+use std::fmt;
+use std::fmt::Debug;
+use std::marker::PhantomData;
+use std::ops::*;
+
+use num_traits::NumCast;
+
+use crate::simd::architectures::arch_impl::{MaskArch, SimdAllBitsImpl, SimdFamily, *};
+use crate::simd::simd_reg::core::Simd;
 use crate::simd::simd_traits::*;
 use crate::simd::traits::*;
-use std::fmt::Debug;
-use std::fmt;
-use std::ops::*;
-use num_traits::NumCast;
-use crate::simd::traits::*;
-use std::marker::PhantomData;
-use crate::simd::architectures::arch_impl::MaskArch;
-use crate::simd::architectures::arch_impl::*;
-use crate::simd::simd_reg::core::Simd;
 
 #[derive(Clone, Copy)]
 pub struct SimdMask<T, F: SimdFamily> {
@@ -26,7 +24,10 @@ impl<T: SimdElement, F: SimdFamily> SimdContext for SimdMask<T, F> {
 impl<T: SimdElement, F: SimdFamily> SimdMask<T, F> {
     #[inline(always)]
     pub(crate) fn new(data: F::Mask) -> Self {
-        Self { data, _marker: PhantomData }
+        Self {
+            data,
+            _marker: PhantomData,
+        }
     }
 
     #[inline(always)]
@@ -60,7 +61,7 @@ impl<T: SimdElement, F: SimdFamily> BitAnd for SimdMask<T, F> {
     #[inline(always)]
     fn bitand(self, rhs: Self) -> Self {
         Self::new(self.data.and(rhs.data))
-    } 
+    }
 }
 
 impl<T: SimdElement, F: SimdFamily> BitOr for SimdMask<T, F> {
@@ -68,7 +69,7 @@ impl<T: SimdElement, F: SimdFamily> BitOr for SimdMask<T, F> {
     #[inline(always)]
     fn bitor(self, rhs: Self) -> Self {
         Self::new(self.data.or(rhs.data))
-    } 
+    }
 }
 
 impl<T: SimdElement, F: SimdFamily> BitXor for SimdMask<T, F> {
@@ -76,7 +77,7 @@ impl<T: SimdElement, F: SimdFamily> BitXor for SimdMask<T, F> {
     #[inline(always)]
     fn bitxor(self, rhs: Self) -> Self {
         Self::new(self.data.xor(rhs.data))
-    } 
+    }
 }
 
 impl<T: SimdElement, F: SimdFamily> SimdAndNot for SimdMask<T, F> {
@@ -101,18 +102,27 @@ impl<T: SimdElement, F: SimdFamily> SimdSelect for SimdMask<T, F> {
             BitSize::Size64 => Simd::new(self.data.vblend_64(true_values.data, false_values.data)),
             BitSize::Size32 => Simd::new(self.data.vblend_32(true_values.data, false_values.data)),
             BitSize::Size8 => Simd::new(self.data.vblend_8(true_values.data, false_values.data)),
-            _ => panic!("Select for 16 bit types not implemented yet!")
+            _ => panic!("Select for 16 bit types not implemented yet!"),
         }
     }
 }
 
-impl<T: SimdElement, F: SimdFamily> SimdMaskToBits for SimdMask<T, F> {
-    fn to_bits(self) -> u64 {
+impl<T: SimdElement, F: SimdFamily> SimdMask<T, F> {
+    pub fn to_bits(self) -> u64 {
         match T::BIT_SIZE {
             BitSize::Size64 => self.data.to_bits_64(),
             BitSize::Size32 => self.data.to_bits_32(),
             BitSize::Size8 => self.data.to_bits_8(),
-            _ => unreachable!() // TODO: Add to_bits_16.
+            _ => unreachable!(), // TODO: Add to_bits_16.
+        }
+    }
+
+    pub fn from_bits(bitmask: u64) -> Self {
+        match T::BIT_SIZE {
+            BitSize::Size64 => Self::new(F::Mask::from_bits_64(bitmask)),
+            BitSize::Size32 => Self::new(F::Mask::from_bits_32(bitmask)),
+            BitSize::Size16 => Self::new(F::Mask::from_bits_16(bitmask)),
+            BitSize::Size8 => Self::new(F::Mask::from_bits_8(bitmask)),
         }
     }
 }

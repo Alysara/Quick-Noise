@@ -7,6 +7,9 @@ use std::ops::{
 
 use num_traits::float::*;
 
+use crate::simd::arch_simd::ArchSimd;
+use crate::simd::simd_traits::SimdZero;
+
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Vec2<T> {
     pub x: T,
@@ -33,27 +36,79 @@ pub enum VecType {
     Vec3,
 }
 
+// pub trait VecN<T>: BasicVec<T> + VecHorzMax<T> {}
+// impl<T> VecN<T> for Vec2<T> {}
+// impl<T> VecN<T> for Vec3<T> {}
+//
+
+pub trait ArithmeticVec<T>:
+    BasicVec<T>
+    + Copy
+    + Sized
+    + VecHorzMax<T>
+    + Add<Output = Self>
+    + Sub<Output = Self>
+    + Mul<Output = Self>
+    + Div<Output = Self>
+    + AddAssign
+    + SubAssign
+    + MulAssign
+    + DivAssign
+where
+    T: PartialOrd
+        + Default
+        + Copy
+        + Sized
+        + Add<Output = T>
+        + Sub<Output = T>
+        + Mul<Output = T>
+        + Div<Output = T>
+        + AddAssign
+        + SubAssign
+        + MulAssign
+        + DivAssign,
+{
+}
+
+impl ArithmeticVec<f32> for Vec2<f32> {}
+impl ArithmeticVec<i32> for Vec2<i32> {}
+impl ArithmeticVec<f32> for Vec3<f32> {}
+impl ArithmeticVec<i32> for Vec3<i32> {}
+
 // === Constructors ===
 
-pub trait VecN<T>: private::SealedTypes {
+pub trait BasicVec<T>: private::SealedTypes {
     const TYPE: VecType;
 
     fn len(&self) -> usize;
+    fn splat(val: T) -> Self;
 }
 
-impl<T> VecN<T> for Vec2<T> {
+impl<T: Copy> BasicVec<T> for Vec2<T> {
     const TYPE: VecType = VecType::Vec2;
 
     fn len(&self) -> usize {
         2
     }
+
+    fn splat(val: T) -> Self {
+        Vec2::<T> { x: val, y: val }
+    }
 }
 
-impl<T> VecN<T> for Vec3<T> {
+impl<T: Copy> BasicVec<T> for Vec3<T> {
     const TYPE: VecType = VecType::Vec2;
 
     fn len(&self) -> usize {
         3
+    }
+
+    fn splat(val: T) -> Self {
+        Vec3::<T> {
+            x: val,
+            y: val,
+            z: val,
+        }
     }
 }
 
@@ -63,25 +118,9 @@ impl<T> Vec2<T> {
     }
 }
 
-impl<T: Copy> Vec2<T> {
-    pub fn splat(val: T) -> Self {
-        Vec2::<T> { x: val, y: val }
-    }
-}
-
 impl<T> Vec3<T> {
     pub const fn new(x: T, y: T, z: T) -> Self {
         Vec3::<T> { x, y, z }
-    }
-}
-
-impl<T: Copy> Vec3<T> {
-    pub fn splat(val: T) -> Self {
-        Vec3::<T> {
-            x: val,
-            y: val,
-            z: val,
-        }
     }
 }
 
@@ -108,6 +147,35 @@ impl<T: Copy> From<T> for Vec2<T> {
 impl<T: Copy> From<T> for Vec3<T> {
     fn from(val: T) -> Self {
         Self::splat(val)
+    }
+}
+
+// Utility simd conversions for generic code.
+impl From<Vec2<f32>> for (ArchSimd<f32>, ArchSimd<f32>) {
+    fn from(value: Vec2<f32>) -> Self {
+        (ArchSimd::splat(value.x), ArchSimd::splat(value.y))
+    }
+}
+
+impl From<Vec3<f32>> for (ArchSimd<f32>, ArchSimd<f32>, ArchSimd<f32>) {
+    #[inline(always)]
+    fn from(value: Vec3<f32>) -> Self {
+        (
+            ArchSimd::splat(value.x),
+            ArchSimd::splat(value.y),
+            ArchSimd::splat(value.z),
+        )
+    }
+}
+
+impl From<Vec2<f32>> for (ArchSimd<f32>, ArchSimd<f32>, ArchSimd<f32>) {
+    #[inline(always)]
+    fn from(value: Vec2<f32>) -> Self {
+        (
+            ArchSimd::splat(value.x),
+            ArchSimd::splat(value.y),
+            ArchSimd::zero(),
+        )
     }
 }
 
@@ -415,7 +483,7 @@ impl<T: Float> Vec3<T> {
 
 // === Horizontal Operations ===
 
-pub trait VecHorzMax<T: PartialOrd + Copy>: VecN<T> + Index<usize, Output = T> {
+pub trait VecHorzMax<T: PartialOrd + Copy>: BasicVec<T> + Index<usize, Output = T> {
     fn horizontal_max(&self) -> T {
         let mut max = self[0];
         for i in 1..self.len() {

@@ -1,18 +1,23 @@
-use crate::simd::architectures::arch_impl::*;
-use num_traits::NumCast;
-use crate::simd::traits::*;
-use std::marker::PhantomData;
-use crate::simd::simd_reg::core::Simd;
 use std::fmt;
+use std::marker::PhantomData;
 use std::ops::*;
-use crate::simd::simd_traits::*;
+
+use num_traits::NumCast;
+
+use crate::simd::architectures::arch_impl::*;
 use crate::simd::array_trait::Array;
+use crate::simd::simd_reg::core::Simd;
+use crate::simd::simd_traits::*;
+use crate::simd::traits::*;
 
 // Universal Operations.
 impl<T: SimdElement, F: SimdFamily> Simd<T, F> {
     #[inline(always)]
     pub(crate) fn new(data: F::Vec) -> Self {
-        Self { data, _marker: PhantomData }
+        Self {
+            data,
+            _marker: PhantomData,
+        }
     }
 }
 
@@ -80,18 +85,21 @@ impl<T: SimdElement, F: SimdFamily> SimdIota<T> for Simd<T, F> {
     }
 }
 
-impl<T: SimdElement, F: SimdFamily> fmt::Debug for Simd<T, F> where Simd<T, F>: SimdBasic<T, F> {
+impl<T: SimdElement, F: SimdFamily> fmt::Debug for Simd<T, F>
+where
+    Simd<T, F>: SimdBasic<T, F>,
+{
     #[inline(always)]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let buf= self.to_array();
+        let buf = self.to_array();
         write!(f, "{:?}", buf)
     }
 }
 
 // === Assign operations ===
-impl<T: SimdElement, F: SimdFamily> AddAssign for Simd<T, F> 
+impl<T: SimdElement, F: SimdFamily> AddAssign for Simd<T, F>
 where
-    Self: Add<Output = Self> + Copy
+    Self: Add<Output = Self> + Copy,
 {
     #[inline(always)]
     fn add_assign(&mut self, rhs: Self) {
@@ -101,7 +109,7 @@ where
 
 impl<T: SimdElement, F: SimdFamily> SubAssign for Simd<T, F>
 where
-    Self: Sub<Output = Self> + Copy
+    Self: Sub<Output = Self> + Copy,
 {
     #[inline(always)]
     fn sub_assign(&mut self, rhs: Self) {
@@ -111,7 +119,7 @@ where
 
 impl<T: SimdElement, F: SimdFamily> MulAssign for Simd<T, F>
 where
-    Self: Mul<Output = Self> + Copy
+    Self: Mul<Output = Self> + Copy,
 {
     #[inline(always)]
     fn mul_assign(&mut self, rhs: Self) {
@@ -121,7 +129,7 @@ where
 
 impl<T: SimdElement, F: SimdFamily> DivAssign for Simd<T, F>
 where
-    Self: Div<Output = Self> + Copy
+    Self: Div<Output = Self> + Copy,
 {
     #[inline(always)]
     fn div_assign(&mut self, rhs: Self) {
@@ -131,7 +139,7 @@ where
 
 impl<T: SimdElement, F: SimdFamily> RemAssign for Simd<T, F>
 where
-    Self: Rem<Output = Self> + Copy
+    Self: Rem<Output = Self> + Copy,
 {
     #[inline(always)]
     fn rem_assign(&mut self, rhs: Self) {
@@ -141,7 +149,7 @@ where
 
 impl<T: SimdElement, F: SimdFamily> BitAndAssign for Simd<T, F>
 where
-    Self: BitAnd<Output = Self> + Copy
+    Self: BitAnd<Output = Self> + Copy,
 {
     #[inline(always)]
     fn bitand_assign(&mut self, rhs: Self) {
@@ -151,7 +159,7 @@ where
 
 impl<T: SimdElement, F: SimdFamily> BitOrAssign for Simd<T, F>
 where
-    Self: BitOr<Output = Self> + Copy
+    Self: BitOr<Output = Self> + Copy,
 {
     #[inline(always)]
     fn bitor_assign(&mut self, rhs: Self) {
@@ -161,7 +169,7 @@ where
 
 impl<T: SimdElement, F: SimdFamily> BitXorAssign for Simd<T, F>
 where
-    Self: BitXor<Output = Self> + Copy
+    Self: BitXor<Output = Self> + Copy,
 {
     #[inline(always)]
     fn bitxor_assign(&mut self, rhs: Self) {
@@ -179,7 +187,7 @@ impl<T: SimdElement, F: SimdFamily> Neg for Simd<T, F> {
 
 impl<T: SimdElement, F: SimdFamily> Simd<T, F> {
     #[inline(always)]
-    pub fn raw_cast<S: SimdElement>(self) -> Simd::<S, F> {
+    pub fn raw_cast<S: SimdElement>(self) -> Simd<S, F> {
         Simd::new(self.data)
     }
 }
@@ -225,7 +233,7 @@ impl<T: SimdElement, F: SimdFamily> SimdImmediateBlend for Simd<T, F> {
         match T::BIT_SIZE {
             BitSize::Size64 => Self::new(self.data.blend_32::<N>(false_values.data)),
             BitSize::Size32 => Self::new(self.data.blend_32::<N>(false_values.data)),
-            _ => unreachable!() // TODO: Add 16 and 8 for immediate blend.
+            _ => unreachable!(), // TODO: Add 16 and 8 for immediate blend.
         }
     }
 }
@@ -285,6 +293,6 @@ impl<T: SimdElement, F: SimdFamily> SimdImmediateBlend for Simd<T, F> {
 //         }
 //     }
 //     fn right_lane_shift<const N: i32>(self) -> Self {
-        
+
 //     }
 // }

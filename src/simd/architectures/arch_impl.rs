@@ -1,15 +1,18 @@
 // OPERATIONS WITH NATIVE SUPPORT.
-use crate::simd::traits::*;
 use std::fmt::Debug;
+
 use crate::simd::array_trait::Array;
+use crate::simd::traits::*;
 
 pub trait SimdFamily: Clone + Copy {
     const SIMD_WIDTH: usize;
-    type Vec: SimdArch + Copy + Clone +
-        SimdLoadImpl<MaskType = Self::Mask> +
-        SimdStoreImpl<MaskType = Self::Mask> +
-        SimdPartialOrdImpl<MaskType = Self::Mask>;
-        // SimdPermuteImpl<BlockVec = <Self::BlockFamily as SimdFamily>::Vec>;
+    type Vec: SimdArch
+        + Copy
+        + Clone
+        + SimdLoadImpl<MaskType = Self::Mask>
+        + SimdStoreImpl<MaskType = Self::Mask>
+        + SimdPartialOrdImpl<MaskType = Self::Mask>;
+    // SimdPermuteImpl<BlockVec = <Self::BlockFamily as SimdFamily>::Vec>;
     type Mask: MaskArch + Copy + Clone + SimdVariableBlendImpl<VecType = Self::Vec>;
     type ScalarFamily: SimdFamily;
 
@@ -26,14 +29,13 @@ pub trait SimdFamily: Clone + Copy {
 
 // impl<F: SimdFamily, T: SimdElement> LaneCounts<T> for F {
 //     const LANES: usize = F::SIMD_WIDTH / std::mem::size_of::<T>();
-    
+
 //     // What I would like to do:
 //     type ArrayType = [T; F::SIMD_WIDTH / std::mem::size_of::<T>()];
 
 //     // OR make this manually for every type for every family, except then
 //     // SimdElement doesn't know it has that trait without an explicit bound.
 // }
-
 
 // pub trait FloatType: Config {} // ?
 // impl FloatType for f32 {}
@@ -96,7 +98,7 @@ pub trait SimdFamily: Clone + Copy {
 //     type F64Array = [f64; 8];
 // }
 
-// fn example<T: FloatType, C: Config, const N: usize>() -> [T; N] 
+// fn example<T: FloatType, C: Config, const N: usize>() -> [T; N]
 // where
 //   <T as FloatType>::Array<C>: Into<[T; N]>
 // {
@@ -133,13 +135,9 @@ pub trait SimdArch:
 {}
 
 pub trait MaskArch:
-    Copy +
-    Clone +
-    SimdBitwiseImpl +
-    SimdAllBitsImpl +
-    SimdVariableBlendImpl +
-    SimdMaskBitConversion +
-{}
+    Copy + Clone + SimdBitwiseImpl + SimdAllBitsImpl + SimdVariableBlendImpl + SimdMaskBitConversion
+{
+}
 
 // === Arithmetic ===
 pub trait SimdAddImpl {
@@ -241,6 +239,9 @@ pub trait SimdPermuteImpl {
     // type BlockVec;
     fn permute_32(self, rhs: Self) -> Self;
     fn permute_8(self, rhs: Self) -> Self;
+    // fn imm_permute_64<const M: i32>(self);
+    // fn imm_permute_32_lo<const M: i32>(self);
+    // fn imm_permute_16_lo<const M: i32>(self);
 }
 
 pub trait SimdVariableBlendImpl {
@@ -356,10 +357,10 @@ pub trait SimdMaskBitConversion {
     fn to_bits_32(self) -> u64;
     // fn to_bits_16(self) -> u64;
     fn to_bits_8(self) -> u64;
-    // fn from_bits_64() -> Self;
-    // fn from_bits_32() -> Self;
-    // fn from_bits_16() -> Self;
-    // fn from_bits_8() -> Self;
+    fn from_bits_64(bitmask: u64) -> Self;
+    fn from_bits_32(bitmask: u64) -> Self;
+    fn from_bits_16(bitmask: u64) -> Self;
+    fn from_bits_8(bitmask: u64) -> Self;
 }
 
 pub trait SimdLaneShiftImpl {

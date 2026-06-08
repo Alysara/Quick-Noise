@@ -1,9 +1,54 @@
-use crate::math::random::Random;
+use crate::api::grid::interface::GridNoise;
 use crate::math::vec::{Vec2, Vec3};
-use crate::noise::perlin::constants::*;
-use crate::noise::perlin::containers::*;
+use crate::perlin::{PerlinGridNoise2D, PerlinGridNoise3D};
+use crate::simd::simd_array::SimdArray;
 
+#[derive(Default)]
 pub struct Perlin {}
+
+impl GridNoise for Perlin {
+    fn grid_2d<const X: usize, const Y: usize, const N: usize, const INITIALIZE: bool>(
+        seed: u32,
+        result: &mut SimdArray<f32, N>,
+        position: Vec2<i32>,
+        frequency: Vec2<f32>,
+        weight: f32,
+        magnification: f32,
+    ) {
+        PerlinGridNoise2D::<X, Y, N>::grid_2d::<INITIALIZE>(
+            seed,
+            result,
+            position,
+            frequency,
+            weight,
+            magnification,
+        );
+    }
+
+    fn grid_3d<
+        const X: usize,
+        const Y: usize,
+        const Z: usize,
+        const N: usize,
+        const INITIALIZE: bool,
+    >(
+        seed: u32,
+        result: &mut SimdArray<f32, N>,
+        position: Vec3<i32>,
+        frequency: Vec3<f32>,
+        weight: f32,
+        magnification: f32,
+    ) {
+        PerlinGridNoise3D::<X, Y, Z, N>::grid_3d::<INITIALIZE>(
+            seed,
+            result,
+            position,
+            frequency,
+            weight,
+            magnification,
+        );
+    }
+}
 
 // impl Perlin {
 //     pub fn uniform_grid_2d(

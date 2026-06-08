@@ -18,12 +18,15 @@ pub mod emit {
 }
 
 mod api;
-pub use api::parameters::*;
+pub use api::batch::interface::{Batch2D, Batch3D, BatchNoise};
 pub use api::defaults::*;
-pub use api::grid::fbm::{PerlinGrid2D, PerlinGrid3D};
-pub use api::grid::custom::{CustomPerlinGrid2D, CustomPerlinGrid3D};
-pub use api::grid::interface::{Grid2D, Grid3D};
-pub use api::batch::interface::{Batch2D, Batch3D};
+pub use api::grid::interface::{Grid2D, Grid3D, GridNoise};
+pub use api::grid::iters::{NodeIter2DX, NodeIter2DY};
+pub use api::methods::{Dim2, Dim3, Octave2D, Octave3D};
+pub use noise::cellular::Cellular;
+pub use noise::perlin::Perlin;
+pub use noise::simplex::Simplex;
+pub use noise::value::Value;
 
 mod noise;
 pub use noise::*;
