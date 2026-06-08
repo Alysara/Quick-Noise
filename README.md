@@ -109,8 +109,8 @@ use std::iter::zip;
 
 let grid_2d = Grid2D::<1024, 1024, 1048576>::new().position(0, 0);
 
-let iter_1 = grid_2d.Fbm::<Perlin>().seed(1).octaves(6).into_iter();
-let iter_2 = grid_2d.Fbm::<Perlin>().seed(2).octaves(6).into_iter();
+let iter_1 = grid_2d.fbm::<Perlin>().seed(1).octaves(6).into_iter();
+let iter_2 = grid_2d.fbm::<Perlin>().seed(2).octaves(6).into_iter();
 
 let iter_3 = zip(iter_1, iter_2).map(|(x, y)| x * y);
 ```
