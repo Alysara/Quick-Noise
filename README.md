@@ -9,7 +9,7 @@ It runs on Stable Rust.
 Quick-Noise offers two public facing interfaces. The first is grid noise.
 The performance of grid noise is often magnitudes higher than batch noise, and is the recommended way to create noise for high-performance procedural generation.
 Grid noise samples a squared (2D) or cubed (3D) region uniformly.
-Quick-Noise also supports batch noise, which samples points any arbitrary input.
+Quick-Noise also supports batch noise, which samples points at any arbitrary input.
 
 Node: For comprehensive details, check the documentation.
 
@@ -17,16 +17,16 @@ Node: For comprehensive details, check the documentation.
 
 Builders are used to offer extensive options while remaining approachable.
 Every builder can be executed with one of four methods: `build()`, `fill()`, `fill_onto()`, and `into_iter()`.
-- `build()`: returns an array of the noise result directly.
-- `fill()`: fills an array that you provide, potentially saving costly memory copies.
-- `fill_onto`: adds the result to an array you provide, allowing you to do certain operations in-place.
-- `into_iter()`: returns an iterator containing simd registers.
+- `build()`: returns an array of the noise result directly
+- `fill()`: fills an array that you provide, potentially saving costly memory copies
+- `fill_onto`: adds the result to an array you provide, allowing you to do certain operations in-place
+- `into_iter()`: returns an iterator containing simd registers
 
 Iterators allow multiple steps of the noise pipeline to fuse together, providing speedups by keeping data in registers directly.
 Note that grid noise is an exception to this rule, but makes up for it many times over in speed.
 
 All builders must have their dimensions and sizes specified at compile time.
-The current implementation uses a stack-only approach for maximum approach,
+The current implementation uses a stack-only approach for maximum performance,
 but a heap-based alternative is in progress for larger dimensions and dimensions determined at runtime.
 
 ## Grid Noise
@@ -58,7 +58,8 @@ let noise = grid_2d.fbm::<Perlin>()
 	.persistence(0.5)
 	.amplitude(1.0)
 	.normalization(true)
-	.scaling(1.0, 1.0);
+	.scaling(1.0, 1.0)
+	.build();
 ```
 
 Currently, only Perlin is supported for grid noise. For octave sequences more complicated than FBM noise,
@@ -85,7 +86,6 @@ let octave_list = vec![
 let noise = grid_2d.custom::<Perlin>(octave_list.as_slice())
 	.seed(1000)
 	.amplitude(2.0)
-	.normalization(true)
 	.build();
 ```
 
