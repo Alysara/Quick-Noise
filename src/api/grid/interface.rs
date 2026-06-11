@@ -1,11 +1,14 @@
 use crate::api::configs::GridConfig;
 use crate::api::grid::custom::CustomGridBuilder;
 use crate::api::grid::fbm::FbmGridBuilder;
+use crate::api::grid::warp::FbmGridWarpBuilder;
 use crate::api::methods::{Dim2, Dim3, Octave};
 use crate::api::parameters::*;
 use crate::math::random::Random;
 use crate::math::vec::{Vec2, Vec3};
+use crate::simd::arch_simd::ArchSimd;
 use crate::simd::simd_array::SimdArray;
+use crate::{BatchNoise, ZeroIter};
 
 pub trait GridNoise: Default {
     fn grid_2d<const X: usize, const Y: usize, const N: usize, const INITIALIZE: bool>(
@@ -50,6 +53,7 @@ pub trait GridNoise: Default {
 /// // Subject to change.
 /// let node = Node2D::<32, 32>::new(0, 0);
 /// ```
+#[derive(Default)]
 pub struct Grid2D<const X: usize, const Y: usize, const N: usize> {
     pub(crate) config: GridConfig<Dim2>,
 }
@@ -74,14 +78,32 @@ impl<const X: usize, const Y: usize, const N: usize> Grid2D<X, Y, N> {
     }
 
     pub fn fbm<T: GridNoise>(&self) -> FbmGridBuilder<T, Dim2, X, Y, 0, N> {
-        FbmGridBuilder::new(self.config.clone())
+        FbmGridBuilder::new(self.config)
     }
 
     pub fn custom<'a, T: GridNoise>(
         &self,
         octave_list: &'a [Octave<Dim2>],
     ) -> CustomGridBuilder<'a, T, Dim2, X, Y, 0, N> {
-        CustomGridBuilder::new(self.config.clone(), octave_list)
+        CustomGridBuilder::new(self.config, octave_list)
+    }
+
+    pub fn warp<T: BatchNoise>(
+        &self,
+        x_iter: impl Iterator<Item = ArchSimd<f32>>,
+        y_iter: impl Iterator<Item = ArchSimd<f32>>,
+    ) -> FbmGridWarpBuilder<
+        T,
+        Dim2,
+        X,
+        Y,
+        0,
+        N,
+        impl Iterator<Item = ArchSimd<f32>>,
+        impl Iterator<Item = ArchSimd<f32>>,
+        impl Iterator<Item = ArchSimd<f32>>,
+    > {
+        FbmGridWarpBuilder::new(self.config, x_iter, y_iter, ZeroIter::<N>::default())
     }
 }
 
@@ -103,6 +125,7 @@ impl<const X: usize, const Y: usize, const N: usize> Grid2D<X, Y, N> {
 /// // Subject to change.
 /// let node = Grid3D::<32, 32>::new(0, 0);
 /// ```
+#[derive(Default)]
 pub struct Grid3D<const X: usize, const Y: usize, const Z: usize, const N: usize> {
     pub(crate) config: GridConfig<Dim3>,
 }
@@ -127,13 +150,32 @@ impl<const X: usize, const Y: usize, const Z: usize, const N: usize> Grid3D<X, Y
     }
 
     pub fn fbm<T: GridNoise>(&self) -> FbmGridBuilder<T, Dim3, X, Y, Z, N> {
-        FbmGridBuilder::new(self.config.clone())
+        FbmGridBuilder::new(self.config)
     }
 
     pub fn custom<'a, T: GridNoise>(
         &self,
         octave_list: &'a [Octave<Dim3>],
     ) -> CustomGridBuilder<'a, T, Dim3, X, Y, Z, N> {
-        CustomGridBuilder::new(self.config.clone(), octave_list)
+        CustomGridBuilder::new(self.config, octave_list)
+    }
+
+    pub fn warp<T: BatchNoise>(
+        &self,
+        x_iter: impl Iterator<Item = ArchSimd<f32>>,
+        y_iter: impl Iterator<Item = ArchSimd<f32>>,
+        z_iter: impl Iterator<Item = ArchSimd<f32>>,
+    ) -> FbmGridWarpBuilder<
+        T,
+        Dim3,
+        X,
+        Y,
+        Z,
+        N,
+        impl Iterator<Item = ArchSimd<f32>>,
+        impl Iterator<Item = ArchSimd<f32>>,
+        impl Iterator<Item = ArchSimd<f32>>,
+    > {
+        FbmGridWarpBuilder::new(self.config, x_iter, y_iter, z_iter)
     }
 }

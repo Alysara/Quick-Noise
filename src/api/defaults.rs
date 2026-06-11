@@ -45,7 +45,9 @@ impl<D: NoiseDimension> Default for GridConfig<D> {
 
 impl Default for WarpBuilderConfig {
     fn default() -> Self {
-        Self { strength: 1.0 }
+        Self {
+            strength: 100.0,
+        }
     }
 }
 

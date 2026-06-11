@@ -357,7 +357,7 @@ macro_rules! params_warp_builder {
             /// Higher values result in a greater amount of warping.
             ///
             /// # Default
-            /// `1.0`
+            /// `100.0`
             pub fn strength(mut self, strength: f32) -> Self {
                 self.warp_config.strength = strength;
                 self

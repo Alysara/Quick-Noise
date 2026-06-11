@@ -1,12 +1,19 @@
 use std::ops::Index;
 
+use crate::{EmptyIter, Grid2D, Grid3D, ZeroIter};
 use crate::api::batch::interface::BatchNoise;
+use crate::api::configs::GridConfig;
 // use crate::api::batch::interface::BatchNoise;
 use crate::api::grid::interface::GridNoise;
 use crate::math::random::Random;
 use crate::math::vec::{ArithmeticVec, BasicVec, Vec2, Vec3};
 use crate::simd::arch_simd::ArchSimd;
 use crate::simd::simd_array::SimdArray;
+
+pub enum NoiseDim {
+    Dim2,
+    Dim3,
+}
 
 #[derive(Default, Clone)]
 pub struct Dim2;
@@ -16,6 +23,7 @@ pub struct Dim3;
 pub trait NoiseDimension: Default {
     type FVec: ArithmeticVec<f32> + Into<(ArchSimd<f32>, ArchSimd<f32>, ArchSimd<f32>)>;
     type IVec: ArithmeticVec<i32>;
+    const DIM: NoiseDim;
 
     fn grid<
         T: GridNoise,
@@ -44,11 +52,20 @@ pub trait NoiseDimension: Default {
     ) -> ArchSimd<f32>;
 
     fn octave_seed(vec: Self::FVec, seed: u64) -> u32;
+
+    fn get_iters<const X: usize, const Y: usize, const Z: usize, const N: usize>(
+        config: GridConfig<Self>,
+    ) -> (
+        impl Iterator<Item = ArchSimd<f32>>,
+        impl Iterator<Item = ArchSimd<f32>>,
+        impl Iterator<Item = ArchSimd<f32>>,
+    );
 }
 
 impl NoiseDimension for Dim2 {
     type FVec = Vec2<f32>;
     type IVec = Vec2<i32>;
+    const DIM: NoiseDim = NoiseDim::Dim2;
 
     fn grid<
         T: GridNoise,
@@ -86,11 +103,23 @@ impl NoiseDimension for Dim2 {
             seed.wrapping_mul(vec.y.to_bits() as u64),
         ) as u32
     }
+
+    fn get_iters<const X: usize, const Y: usize, const Z: usize, const N: usize>(
+            config: GridConfig<Self>,
+        ) -> (
+            impl Iterator<Item = ArchSimd<f32>>,
+            impl Iterator<Item = ArchSimd<f32>>,
+            impl Iterator<Item = ArchSimd<f32>>,
+        ) {
+        let grid = Grid2D::<X, Y, N>::from_config(config);
+        (grid.x_iter(), grid.y_iter(), ZeroIter::<N>::default())
+    }
 }
 
 impl NoiseDimension for Dim3 {
     type FVec = Vec3<f32>;
     type IVec = Vec3<i32>;
+    const DIM: NoiseDim = NoiseDim::Dim3;
 
     fn grid<
         T: GridNoise,
@@ -135,6 +164,17 @@ impl NoiseDimension for Dim3 {
             seed.wrapping_mul(vec.y.to_bits() as u64),
             seed.wrapping_mul(vec.z.to_bits() as u64),
         ) as u32
+    }
+
+    fn get_iters<const X: usize, const Y: usize, const Z: usize, const N: usize>(
+            config: GridConfig<Self>,
+        ) -> (
+            impl Iterator<Item = ArchSimd<f32>>,
+            impl Iterator<Item = ArchSimd<f32>>,
+            impl Iterator<Item = ArchSimd<f32>>,
+        ) {
+        let grid = Grid3D::<X, Y, Z, N>::from_config(config);
+        (grid.x_iter(), grid.y_iter(), grid.z_iter())
     }
 }
 

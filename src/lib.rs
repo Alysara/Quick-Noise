@@ -5,8 +5,9 @@
 pub mod simd;
 
 pub mod math {
-    pub mod random;
-    pub mod vec;
+    pub(crate) mod random;
+    pub(crate) mod vec;
+    pub use vec::{Vec2, Vec3};
 }
 
 pub mod testing {
@@ -21,7 +22,6 @@ mod api;
 pub use api::batch::interface::{Batch2D, Batch3D, BatchNoise};
 pub use api::defaults::*;
 pub use api::grid::interface::{Grid2D, Grid3D, GridNoise};
-pub use api::grid::iters::{NodeIter2DX, NodeIter2DY};
 pub use api::methods::{Dim2, Dim3, Octave2D, Octave3D};
 pub use noise::cellular::Cellular;
 pub use noise::perlin::Perlin;

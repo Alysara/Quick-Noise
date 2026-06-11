@@ -2,6 +2,7 @@ use crate::api::methods::{NoiseDimension, Octave};
 use crate::math::vec::{Vec2, Vec3, VecHorzMax};
 use crate::simd::arch_simd::ArchSimd;
 
+#[derive(Copy, Clone)]
 pub(crate) struct GeneralBuilderConfig {
     pub(crate) seed: u64,
     pub(crate) amplitude: f32,
@@ -9,6 +10,7 @@ pub(crate) struct GeneralBuilderConfig {
     pub(crate) normalization: bool,
 }
 
+#[derive(Copy, Clone)]
 pub(crate) struct FbmBuilderConfig<D: NoiseDimension> {
     pub(crate) octaves: usize,
     pub(crate) frequency: f32,
@@ -94,10 +96,14 @@ impl<'a, D: NoiseDimension> CustomBuilderConfig<'a, D> {
     }
 }
 
-#[derive(Copy, Clone)]
+// #[derive(Copy, Clone)]
 pub(crate) struct GridConfig<D: NoiseDimension> {
     pub(crate) grid_seed: u64,
     pub(crate) position: D::IVec,
+}
+impl<D: NoiseDimension> Copy for GridConfig<D> {}
+impl<D: NoiseDimension> Clone for GridConfig<D> {
+    fn clone(&self) -> Self { *self }
 }
 
 pub(crate) struct BatchBuilderConfig<XIter, YIter, ZIter>

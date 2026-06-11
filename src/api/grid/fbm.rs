@@ -72,8 +72,6 @@ impl<
             self.general_config.amplitude
         };
 
-        println!("octaves: {octaves}, weight: {weight}");
-
         // First octave:
         let first_seed = D::octave_seed(frequency * self.fbm_config.scaling, seed);
         D::grid::<T, X, Y, Z, N, INITIALIZE>(

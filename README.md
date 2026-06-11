@@ -1,4 +1,4 @@
-# Quick-Noise
+ # Quick-Noise
 
 Quick-Noise is a high-performance SIMD-accelerated batched noise generation library,
 with world-class performance in uniform grid noise generation on the CPU.
@@ -17,9 +17,11 @@ Node: For comprehensive details, check the documentation.
 
 Builders are used to offer extensive options while remaining approachable.
 Every builder can be executed with one of four methods: `build()`, `fill()`, `fill_onto()`, and `into_iter()`.
-`build()` returns an array of the noise result directly. `fill()` fills an array that you provide, potentially saving costly memory copies.
-`fill_onto` adds the result to an array you provide, allowing you to do certain operations in-place.
-The last executer method is `into_iter()`, which returns an iterator containing simd registers.
+- `build()`: returns an array of the noise result directly.
+- `fill()`: fills an array that you provide, potentially saving costly memory copies.
+- `fill_onto`: adds the result to an array you provide, allowing you to do certain operations in-place.
+- `into_iter()`: returns an iterator containing simd registers.
+
 Iterators allow multiple steps of the noise pipeline to fuse together, providing speedups by keeping data in registers directly.
 Note that grid noise is an exception to this rule, but makes up for it many times over in speed.
 
@@ -46,6 +48,17 @@ let grid_2d.fbm::<Perlin>()
 	.frequency(0.01)
 	.into_iter()
 	.to_grayscale_image::<500, 500>("noise_images/perlin_batch_2d.png");
+	
+// FBM Grid noise with all parameters.
+let noise = grid_2d.fbm::<Perlin>()
+	.seed(0)
+	.octaves(1)
+	.frequency(0.03125)
+	.lacunarity(2.0)
+	.persistence(0.5)
+	.amplitude(1.0)
+	.normalization(true)
+	.scaling(1.0, 1.0);
 ```
 
 Currently, only Perlin is supported for grid noise. For octave sequences more complicated than FBM noise,
@@ -56,11 +69,16 @@ use quick_noise::{Grid2D, Perlin};
 
 // Custom list of octaves that can't be easily described by FBM noise.
 let octave_list = vec![
-	Octave2D::splat(0.05, 1.0),
-	Octave2D::splat(0.02, 0.8),
-	Octave2D::splat(0.03, 0.2),
-	Octave2D::splat(0.04, 0.4),
-	Octave2D::splat(0.01, 0.9),
+	// Creates octaves from frequency and weight.
+	Octave2D::splat(0.05, 7.0),
+	Octave2D::splat(0.02, 4.0),
+	Octave2D::splat(0.03, 15.0),
+	Octave2D::splat(0.04, 9.0),
+	Octave2D::splat(0.05, 15.0),
+
+	// Allows axis-specific granularity for frequency.
+	// This creates 'stretched' noise.
+	Octave2D::new(Vec2::new(0.01, 0.015), 50.0),
 ];
 
 // Takes in a slice reference for flexible array or heap usage.
@@ -70,6 +88,30 @@ let noise = grid_2d.custom::<Perlin>(octave_list.as_slice())
 	.normalization(true)
 	.build();
 ```
+
+Quick-Noise makes FBM warped noise convenient through a dedicated grid method.
+It internally adds the values of the grid to the offset iterators you provide it.
+This can be chained together for complex warp configurations. Since it uses batch noise,
+Perlin, Value, Simplex, and Cellular can all be used here.
+
+```rs
+use quick_noise::{Grid2D, Perlin};
+
+let grid_2d = Grid2D::<500, 300, 150000>::new();
+
+// Create noise offsets to warp by with fast grid noise.
+let noise1 = grid_2d.fbm::<Perlin>().octaves(6).seed(0).into_iter();
+let noise2 = grid_2d.fbm::<Perlin>().octaves(6).seed(1).into_iter();
+
+grid_2d
+	.warp::<Perlin>(noise1, noise2)
+	.octaves(1) // Cheap single octave for expensive batch noise call.
+	.strength(100.0)
+	.into_iter()
+	.to_grayscale_image::<500, 300>("noise_images/perlin_warp_2d.png");
+```
+
+![Warped Perlin Noise](images/perlin_warp_2d.png)
 
 ## Batch Noise
 
@@ -182,7 +224,7 @@ cargo run --example basic --release
 ```
 
 It is important that `RUSTFLAGS='-C target-cpu=native'` and `--release` is used for the best performance.
-`target-cpu=native` is specified by default in this project, but if you use it in your project using other flags,
+`target-cpu=native` is specified by default in this project, but if you use it in your project use other flags
 you may achieve worse performance.
 
 Criterion benches can be run with:

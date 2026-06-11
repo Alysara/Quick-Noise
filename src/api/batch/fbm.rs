@@ -18,7 +18,14 @@ const MAX_FBM_OCTAVES: usize = 32;
 
 /// Helper static function for fbm noise.
 #[inline(always)]
-pub(crate) fn batch_fbm_noise<T: BatchNoise, D: NoiseDimension, const N: usize, XIter, YIter, ZIter>(
+pub(crate) fn batch_fbm_noise<
+    T: BatchNoise,
+    D: NoiseDimension,
+    const N: usize,
+    XIter,
+    YIter,
+    ZIter,
+>(
     general_config: GeneralBuilderConfig,
     fbm_config: FbmBuilderConfig<D>,
     batch_config: BatchBuilderConfig<XIter, YIter, ZIter>,
@@ -143,6 +150,19 @@ where
                 y_iter: Some(y_iter),
                 z_iter: Some(z_iter),
             },
+            _noise_type: PhantomData::<T>,
+        }
+    }
+
+    pub(crate) fn from_configs(
+        general_config: GeneralBuilderConfig,
+        fbm_config: FbmBuilderConfig<D>,
+        batch_config: BatchBuilderConfig<XIter, YIter, ZIter>,
+    ) -> Self {
+        Self {
+            general_config,
+            fbm_config,
+            batch_config,
             _noise_type: PhantomData::<T>,
         }
     }

@@ -38,7 +38,11 @@ impl Random {
         Self::mix_u32_pair_simd_impl(data1.raw_cast() ^ seed_vec, data2.raw_cast())
     }
 
-    pub fn mix_i32_simd_pair_fast(&self, data1: ArchSimd<i32>, data2: ArchSimd<i32>) -> ArchSimd<u32> {
+    pub fn mix_i32_simd_pair_fast(
+        &self,
+        data1: ArchSimd<i32>,
+        data2: ArchSimd<i32>,
+    ) -> ArchSimd<u32> {
         let seed_vec = ArchSimd::<u32>::splat(self.channel_seed as u32);
         Self::mix_u32_pair_simd_fast_impl(data1.raw_cast(), data2.raw_cast(), seed_vec)
     }
@@ -51,7 +55,11 @@ impl Random {
     ) -> ArchSimd<u32> {
         let seed_vec = ArchSimd::<u32>::splat(self.channel_seed as u32);
 
-        Self::mix_u32_triple_simd_impl(data1.raw_cast() ^ seed_vec, data2.raw_cast(), data3.raw_cast())
+        Self::mix_u32_triple_simd_impl(
+            data1.raw_cast() ^ seed_vec,
+            data2.raw_cast(),
+            data3.raw_cast(),
+        )
     }
 
     pub fn mix_u32(&self, data: u32) -> u32 {
@@ -138,7 +146,11 @@ impl Random {
         data1
     }
 
-    fn mix_u32_pair_simd_fast_impl(mut data1: ArchSimd<u32>, data2: ArchSimd<u32>, seed: ArchSimd<u32>) -> ArchSimd<u32> {
+    fn mix_u32_pair_simd_fast_impl(
+        mut data1: ArchSimd<u32>,
+        data2: ArchSimd<u32>,
+        seed: ArchSimd<u32>,
+    ) -> ArchSimd<u32> {
         data1 ^= data1 >> 16;
         data1 *= ArchSimd::splat(0x85ebca6b) ^ data2;
         data1 ^= data1 >> 16;
@@ -166,13 +178,12 @@ impl Random {
     //     let bl = x2 * y1;
     //     let br = x2 * y2;
 
-
     //     (tl, tr, bl, br)
     // }
 
     // pub fn mix_u32_four_group(
-    //     &self, mut x1: ArchSimd<u32>, mut y1: ArchSimd<u32>) 
-    //         -> (ArchSimd<u32>, ArchSimd<u32>, ArchSimd<u32>, ArchSimd<u32>) 
+    //     &self, mut x1: ArchSimd<u32>, mut y1: ArchSimd<u32>)
+    //         -> (ArchSimd<u32>, ArchSimd<u32>, ArchSimd<u32>, ArchSimd<u32>)
     //     {
 
     //     // let core_seed = Simd::splat(self.core_seed as i32);
@@ -193,15 +204,14 @@ impl Random {
     // }
 
     pub fn mix_u32_four_group(
-        &self, mut x1: ArchSimd<u32>, mut y1: ArchSimd<u32>) 
-            -> (ArchSimd<u32>, ArchSimd<u32>, ArchSimd<u32>, ArchSimd<u32>) 
-        {
-
+        &self,
+        mut x1: ArchSimd<u32>,
+        mut y1: ArchSimd<u32>,
+    ) -> (ArchSimd<u32>, ArchSimd<u32>, ArchSimd<u32>, ArchSimd<u32>) {
         const BYTE_SHUFFLE: [u8; 64] = [
-            3, 0, 2, 1, 3, 0, 2, 1, 3, 0, 2, 1, 3, 0, 2, 1,
-            3, 0, 2, 1, 3, 0, 2, 1, 3, 0, 2, 1, 3, 0, 2, 1,
-            3, 0, 2, 1, 3, 0, 2, 1, 3, 0, 2, 1, 3, 0, 2, 1,
-            3, 0, 2, 1, 3, 0, 2, 1, 3, 0, 2, 1, 3, 0, 2, 1,
+            3, 0, 2, 1, 3, 0, 2, 1, 3, 0, 2, 1, 3, 0, 2, 1, 3, 0, 2, 1, 3, 0, 2, 1, 3, 0, 2, 1, 3,
+            0, 2, 1, 3, 0, 2, 1, 3, 0, 2, 1, 3, 0, 2, 1, 3, 0, 2, 1, 3, 0, 2, 1, 3, 0, 2, 1, 3, 0,
+            2, 1, 3, 0, 2, 1,
         ];
 
         let shuffle_indices = ArchSimd::<u8>::load(&BYTE_SHUFFLE[..]);
@@ -274,24 +284,24 @@ impl Random {
     //     )
     // }
 
-//     pub fn mix_f32_four_group(
-//         &self, x1: ArchSimd<f32>, x2: ArchSimd<f32>, y1: ArchSimd<f32>, y2: ArchSimd<f32>
-//     ) -> (ArchSimd<u32>, ArchSimd<u32>, ArchSimd<u32>, ArchSimd<u32>) {
-//         let core_seed: ArchSimd<f32> = unsafe { std::mem::transmute(ArchSimd::splat(self.core_seed)) };
-//         let channel_seed: ArchSimd<f32> = unsafe { std::mem::transmute(ArchSimd::splat(self.channel_seed)) };
-        
-//         let x1s = x1 * core_seed;
-//         let x2s = x2 * core_seed;
-//         let y1s = y1 * channel_seed;
-//         let y2s = y2 * channel_seed;
-        
-//         let tl: ArchSimd<u32> = unsafe { std::mem::transmute(x1s + y1s) };
-//         let tr: ArchSimd<u32> = unsafe { std::mem::transmute(x1s + y2s) };
-//         let bl: ArchSimd<u32> = unsafe { std::mem::transmute(x2s + y1s) };
-//         let br: ArchSimd<u32> = unsafe { std::mem::transmute(x2s + y2s) };
-        
-//         (tl, tr, bl, br)
-//     }
+    //     pub fn mix_f32_four_group(
+    //         &self, x1: ArchSimd<f32>, x2: ArchSimd<f32>, y1: ArchSimd<f32>, y2: ArchSimd<f32>
+    //     ) -> (ArchSimd<u32>, ArchSimd<u32>, ArchSimd<u32>, ArchSimd<u32>) {
+    //         let core_seed: ArchSimd<f32> = unsafe { std::mem::transmute(ArchSimd::splat(self.core_seed)) };
+    //         let channel_seed: ArchSimd<f32> = unsafe { std::mem::transmute(ArchSimd::splat(self.channel_seed)) };
+
+    //         let x1s = x1 * core_seed;
+    //         let x2s = x2 * core_seed;
+    //         let y1s = y1 * channel_seed;
+    //         let y2s = y2 * channel_seed;
+
+    //         let tl: ArchSimd<u32> = unsafe { std::mem::transmute(x1s + y1s) };
+    //         let tr: ArchSimd<u32> = unsafe { std::mem::transmute(x1s + y2s) };
+    //         let bl: ArchSimd<u32> = unsafe { std::mem::transmute(x2s + y1s) };
+    //         let br: ArchSimd<u32> = unsafe { std::mem::transmute(x2s + y2s) };
+
+    //         (tl, tr, bl, br)
+    //     }
 
     fn mix_u32_triple_simd_impl(
         mut data1: ArchSimd<u32>,
@@ -310,13 +320,12 @@ impl Random {
     pub fn cartesian_quad_hi_bit_shuf(
         &self,
         x_lo: ArchSimd<u32>,
-        y_lo: ArchSimd<u32>
+        y_lo: ArchSimd<u32>,
     ) -> (ArchSimd<u32>, ArchSimd<u32>, ArchSimd<u32>, ArchSimd<u32>) {
         const BYTE_SHUFFLE: [u8; 64] = [
-            3,0,2,1, 7,4,6,5, 11,8,10,9, 15,12,14,13,
-            3,0,2,1, 7,4,6,5, 11,8,10,9, 15,12,14,13,
-            3,0,2,1, 7,4,6,5, 11,8,10,9, 15,12,14,13,
-            3,0,2,1, 7,4,6,5, 11,8,10,9, 15,12,14,13,
+            3, 0, 2, 1, 7, 4, 6, 5, 11, 8, 10, 9, 15, 12, 14, 13, 3, 0, 2, 1, 7, 4, 6, 5, 11, 8,
+            10, 9, 15, 12, 14, 13, 3, 0, 2, 1, 7, 4, 6, 5, 11, 8, 10, 9, 15, 12, 14, 13, 3, 0, 2,
+            1, 7, 4, 6, 5, 11, 8, 10, 9, 15, 12, 14, 13,
         ];
 
         let seed = ArchSimd::splat(self.channel_seed as u32);

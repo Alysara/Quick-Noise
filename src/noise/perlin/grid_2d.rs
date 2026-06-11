@@ -36,10 +36,6 @@ impl<const X: usize, const Y: usize, const N: usize> PerlinGridNoise2D<X, Y, N> 
         weight: f32,
         magnification: f32,
     ) {
-        println!(
-            "RUNNING OCTAVE: frequency: {:?}, weight: {weight}",
-            frequency
-        );
         let increment: Vec2<f32> = frequency * magnification;
         let block_pos: Vec2<i32> = position * Vec2::new(Y as i32, X as i32);
 
