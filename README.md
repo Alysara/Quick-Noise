@@ -165,11 +165,11 @@ this simd module offers you the ability to explicitly control loops that work be
 
 ## Grid Noise
 
-Grid noise reuses computations between samples to achieve greater performance.
+Grid noise shares computations across samples to achieve greater performance.
 As a result, lower frequencies have greater performance than higher frequencies.
 Additionally, the dimensions of noise call impact performance as well. Array sizes
-that are multiples of 16 offer the best SIMD usage. When sizes get very large, memory
-and keeping values in cache becomes harder. For maximum performance, 32x32 and 64x64
+that are multiples of 16 offer the best SIMD usage. When sizes get very large, memory 
+transfer and cache intermediaries becomes more expensive. For maximum performance, 32x32 and 64x64
 is recommended. However, it is better to use larger calls directly than to transfer
 memory from smaller calls onto a larger noise map.
 
