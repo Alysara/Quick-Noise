@@ -15,26 +15,24 @@ debug = "line-tables-only"
 opt-level = 3
 
 [dependencies]
-num-traits.workspace = true
-image.workspace = true
-cfg-if.workspace = true
+num-traits = "0.2.19"
+image = { version = "0.25.9", default-features = false, features = ["png"], optional = true }
+cfg-if = "1.0.4"
 paste = "1.0.15"
 itertools = "0.14.0"
 either = "1.16.0"
 
 [dev-dependencies]
-criterion.workspace = true
-fastnoise2.workspace = true
-
-[workspace.dependencies]
-quick-noise.path = "."
-num-traits = "0.2.19"
-image = { version = "0.25.9", default-features = false, features = ["png"] }
-cfg-if = "1.0.4"
 criterion = "0.8.2"
-fastnoise2 = "0.4.0"
-rand = "0.10.0"
+# fastnoise2 = "0.4.0"
+
+[features]
+image = ["dep:image"]
 
 [[bench]]
 name = "perlin"
 harness = false
+
+[[example]]
+name = "basic"
+required-features = ["image"]

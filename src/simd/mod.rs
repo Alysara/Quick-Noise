@@ -1,6 +1,6 @@
 pub mod arch_simd;
 pub mod simd_array;
-pub mod simd_vec;
+// pub mod simd_vec;
 // pub mod avx2;
 pub mod architectures;
 pub mod array_trait;

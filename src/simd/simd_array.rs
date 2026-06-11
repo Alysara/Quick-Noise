@@ -1,13 +1,15 @@
+use std::fmt;
+use std::mem::MaybeUninit;
+use std::ops::*;
+
+use itertools::izip;
+use num_traits::NumCast;
+
 use crate::simd::arch_simd::{ArchMask, ArchSimd};
 use crate::simd::array_trait::Array;
 use crate::simd::simd_array::fmt::Debug;
 use crate::simd::simd_traits::*;
 use crate::simd::traits::{SimdElement, SimdFloat};
-use itertools::izip;
-use num_traits::NumCast;
-use std::fmt;
-use std::mem::MaybeUninit;
-use std::ops::*;
 
 // ————————————————————————————————————————————————————————————————
 // ————— Struct ———————————————————————————————————————————————————
@@ -237,9 +239,9 @@ impl<T: SimdElement, const N: usize> SimdArray<T, N> {
     /// ```
     /// use quick_noise::simd::simd_array::SimdArray;
     /// use quick_noise::simd::arch_simd::ArchSimd;
-    /// use quick_noise::simd::simd_traits::SimdToArray; // TODO: Consolidate these.
+    /// use quick_noise::simd::simd_traits::*; // TODO: Consolidate these.
     ///
-    /// let arr = SimdArray::<i32, 12>::iota(0);
+    /// let arr = SimdArray::<i32, 32>::iota(0);
     /// let register = arr.load_simd(0);
     /// assert_eq!(register.to_array()[3], 3);
     /// ```
@@ -469,7 +471,7 @@ impl<T: SimdElement, const N: usize> SimdArray<T, N> {
     /// use quick_noise::simd::simd_array::SimdArray;
     /// use quick_noise::simd::arch_simd::ArchSimd;
     ///
-    /// let mut arr = SimdArray::<i32, 12>::iota(0);
+    /// let mut arr = SimdArray::<i32, 42>::iota(0);
     /// let register = ArchSimd::<i32>::splat(100);
     /// arr.store_simd(0, register);
     /// assert_eq!(arr[0], 100);
@@ -504,7 +506,7 @@ impl<T: SimdElement, const N: usize> SimdArray<T, N> {
     /// use quick_noise::simd::simd_array::SimdArray;
     /// use quick_noise::simd::arch_simd::ArchSimd;
     ///
-    /// let mut arr = SimdArray::<i32, 10>::iota(0);
+    /// let mut arr = SimdArray::<i32, 32>::iota(0);
     /// let register = ArchSimd::<i32>::splat(100);
     /// arr.partial_store_simd(8, register, 2);
     /// assert_eq!(arr[9], 100);
@@ -588,7 +590,7 @@ impl<T: SimdElement, const N: usize> SimdArray<T, N> {
         // Normal case.
         unsafe {
             vec.partial_store(
-                &mut self.data.assume_init_mut().get_unchecked_mut(index..),
+                self.data.assume_init_mut().get_unchecked_mut(index..),
                 amount,
             );
         }
@@ -614,20 +616,20 @@ impl<T: SimdElement, const N: usize> SimdArray<T, N> {
     /// // First two lanes false, rest true.
     /// let mask = iota.simd_gt(splat);
     ///
-    /// let mut arr = SimdArray::<i32, 12>::new(0);
+    /// let mut arr = SimdArray::<i32, 32>::new(0);
     /// let register = ArchSimd::<i32>::splat(100);
     /// arr.masked_store_simd(0, register, mask);
     /// assert_eq!(arr[0], 0);
     /// assert_eq!(arr[2], 100);
     /// ```
     #[inline(always)]
-    pub unsafe fn masked_store_simd(&mut self, index: usize, vec: ArchSimd<T>, mask: ArchMask<T>) {
-        debug_assert!(index < N);
+    pub fn masked_store_simd(&mut self, index: usize, vec: ArchSimd<T>, mask: ArchMask<T>) {
+        assert!(
+            index < (N - ArchSimd::<T>::LANES),
+            "Index is out of bounds! Index: {index}, N Size: {N}, Num lanes: {}", ArchSimd::<T>::LANES, 
+        );
         unsafe {
-            vec.masked_store(
-                &mut self.data.assume_init_mut().get_unchecked_mut(index..),
-                mask,
-            );
+            vec.masked_store(self.data.assume_init_mut().get_unchecked_mut(index..), mask);
         }
     }
 }

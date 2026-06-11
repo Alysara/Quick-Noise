@@ -4,9 +4,9 @@ use std::time::Instant;
 
 use itertools::izip;
 use quick_noise::emit::grayscale::NoiseImageExt;
+use quick_noise::math::Vec2;
 use quick_noise::simd::arch_simd::ArchSimd;
 use quick_noise::simd::simd_array::SimdArray;
-use quick_noise::simd::simd_vec::SimdVec;
 use quick_noise::simplex::Simplex;
 use quick_noise::testing::profiler;
 // use quick_noise::perlin::Perlin;
@@ -14,8 +14,8 @@ use quick_noise::testing::profiler as unofficial_profiler;
 // use criterion::profiler;
 // use quick_noise::emit::grayscale;
 use quick_noise::{Batch2D, Batch3D, Cellular, Grid2D, Grid3D, Octave2D, Perlin};
-use quick_noise::math::Vec2;
 
+#[cfg(feature = "image")]
 fn main() {
     let grid_2d = Grid2D::<500, 300, 150000>::new().position(0, 0).seed(102);
     let grid_3d = Grid3D::<50, 50, 50, 125000>::new()
@@ -38,14 +38,14 @@ fn main() {
         Octave2D::splat(0.03, 15.0),
         Octave2D::splat(0.04, 9.0),
         Octave2D::splat(0.05, 15.0),
-
         // Allows axis-specific granularity for frequency.
         // This creates 'stretched' noise.
         Octave2D::new(Vec2::new(0.01, 0.015), 50.0),
     ];
 
     // FBM Grid noise with all parameters.
-    let noise = grid_2d.fbm::<Perlin>()
+    let noise = grid_2d
+        .fbm::<Perlin>()
         .seed(0)
         .octaves(1)
         .frequency(0.03125)

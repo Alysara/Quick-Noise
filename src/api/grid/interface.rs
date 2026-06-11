@@ -48,10 +48,12 @@ pub trait GridNoise: Default {
 ///
 /// # Example
 /// ```
-/// use quick_noise::noise::pipeline::Node2D;
+/// use quick_noise::Grid3D;
 ///
 /// // Subject to change.
-/// let node = Node2D::<32, 32>::new(0, 0);
+/// let grid = Grid3D::<32, 32, 32, 32768>::new()
+///     .position(0, 0, 0)
+///     .seed(1);
 /// ```
 #[derive(Default)]
 pub struct Grid2D<const X: usize, const Y: usize, const N: usize> {
@@ -120,10 +122,12 @@ impl<const X: usize, const Y: usize, const N: usize> Grid2D<X, Y, N> {
 ///
 /// # Example
 /// ```
-/// use quick_noise::Grid3D;
+/// use quick_noise::Grid2D;
 ///
 /// // Subject to change.
-/// let node = Grid3D::<32, 32>::new(0, 0);
+/// let grid = Grid2D::<32, 32, 1024>::new()
+///     .position(0, 0)
+///     .seed(1);
 /// ```
 #[derive(Default)]
 pub struct Grid3D<const X: usize, const Y: usize, const Z: usize, const N: usize> {

@@ -1,6 +1,6 @@
 // #![feature(const_cmp, const_trait_impl, generic_const_exprs, associated_type_defaults)]
 // #![feature(portable_simd)]
-#![feature(trace_macros)]
+// #![feature(trace_macros)]
 
 pub mod simd;
 
@@ -14,6 +14,7 @@ pub mod testing {
     pub mod profiler;
 }
 
+#[cfg(feature = "image")]
 pub mod emit {
     pub mod grayscale;
 }
