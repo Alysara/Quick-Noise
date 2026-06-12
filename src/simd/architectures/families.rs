@@ -7,7 +7,7 @@ use crate::simd::architectures::intrinsics::avx512::{Avx512Reg, Avx512Mask};
 #[cfg(target_arch = "x86_64")]
 use crate::simd::architectures::intrinsics::sse::SseReg;
 #[cfg(target_arch = "aarch64")]
-use crate::simd::architectures::intrinsics::neon::Neon;
+use crate::simd::architectures::intrinsics::neon::NeonReg;
 
 use crate::simd::architectures::intrinsics::scalar::{ScalarReg, ScalarMask};
 use std::fmt::Debug;
