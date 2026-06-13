@@ -11,7 +11,7 @@ use crate::simd::simd_array::SimdArray;
 
 /// A struct for creating FBM noise set on a uniform grid.
 /// The most performant way to generate Perlin noise.
-#[derive(Default)]
+#[derive(Default, Copy, Clone)]
 pub struct FbmGridBuilder<
     T: GridNoise,
     D: NoiseDimension,
@@ -47,6 +47,7 @@ impl<
         config
     }
 
+    #[inline(always)]
     pub(crate) fn fbm_noise<const INITIALIZE: bool>(self, result: &mut SimdArray<f32, N>) {
         let octaves = self.fbm_config.num_grid_octaves();
 

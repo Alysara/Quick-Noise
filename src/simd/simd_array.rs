@@ -52,7 +52,7 @@ pub struct SimdArray<T: SimdElement, const N: usize> {
 /// NOTE: Consider using `iter()` and `iter_mut` for automatic performant tail handling.
 ///
 /// # Constants
-/// * `TAIL_SIZE` - Number of elements in the final partial chunk (0 if exact fit)
+/// * `TAIL_SIZE` - Number of elements in the final partial chunk (1 if exact fit)
 /// * `TAIL_START` - Starting index of the tail chunk
 /// * `HAS_TAIL` - Whether the array has a partial tail chunk
 ///
@@ -267,7 +267,7 @@ impl<T: SimdElement, const N: usize> SimdArray<T, N> {
             return ArchSimd::load(array.as_mut_slice());
         }
 
-        if index >= (N - ArchSimd::<T>::LANES) {
+        if index > Self::TAIL_START {
             let offset = ArchSimd::<T>::LANES - (N - index);
             let new_index = index - offset;
             let slice = unsafe { &self.data.assume_init_ref().get_unchecked(new_index..) };
@@ -320,7 +320,7 @@ impl<T: SimdElement, const N: usize> SimdArray<T, N> {
             return ArchSimd::load(array.as_mut_slice());
         }
 
-        if index > (N - ArchSimd::<T>::LANES) {
+        if index > Self::TAIL_START {
             let offset = ArchSimd::<T>::LANES - (N - index);
             let new_index = index - offset;
             let slice = unsafe { &self.data.assume_init_ref().get_unchecked(new_index..) };
@@ -408,7 +408,7 @@ impl<T: SimdElement, const N: usize> SimdArray<T, N> {
         }
 
         // Handle tail case.
-        if index >= Self::TAIL_START {
+        if index > Self::TAIL_START {
             self.partial_store_simd(index, vec, N - index);
             return;
         }

@@ -71,7 +71,15 @@ where
         let mut y_freq = freq_tuple.1;
         let mut z_freq = freq_tuple.2;
         let mut weight = ArchSimd::splat(weight);
-        let mut result = D::batch::<T, N>(seed, x, y, z, x_freq, y_freq, z_freq);
+        let mut result = D::batch::<T, N>(
+            seed,
+            x,
+            y,
+            z,
+            x_freq,
+            y_freq,
+            z_freq,
+        );
 
         for seed in seeds.iter().take(octaves).skip(1) {
             x_freq *= lacunarity;
@@ -79,7 +87,7 @@ where
             z_freq *= lacunarity;
             weight *= persistence;
             result =
-                D::batch::<T, N>(*seed, x, y, z, x_freq, y_freq, z_freq).mul_add(weight, result);
+                D::batch::<T, N>(*seed, x, y, z, x_freq, x_freq, x_freq).mul_add(weight, result);
         }
 
         result

@@ -17,7 +17,7 @@ use quick_noise::{Batch2D, Batch3D, Cellular, Grid2D, Grid3D, Octave2D, Perlin};
 
 #[cfg(feature = "image")]
 fn main() {
-    let grid_2d = Grid2D::<150, 100, 15000>::new().position(0, 0).seed(102);
+    let grid_2d = Grid2D::<32, 32, 1024>::new().position(0, 0).seed(102);
     // let grid_3d = Grid3D::<50, 50, 50, 125000>::new()
     //     .position(0, 0, 0)
     //     .seed(103);
@@ -30,7 +30,7 @@ fn main() {
     //     .to_grayscale_image::<500, 500>("noise_images/perlin_grid_2d.png");
     //
     // // Custom Octaves
-    //
+
     let octave_list = vec![
         // Creates octaves from frequency and weight.
         Octave2D::splat(0.05, 7.0),
@@ -60,21 +60,24 @@ fn main() {
     //     .into_iter()
     //     .to_grayscale_image::<500, 500>("noise_images/perlin_custom_2d.png");
 
-    let noise1 = grid_2d.fbm::<Perlin>().octaves(6).seed(0).into_iter();
-    let noise2 = grid_2d.fbm::<Perlin>().octaves(6).seed(1).into_iter();
-    grid_2d
-        .warp::<Perlin>(noise1, noise2)
-        .octaves(1)
-        .seed(2)
-        .into_iter()
-        .to_grayscale_image::<150, 100>("noise_images/perlin_warp_2d.png");
+    let noise1 = grid_2d.fbm::<Perlin>().octaves(1).seed(0).build();
+    // let noise2 = grid_2d.fbm::<Perlin>().octaves(6).seed(1).into_iter();
+    // grid_2d
+    //     .warp::<Perlin>(noise1, noise2)
+    //     .octaves(1)
+    //     .seed(2)
+    //     .into_iter()
+    //     .to_grayscale_image::<150, 100>("noise_images/perlin_warp_2d.png");
 
-    // Batch2D::fbm::<Perlin, 150000>(grid_2d.x_iter(), grid_2d.y_iter())
+    // let noise = Batch2D::fbm::<Perlin, 150000>(grid_2d.x_iter(), grid_2d.y_iter())
     //     .octaves(6)
     //     .frequency(0.01)
-    //     .into_iter()
-    //     .to_grayscale_image::<500, 300>("noise_images/perlin_batch_2d.png");
-    //
+    //     .build();
+        // .into_iter()
+        // .to_grayscale_image::<500, 300>("noise_images/perlin_batch_2d.png");
+
+    black_box(&noise1);
+
     // Batch3D::fbm::<Perlin, 125000>(grid_3d.x_iter(), grid_3d.y_iter(), grid_3d.z_iter())
     //     .octaves(1)
     //     .frequency(0.1)

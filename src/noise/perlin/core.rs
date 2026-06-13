@@ -3,7 +3,7 @@ use crate::math::vec::{Vec2, Vec3};
 use crate::perlin::{PerlinGridNoise2D, PerlinGridNoise3D};
 use crate::simd::simd_array::SimdArray;
 
-#[derive(Default)]
+#[derive(Default, Copy, Clone)]
 pub struct Perlin {}
 
 impl GridNoise for Perlin {

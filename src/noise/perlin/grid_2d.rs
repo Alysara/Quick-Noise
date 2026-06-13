@@ -19,15 +19,15 @@ const BLOCK_LANES: usize = NUM_BLOCKS * LANES;
 impl<const X: usize, const Y: usize, const N: usize> PerlinGridNoise2D<X, Y, N> {
     const HAS_SIMD_TAIL: bool = SimdArray::<f32, X>::HAS_TAIL;
     const HAS_BLOCK_HEAD: bool = X >= BLOCK_LANES;
-    const HAS_BLOCK_TAIL: bool = (X % BLOCK_LANES) > 0;
+    const HAS_BLOCK_TAIL: bool = !X.is_multiple_of(BLOCK_LANES);
 
-    const BLOCK_TAIL_SIZE: usize = (X % BLOCK_LANES + LANES - 1) / LANES;
+    const BLOCK_TAIL_SIZE: usize = (X % BLOCK_LANES).div_ceil(LANES);
     const SIMD_TAIL_SIZE: usize = SimdArray::<f32, X>::TAIL_SIZE;
 
     const BLOCK_TAIL_START: usize = (X / BLOCK_LANES) * BLOCK_LANES;
     const SIMD_TAIL_START: usize = SimdArray::<f32, X>::TAIL_START;
 
-    #[inline(never)]
+    #[inline(always)]
     pub fn grid_2d<const INITIALIZE: bool>(
         seed: u32,
         result: &mut SimdArray<f32, N>,
@@ -102,8 +102,8 @@ impl<const X: usize, const Y: usize, const N: usize> PerlinGridNoise2D<X, Y, N> 
                 increment.y,
                 &x_lerp,
                 &y_lerp,
-                y_cur_index as usize,
-                y_next_index as usize,
+                y_cur_index,
+                y_next_index,
                 weight,
                 result,
             );
@@ -146,7 +146,7 @@ impl<const X: usize, const Y: usize, const N: usize> PerlinGridNoise2D<X, Y, N> 
         let mut grad_array = unsafe { SimdArray::<u32, X>::new_uninit() };
 
         // Main vectorized bit mixing loop.
-        let end_index = x_num_loops as usize + 1;
+        let end_index = x_num_loops + 1;
         for i in (0..end_index).step_by(ArchSimd::<f32>::LANES) {
             let x_shuf = x_vec.permute_8(shuffle_indices) ^ prime;
             let indices: ArchSimd<u32> = (y_shuf * x_shuf) >> 29;
@@ -165,8 +165,8 @@ impl<const X: usize, const Y: usize, const N: usize> PerlinGridNoise2D<X, Y, N> 
             let set_amount = x_next_index - x_cur_index;
 
             unsafe {
-                let l = grad_array.get_unchecked(x_it as usize) as usize;
-                let r = grad_array.get_unchecked(x_it as usize + 1) as usize;
+                let l = grad_array.get_unchecked(x_it) as usize;
+                let r = grad_array.get_unchecked(x_it + 1) as usize;
 
                 debug_assert!(l < X);
                 debug_assert!(r < X);

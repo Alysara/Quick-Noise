@@ -85,6 +85,7 @@ impl NoiseDimension for Dim2 {
         T::grid_2d::<X, Y, N, INITIALIZE>(seed, result, position, frequency, weight, magnification);
     }
 
+    #[inline(always)]
     fn batch<T: BatchNoise, const N: usize>(
         seed: u32,
         x_input: ArchSimd<f32>,
@@ -146,6 +147,7 @@ impl NoiseDimension for Dim3 {
         );
     }
 
+    #[inline(always)]
     fn batch<T: BatchNoise, const N: usize>(
         seed: u32,
         x_input: ArchSimd<f32>,

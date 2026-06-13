@@ -560,7 +560,7 @@ impl SimdBitwiseImpl for Avx512Mask {
     }
     #[inline(always)]
     fn and_not(self, rhs: Self) -> Self {
-        self_from_op!(_kandn_mask64, self, rhs)
+        self_from_op!(_kandn_mask64, rhs, self)
     }
 }
 
@@ -657,21 +657,21 @@ impl SimdLaneShiftImpl for Avx512Reg {
     fn left_lane_shift_32(self, n: u32) -> Self {
         match n {
             0 => self,
-            1 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 15) }),
-            2 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 14) }),
-            3 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 13) }),
-            4 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 12) }),
-            5 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 11) }),
-            6 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 10) }),
-            7 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 9) }),
+            1 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 1) }),
+            2 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 2) }),
+            3 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 3) }),
+            4 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 4) }),
+            5 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 5) }),
+            6 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 6) }),
+            7 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 7) }),
             8 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 8) }),
-            9 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 7) }),
-            10 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 6) }),
-            11 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 5) }),
-            12 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 4) }),
-            13 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 3) }),
-            14 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 2) }),
-            15 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 1) }),
+            9 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 9) }),
+            10 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 10) }),
+            11 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 11) }),
+            12 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 12) }),
+            13 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 13) }),
+            14 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 14) }),
+            15 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 15) }),
             _ => Self::zero(),
         }
     }
