@@ -191,11 +191,11 @@ impl SimdStoreImpl for Avx512Reg {
     }
     #[inline(always)]
     fn masked_store_64<T>(self, ptr: *mut T, mask: Self::MaskType) {
-        execute_intrinsic!(_mm512_mask_store_epi64, ptr, mask, self);
+        execute_intrinsic!(_mm512_mask_storeu_epi64, ptr, mask, self);
     }
     #[inline(always)]
     fn masked_store_32<T>(self, ptr: *mut T, mask: Self::MaskType) {
-        execute_intrinsic!(_mm512_mask_store_epi32, ptr, mask, self);
+        execute_intrinsic!(_mm512_mask_storeu_epi32, ptr, mask, self);
     }
 }
 
