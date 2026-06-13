@@ -71,7 +71,7 @@ impl<T: SimdElement, F: SimdFamily> SimdToArray<T, F> for Simd<T, F> {
     #[inline(always)]
     fn to_array(self) -> T::Array<F> {
         let mut array = T::Array::<F>::from_fn(|_| T::from(0).unwrap());
-        self.store(&mut array.as_mut_slice());
+        self.store(array.as_mut_slice());
         array
     }
 }
