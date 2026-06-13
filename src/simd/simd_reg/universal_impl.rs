@@ -80,7 +80,7 @@ impl<T: SimdElement, F: SimdFamily> SimdToArray<T, F> for Simd<T, F> {
 impl<T: SimdElement, F: SimdFamily> SimdIota<T> for Simd<T, F> {
     #[inline(always)]
     fn iota(offset: T) -> Self {
-        let iota_array = T::Array::<F>::from_fn(|i| <T as NumCast>::from(i).unwrap() + (offset));
+        let iota_array = T::Array::<F>::from_fn(|i| <T as NumCast>::from(i).unwrap().safe_add(offset));
         Self::load(iota_array.as_slice())
     }
 }

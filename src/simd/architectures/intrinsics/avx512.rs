@@ -228,11 +228,11 @@ impl SimdPermuteImpl for Avx512Reg {
     // type BlockVec = Sse;
     #[inline(always)]
     fn permute_32(self, rhs: Self) -> Self {
-        self_from_op!(_mm512_permutexvar_epi32, self, rhs)
+        self_from_op!(_mm512_permutexvar_epi32, rhs, self)
     }
     #[inline(always)]
     fn permute_8(self, rhs: Self) -> Self {
-        self_from_op!(_mm512_shuffle_epi8, self, rhs)
+        self_from_op!(_mm512_shuffle_epi8, rhs, self)
     }
 }
 
@@ -654,30 +654,30 @@ impl SimdMaskBitConversion for Avx512Mask {
 
 impl SimdLaneShiftImpl for Avx512Reg {
     #[inline(always)]
-    fn left_lane_shift_32(self, n: u32) -> Self {
+    fn right_lane_shift_32(self, n: u32) -> Self {
         match n {
             0 => self,
-            1 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 1) }),
-            2 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 2) }),
-            3 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 3) }),
-            4 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 4) }),
-            5 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 5) }),
-            6 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 6) }),
-            7 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 7) }),
+            1 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 15) }),
+            2 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 14) }),
+            3 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 13) }),
+            4 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 12) }),
+            5 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 11) }),
+            6 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 10) }),
+            7 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 9) }),
             8 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 8) }),
-            9 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 9) }),
-            10 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 10) }),
-            11 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 11) }),
-            12 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 12) }),
-            13 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 13) }),
-            14 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 14) }),
-            15 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 15) }),
+            9 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 7) }),
+            10 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 6) }),
+            11 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 5) }),
+            12 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 4) }),
+            13 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 3) }),
+            14 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 2) }),
+            15 => Self(unsafe { _mm512_alignr_epi32(self.0, _mm512_setzero_si512(), 1) }),
             _ => Self::zero(),
         }
     }
 
     #[inline(always)]
-    fn right_lane_shift_32(self, n: u32) -> Self {
+    fn left_lane_shift_32(self, n: u32) -> Self {
         match n {
             0 => self,
             1 => Self(unsafe { _mm512_alignr_epi32(_mm512_setzero_si512(), self.0, 1) }),

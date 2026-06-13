@@ -74,6 +74,70 @@ impl BitWidth for B8 {
     const BIT_SIZE: usize = 8;
 }
 
+pub(crate) trait SafeAdd {
+    fn safe_add(self, rhs: Self) -> Self;
+}
+
+impl SafeAdd for f64 {
+    fn safe_add(self, rhs: Self) -> Self {
+        self + rhs
+    }
+}
+
+impl SafeAdd for f32 {
+    fn safe_add(self, rhs: Self) -> Self {
+        self + rhs
+    }
+}
+
+impl SafeAdd for u64 {
+    fn safe_add(self, rhs: Self) -> Self {
+        self.wrapping_add(rhs)
+    }
+}
+
+impl SafeAdd for u32 {
+    fn safe_add(self, rhs: Self) -> Self {
+        self.wrapping_add(rhs)
+    }
+}
+
+impl SafeAdd for u16 {
+    fn safe_add(self, rhs: Self) -> Self {
+        self.wrapping_add(rhs)
+    }
+}
+
+impl SafeAdd for u8 {
+    fn safe_add(self, rhs: Self) -> Self {
+        self.wrapping_add(rhs)
+    }
+}
+
+impl SafeAdd for i64 {
+    fn safe_add(self, rhs: Self) -> Self {
+        self.wrapping_add(rhs)
+    }
+}
+
+impl SafeAdd for i32 {
+    fn safe_add(self, rhs: Self) -> Self {
+        self.wrapping_add(rhs)
+    }
+}
+
+impl SafeAdd for i16 {
+    fn safe_add(self, rhs: Self) -> Self {
+        self.wrapping_add(rhs)
+    }
+}
+
+impl SafeAdd for i8 {
+    fn safe_add(self, rhs: Self) -> Self {
+        self.wrapping_add(rhs)
+    }
+}
+
 // pub trait Array<T> {
 //     fn from_fn(f: impl FnMut(usize) -> T) -> Self;
 //     fn get_array<const M: usize>() -> [T; M];
@@ -102,7 +166,7 @@ impl BitWidth for B8 {
 
 // Need both enum and associated type for matching and bounds.
 pub trait SimdElement:
-    private::SealedTypes + PartialEq + Sized + Default + Copy + NumCast + NumOps + Debug
+    private::SealedTypes + PartialEq + Sized + Default + Copy + NumCast + NumOps + Debug + SafeAdd
 {
     const BIT_SIZE: BitSize;
     const PRIMITIVE_TYPE: PrimitiveType;
