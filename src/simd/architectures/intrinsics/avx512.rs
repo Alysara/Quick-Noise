@@ -171,11 +171,11 @@ impl SimdLoadImpl for Avx512Reg {
     }
     #[inline(always)]
     fn masked_load_64<T>(ptr: *const T, mask: Self::MaskType) -> Self {
-        self_from_op!(_mm512_mask_loadu_epi64, Self::zero(), ptr, mask)
+        self_from_op!(_mm512_mask_loadu_epi64, Self::zero(), mask, ptr)
     }
     #[inline(always)]
     fn masked_load_32<T>(ptr: *const T, mask: Self::MaskType) -> Self {
-        self_from_op!(_mm512_mask_loadu_epi32, Self::zero(), ptr, mask)
+        self_from_op!(_mm512_mask_loadu_epi32, Self::zero(), mask, ptr)
     }
 }
 
