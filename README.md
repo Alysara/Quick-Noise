@@ -113,6 +113,34 @@ grid_2d
 
 ![Warped Perlin Noise](images/perlin_warp_2d.png)
 
+You can also set custom tiling parameters to the grid to generate noise that
+wraps around and repeats. Unlike other methods, this method does not
+require a higher dimension and operates natively in that algorithm.
+However, frequencies must align with the given tiling. For example,
+a frequency of `1 / 1000` would not work with a tiling of `(2048, 2048)`.
+Frequencies of `1 / 1024` and `1 / 512` would.
+
+You can choose to only enable tiling for specific axes and can specify the
+size of the tiles for each axis specifically.
+
+```rs
+use quick_noise::{Grid2D, Perlin};
+
+
+let grid_2d = Grid2D::<512, 512, 262144>::new()
+	.position(0, 0)
+	.seed(100)
+	.tiling(Some(128), Some(128)); // Put None to disable tiling for that axis.
+
+grid_2d.fbm::<Perlin>()
+	.octaves(6)
+	.frequency(1.0 / 128.0)
+	.into_iter()
+	.to_grayscale_image::<512, 512>("noise_images/perlin_tiles_2d.png");
+```
+
+![Tiled Perlin Noise](images/perlin_tiles_2d.png)
+
 ## Batch Noise
 
 Batch noise operates directly on static methods and takes iterators as inputs. Perlin, Value, Simplex, and Cellular all support Batch noise.

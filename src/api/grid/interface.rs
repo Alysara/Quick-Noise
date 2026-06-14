@@ -18,6 +18,7 @@ pub trait GridNoise: Default {
         frequency: Vec2<f32>,
         weight: f32,
         magnification: f32,
+        tiling: Vec2<Option<u32>>,
     );
 
     fn grid_3d<
@@ -33,6 +34,7 @@ pub trait GridNoise: Default {
         frequency: Vec3<f32>,
         weight: f32,
         magnification: f32,
+        tiling: Vec3<Option<u32>>,
     );
 }
 

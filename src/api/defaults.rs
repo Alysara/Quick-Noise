@@ -39,6 +39,7 @@ impl<D: NoiseDimension> Default for GridConfig<D> {
         Self {
             grid_seed: 0xc4ceb9fe1a85ec53,
             position: D::IVec::splat(0),
+            tiling: D::Vec::splat(None),
         }
     }
 }

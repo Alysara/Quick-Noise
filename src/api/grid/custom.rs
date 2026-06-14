@@ -79,6 +79,7 @@ impl<
                     octave.frequency,
                     octave.weight * weight_coef,
                     magnification,
+                    self.grid_config.tiling,
                 );
                 break;
             }
@@ -96,6 +97,7 @@ impl<
                     octave.frequency,
                     octave.weight * weight_coef,
                     magnification,
+                    self.grid_config.tiling,
                 );
             }
         }

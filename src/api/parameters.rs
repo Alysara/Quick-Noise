@@ -215,6 +215,17 @@ macro_rules! params_grid_2d {
                 self.config.position = Vec2::new(x, y);
                 self
             }
+
+            /// Determines the distance the sample space has until it starts repeating noise
+            /// seamlessly. When values are left as None, noise does not repeat.
+            ///
+            /// # Default:
+            /// - `x`: None
+            /// - `y`: None
+            pub fn tiling(mut self, x: Option<u32>, y: Option<u32>) -> Self {
+                self.config.tiling = Vec2::new(x, y);
+                self
+            }
         }
     }
 }
@@ -242,6 +253,18 @@ macro_rules! params_grid_3d {
             /// `0`: z
             pub fn position(mut self, x: i32, y: i32, z: i32) -> Self {
                 self.config.position = Vec3::new(x, y, z);
+                self
+            }
+
+            /// Determines the distance the sample space has until it starts repeating noise
+            /// seamlessly. When values are left as None, noise does not repeat.
+            ///
+            /// # Default:
+            /// - `x`: None
+            /// - `y`: None
+            /// - `z`: None
+            pub fn tiling(mut self, x: Option<u32>, y: Option<u32>, z: Option<u32>) -> Self {
+                self.config.tiling = Vec3::new(x, y, z);
                 self
             }
         }

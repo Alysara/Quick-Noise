@@ -10,12 +10,14 @@ use num_traits::float::*;
 use crate::simd::arch_simd::ArchSimd;
 use crate::simd::simd_traits::SimdZero;
 
+#[repr(C)]
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Vec2<T> {
     pub x: T,
     pub y: T,
 }
 
+#[repr(C)]
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Vec3<T> {
     pub x: T,
@@ -77,11 +79,15 @@ impl ArithmeticVec<i32> for Vec3<i32> {}
 
 // === Constructors ===
 
-pub trait BasicVec<T>: private::SealedTypes {
+pub trait BasicVec<T>:
+    private::SealedTypes + Index<usize> + IndexMut<usize> + Clone + Copy
+{
     const TYPE: VecType;
 
     fn len(&self) -> usize;
     fn splat(val: T) -> Self;
+    fn as_slice(&self) -> &[T];
+    fn as_mut_slice(&mut self) -> &mut [T];
 }
 
 impl<T: Copy> BasicVec<T> for Vec2<T> {
@@ -93,6 +99,14 @@ impl<T: Copy> BasicVec<T> for Vec2<T> {
 
     fn splat(val: T) -> Self {
         Vec2::<T> { x: val, y: val }
+    }
+
+    fn as_slice(&self) -> &[T] {
+        unsafe { std::slice::from_raw_parts(self as *const Self as *const T, 2) }
+    }
+
+    fn as_mut_slice(&mut self) -> &mut [T] {
+        unsafe { std::slice::from_raw_parts_mut(self as *mut Self as *mut T, 2) }
     }
 }
 
@@ -109,6 +123,14 @@ impl<T: Copy> BasicVec<T> for Vec3<T> {
             y: val,
             z: val,
         }
+    }
+
+    fn as_slice(&self) -> &[T] {
+        unsafe { std::slice::from_raw_parts(self as *const Self as *const T, 3) }
+    }
+
+    fn as_mut_slice(&mut self) -> &mut [T] {
+        unsafe { std::slice::from_raw_parts_mut(self as *mut Self as *mut T, 3) }
     }
 }
 

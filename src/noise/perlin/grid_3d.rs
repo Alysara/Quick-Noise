@@ -1,4 +1,4 @@
-use crate::grid_helpers::grid_fill_indices;
+use crate::grid_helpers::{configure_tiling, grid_fill_indices};
 use crate::math::vec::{BasicVec, Vec3};
 use crate::noise::perlin::constants::*;
 use crate::noise::perlin::containers::*;
@@ -35,6 +35,7 @@ impl<const X: usize, const Y: usize, const Z: usize, const N: usize> PerlinGridN
         frequency: Vec3<f32>,
         weight: f32,
         magnification: f32,
+        tiling: Vec3<Option<u32>>,
     ) {
         let increment: Vec3<f32> = frequency * magnification;
         let block_pos: Vec3<i32> = position * Vec3::new(Z as i32, Y as i32, X as i32);
@@ -64,6 +65,9 @@ impl<const X: usize, const Y: usize, const Z: usize, const N: usize> PerlinGridN
         grid_fill_indices(&mut y_grid_indices, &y_distances, &mut num_loops.y);
         grid_fill_indices(&mut x_grid_indices, &x_distances, &mut num_loops.x);
 
+        // Adjust tiling.
+        let octave_tiling = configure_tiling(&tiling, &frequency);
+
         // Initialize gradient vectors.
         let mut d_vecs: PerlinContainer3D<X> = unsafe { PerlinContainer3D::new_uninit() };
 
@@ -89,6 +93,7 @@ impl<const X: usize, const Y: usize, const Z: usize, const N: usize> PerlinGridN
                 &x_grid_indices,
                 num_loops.x,
                 &x_distances,
+                &octave_tiling,
             );
 
             // Iterate through single x chunks but full y chunks.
@@ -113,6 +118,7 @@ impl<const X: usize, const Y: usize, const Z: usize, const N: usize> PerlinGridN
                     &x_grid_indices,
                     num_loops.x,
                     &x_distances,
+                    &octave_tiling,
                 );
 
                 // Perform dot products on x,y and trilinear interpolation (with quintic fade).
@@ -155,16 +161,23 @@ impl<const X: usize, const Y: usize, const Z: usize, const N: usize> PerlinGridN
         x_grid_indices: &SimdArray<u32, X>,
         x_num_loops: usize,
         x_distances: &SimdArray<f32, X>,
+        tiling: &Vec3<Option<u32>>,
     ) {
-        let x1 = (z_start as u32).wrapping_mul(seed);
-        let x2 = x1.wrapping_add(seed);
-        let z_vec_front = ArchSimd::splat(x1);
-        let z_vec_back = ArchSimd::splat(x2);
-        let y_vec = ArchSimd::splat((y_start as u32).wrapping_mul(seed));
+        let (z1, z2) = match tiling.z {
+            None => (
+                (z_start as u32).wrapping_mul(seed),
+                (z_start as u32).wrapping_mul(seed).wrapping_add(seed),
+            ),
+            Some(t) => (
+                (z_start % t as i32) as u32,
+                ((z_start + 1) % t as i32) as u32,
+            ),
+        };
+        let (z_vec_front, z_vec_back) = (ArchSimd::splat(z1), ArchSimd::splat(z2));
 
-        let iota_vec = ArchSimd::iota(0) * ArchSimd::splat(seed);
-        let mut x_vec = ArchSimd::splat((x_start as u32).wrapping_mul(seed)) + iota_vec;
-        let x_vec_stride = ArchSimd::splat((ArchSimd::<f32>::LANES as u32).wrapping_mul(seed));
+        let y_rem = tiling.y
+            .map_or(y_start, |t| y_start % t as i32);
+        let y_vec = ArchSimd::splat((y_rem as u32).wrapping_mul(seed));
 
         const BYTE_SHUFFLE: [u8; 64] = [
             3, 0, 2, 1, 7, 4, 6, 5, 11, 8, 10, 9, 15, 12, 14, 13, 3, 0, 2, 1, 7, 4, 6, 5, 11, 8,
@@ -188,13 +201,39 @@ impl<const X: usize, const Y: usize, const Z: usize, const N: usize> PerlinGridN
 
         // Main vectorized bit mixing loop.
         let end_index = x_num_loops as usize + 1;
-        for i in (0..end_index).step_by(ArchSimd::<f32>::LANES) {
-            let x_shuf = x_vec.permute_8(shuffle_indices) ^ prime;
-            unsafe {
-                grad_array_front.store_simd_tail_checked(i, (xy_mix_front * x_shuf) >> 29);
-                grad_array_back.store_simd_tail_checked(i, (xy_mix_back * x_shuf) >> 29);
+
+        if tiling.x.is_none() {
+            let iota_vec = ArchSimd::iota(0) * ArchSimd::splat(seed);
+            let mut x_vec = ArchSimd::splat((x_start as u32).wrapping_mul(seed)) + iota_vec;
+            let x_vec_stride = ArchSimd::splat((ArchSimd::<f32>::LANES as u32).wrapping_mul(seed));
+
+            for i in (0..end_index).step_by(ArchSimd::<f32>::LANES) {
+                let x_shuf = x_vec.permute_8(shuffle_indices) ^ prime;
+                unsafe {
+                    grad_array_front.store_simd_tail_checked(i, (xy_mix_front * x_shuf) >> 29);
+                    grad_array_back.store_simd_tail_checked(i, (xy_mix_back * x_shuf) >> 29);
+                }
+                x_vec += x_vec_stride;
             }
-            x_vec += x_vec_stride;
+        } else {
+            let x_tiling = ArchSimd::splat(tiling.x.unwrap() as f32);
+            let mut x_vec = ArchSimd::splat(x_start) + ArchSimd::iota(0);
+            let x_vec_stride = ArchSimd::splat(ArchSimd::<f32>::LANES as i32);
+            let seed_vec = ArchSimd::splat(seed);
+
+            for i in (0..end_index).step_by(ArchSimd::<f32>::LANES) {
+                let x_floats = x_vec.cast_float();
+                let x_rem = x_floats - (x_floats / x_tiling).floor() * x_tiling;
+                let x_seeded = x_rem.cast_int_round().raw_cast() * seed_vec;
+
+                let x_shuf = x_seeded.permute_8(shuffle_indices) ^ prime;
+                unsafe {
+                    grad_array_front.store_simd_tail_checked(i, (xy_mix_front * x_shuf) >> 29);
+                    grad_array_back.store_simd_tail_checked(i, (xy_mix_back * x_shuf) >> 29);
+                }
+
+                x_vec += x_vec_stride;
+            }
         }
 
         Self::grid_gradients_3d_set_loop(&grad_array_front, lf, rf, x_grid_indices, x_num_loops);

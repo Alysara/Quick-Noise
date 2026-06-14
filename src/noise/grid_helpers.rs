@@ -1,5 +1,6 @@
-use crate::simd::arch_simd::{ArchSimd};
-use crate::simd::simd_array::{SimdArray};
+use crate::math::vec::{ArithmeticVec, BasicVec};
+use crate::simd::arch_simd::ArchSimd;
+use crate::simd::simd_array::SimdArray;
 use crate::simd::simd_traits::*;
 
 #[inline(always)]
@@ -74,4 +75,29 @@ pub(super) fn grid_fill_indices<const M: usize>(
     // Write sentinel.
     unsafe { indices_ptr.add(write_idx).write(M as u32) };
     *num_loops = write_idx + 1;
+}
+
+#[inline(always)]
+pub(crate) fn configure_tiling<T: BasicVec<Option<u32>>, F: ArithmeticVec<f32>>(
+    tiling: &T,
+    frequency: &F,
+) -> T {
+    // Adjust the tiling.
+    let mut octave_tiling = *tiling;
+    octave_tiling
+        .as_mut_slice()
+        .iter_mut()
+        .enumerate()
+        .for_each(|(i, x)| {
+            if let Some(val) = x {
+                let float = *val as f32 * frequency[i];
+                let nearness = (float - float.round()).abs();
+                assert!(
+                    nearness < 0.001,
+                    "Frequency does not align with the tiling!"
+                );
+                *val = (*val as f32 * frequency[i]) as u32;
+            }
+        });
+    octave_tiling
 }

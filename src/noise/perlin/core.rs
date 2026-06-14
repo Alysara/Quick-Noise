@@ -14,6 +14,7 @@ impl GridNoise for Perlin {
         frequency: Vec2<f32>,
         weight: f32,
         magnification: f32,
+        tiling: Vec2<Option<u32>>,
     ) {
         PerlinGridNoise2D::<X, Y, N>::grid_2d::<INITIALIZE>(
             seed,
@@ -22,6 +23,7 @@ impl GridNoise for Perlin {
             frequency,
             weight,
             magnification,
+            tiling,
         );
     }
 
@@ -38,6 +40,7 @@ impl GridNoise for Perlin {
         frequency: Vec3<f32>,
         weight: f32,
         magnification: f32,
+        tiling: Vec3<Option<u32>>,
     ) {
         PerlinGridNoise3D::<X, Y, Z, N>::grid_3d::<INITIALIZE>(
             seed,
@@ -46,6 +49,7 @@ impl GridNoise for Perlin {
             frequency,
             weight,
             magnification,
+            tiling,
         );
     }
 }

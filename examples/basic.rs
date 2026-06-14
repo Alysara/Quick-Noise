@@ -17,10 +17,15 @@ use quick_noise::{Batch2D, Batch3D, Cellular, Grid2D, Grid3D, Octave2D, Perlin};
 
 #[cfg(feature = "image")]
 fn main() {
-    let grid_2d = Grid2D::<32, 32, 1024>::new().position(0, 0).seed(102);
-    // let grid_3d = Grid3D::<50, 50, 50, 125000>::new()
-    //     .position(0, 0, 0)
-    //     .seed(103);
+    let grid_2d = Grid2D::<512, 512, 262144>::new()
+        .position(0, 0)
+        .tiling(None, Some(32))
+        .seed(102);
+
+    let grid_3d = Grid3D::<64, 64, 64, 262144>::new()
+        .position(0, 0, 0)
+        .tiling(Some(32), Some(32), Some(32))
+        .seed(103);
 
     // grid_2d
     //     .fbm::<Perlin>()
@@ -31,17 +36,17 @@ fn main() {
     //
     // // Custom Octaves
 
-    let octave_list = vec![
-        // Creates octaves from frequency and weight.
-        Octave2D::splat(0.05, 7.0),
-        Octave2D::splat(0.02, 4.0),
-        Octave2D::splat(0.03, 15.0),
-        Octave2D::splat(0.04, 9.0),
-        Octave2D::splat(0.05, 15.0),
-        // Allows axis-specific granularity for frequency.
-        // This creates 'stretched' noise.
-        Octave2D::new(Vec2::new(0.01, 0.015), 50.0),
-    ];
+    // let octave_list = vec![
+    //     // Creates octaves from frequency and weight.
+    //     Octave2D::splat(0.05, 7.0),
+    //     Octave2D::splat(0.02, 4.0),
+    //     Octave2D::splat(0.03, 15.0),
+    //     Octave2D::splat(0.04, 9.0),
+    //     Octave2D::splat(0.05, 15.0),
+    //     // Allows axis-specific granularity for frequency.
+    //     // This creates 'stretched' noise.
+    //     Octave2D::new(Vec2::new(0.01, 0.015), 50.0),
+    // ];
 
     // FBM Grid noise with all parameters.
     // let noise = grid_2d
@@ -60,7 +65,34 @@ fn main() {
     //     .into_iter()
     //     .to_grayscale_image::<500, 500>("noise_images/perlin_custom_2d.png");
 
-    let noise1 = grid_2d.fbm::<Perlin>().octaves(1).seed(0).build();
+    // let noise1 = grid_2d.fbm::<Perlin>().octaves(1).seed(0).build();
+
+    // let grid_2d = Grid2D::<512, 512, 262144>::new()
+    //   .position(0, 0)
+    //   .seed(100)
+    //   .tiling(Some(128), Some(128));
+    //
+    // grid_2d.fbm::<Perlin>()
+    //   .octaves(6)
+    //   .frequency(1.0 / 128.0)
+    //   .into_iter()
+    //   .to_grayscale_image::<512, 512>("noise_images/perlin_tiles_2d.png");
+
+    grid_3d.fbm::<Perlin>()
+        .seed(81)
+        .octaves(4)
+        .frequency(1.0 / 16.0)
+        .into_iter()
+        .to_grayscale_image::<64, 4096>("noise_images/perlin_tiling_3d.png");
+
+    // grid_2d
+    //     .fbm::<Perlin>()
+    //     .seed(47)
+    //     .octaves(6)
+    //     .frequency(1.0 / 32.0)
+    //     .into_iter()
+    //     .to_grayscale_image::<512, 512>("noise_images/perlin_tiling_test.png");
+
     // let noise2 = grid_2d.fbm::<Perlin>().octaves(6).seed(1).into_iter();
     // grid_2d
     //     .warp::<Perlin>(noise1, noise2)
@@ -73,10 +105,10 @@ fn main() {
     //     .octaves(6)
     //     .frequency(0.01)
     //     .build();
-        // .into_iter()
-        // .to_grayscale_image::<500, 300>("noise_images/perlin_batch_2d.png");
+    // .into_iter()
+    // .to_grayscale_image::<500, 300>("noise_images/perlin_batch_2d.png");
 
-    black_box(&noise1);
+    // black_box(&noise1);
 
     // Batch3D::fbm::<Perlin, 125000>(grid_3d.x_iter(), grid_3d.y_iter(), grid_3d.z_iter())
     //     .octaves(1)

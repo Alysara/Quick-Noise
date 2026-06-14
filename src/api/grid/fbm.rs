@@ -82,6 +82,7 @@ impl<
             frequency,
             weight,
             magnification,
+            self.grid_config.tiling,
         );
 
         // Subsequent octaves:
@@ -97,6 +98,7 @@ impl<
                 frequency,
                 weight,
                 magnification,
+                self.grid_config.tiling,
             );
         }
     }

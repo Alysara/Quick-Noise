@@ -56,10 +56,10 @@ fn grid_perlin_2d_benchmark(c: &mut Criterion) {
 fn grid_perlin_3d_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("perlin_noise_2d");
     for scale in SCALES {
-        group.throughput(Throughput::Elements(32768));
+        group.throughput(Throughput::Elements(4096));
 
-        let grid = Grid3D::<32, 32, 32, 32768>::new();
-        let mut result = unsafe { SimdArray::<f32, 32768>::new_uninit() };
+        let grid = Grid3D::<16, 16, 16, 4096>::new();
+        let mut result = unsafe { SimdArray::<f32, 4096>::new_uninit() };
 
         group.bench_function(format!("scale: {scale}"), |b| {
             b.iter(|| {

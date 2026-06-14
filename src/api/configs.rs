@@ -100,6 +100,7 @@ impl<'a, D: NoiseDimension> CustomBuilderConfig<'a, D> {
 pub(crate) struct GridConfig<D: NoiseDimension> {
     pub(crate) grid_seed: u64,
     pub(crate) position: D::IVec,
+    pub(crate) tiling: D::Vec<Option<u32>>,
 }
 impl<D: NoiseDimension> Copy for GridConfig<D> {}
 impl<D: NoiseDimension> Clone for GridConfig<D> {
