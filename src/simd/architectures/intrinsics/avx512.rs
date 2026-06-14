@@ -232,7 +232,7 @@ impl SimdPermuteImpl for Avx512Reg {
     }
     #[inline(always)]
     fn permute_8(self, rhs: Self) -> Self {
-        self_from_op!(_mm512_shuffle_epi8, rhs, self)
+        self_from_op!(_mm512_shuffle_epi8, self, rhs)
     }
 }
 
