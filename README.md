@@ -62,7 +62,7 @@ let noise = grid_2d.fbm::<Perlin>()
 	.build();
 ```
 
-Currently, only Perlin is supported for grid noise. For octave sequences more complicated than FBM noise,
+Currently, only Perlin and Value is supported for grid noise. For octave sequences more complicated than FBM noise,
 `custom` can be used for granular control over frequencies and weights.
 
 ```rs
@@ -216,6 +216,15 @@ over a 32x32 size.
 | 1 / 8     | 5.48 B/s       | 8.22 B/s       | 8.74 B/s         | 20.9 B/s         |
 | 1 / 4     | 2.82 B/s       | 3.20 B/s       | 4.73 B/s         | 5.42 B/s         |
 
+| Frequency | 2D Value AVX2 | 3D Value AVX2 |
+|-----------|---------------|---------------|
+| 1 / 64    | 13.6 B/s      | 24.6 B/s      |
+| 1 / 48    | 13.6 B/s      | 24.6 B/s      |
+| 1 / 32    | 13.6 B/s      | 24.6 B/s      |
+| 1 / 24    | 11.6 B/s      | 24.6 B/s      |
+| 1 / 16    | 11.5 B/s      | 24.6 B/s      |
+| 1 / 8     | 8.78 B/s      | 16.2 B/s      |
+| 1 / 4     | 4.60 B/s      | 6.50 B/s      |
 
 ## Batch Noise
 

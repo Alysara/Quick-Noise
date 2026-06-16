@@ -137,6 +137,7 @@ impl<const N: usize> PerlinContainer2D<N> {
         std::mem::swap(&mut self.tr, &mut self.br);
     }
 }
+
 pub struct PerlinContainer3D<const N: usize> {
     vecs: [Vec3<SimdArray<f32, N>>; 8],
     tlf: usize, // Top left front.

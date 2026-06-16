@@ -26,6 +26,8 @@ pub mod simplex {
 pub mod value {
     mod batched;
     mod core;
+    mod grid_2d;
+    mod grid_3d;
     pub use core::Value;
 }
 

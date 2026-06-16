@@ -13,19 +13,54 @@ use quick_noise::testing::profiler;
 use quick_noise::testing::profiler as unofficial_profiler;
 // use criterion::profiler;
 // use quick_noise::emit::grayscale;
-use quick_noise::{Batch2D, Batch3D, Cellular, Grid2D, Grid3D, Octave2D, Perlin};
+use quick_noise::{Batch2D, Batch3D, Cellular, Grid2D, Grid3D, Octave2D, Perlin, Value};
 
 #[cfg(feature = "image")]
 fn main() {
     let grid_2d = Grid2D::<512, 512, 262144>::new()
         .position(0, 0)
-        .tiling(None, Some(32))
-        .seed(102);
+        .tiling(Some(128), Some(128))
+        .seed(104);
 
     let grid_3d = Grid3D::<64, 64, 64, 262144>::new()
         .position(0, 0, 0)
-        .tiling(Some(32), Some(32), Some(32))
         .seed(103);
+
+    let mut array = unsafe { SimdArray::<f32, 262144>::new_uninit() };
+
+    grid_2d
+        .fbm::<Perlin>()
+        .octaves(2)
+        .frequency(1.0 / 64.0)
+        .amplitude(0.75)
+        .fill(&mut array);
+
+    grid_2d
+        .fbm::<Value>()
+        .octaves(6)
+        .frequency(1.0 / 32.0)
+        .amplitude(0.25)
+        .fill_onto(&mut array);
+
+    array
+        .into_iter()
+        .to_grayscale_image::<512, 512>("noise_images/perlin_value_grid_combo.png");
+
+    // .into_iter()
+    // .to_grayscale_image::<512, 512>("noise_images/value_grid_2d.png");
+
+    // grid_3d
+    //     .fbm::<Value>()
+    //     .octaves(1)
+    //     .frequency(1.0 / 4.0)
+    //     .into_iter()
+    //     .to_grayscale_image::<64, 64>("noise_images/value_grid_3d.png");
+    //
+    // Batch3D::fbm::<Value, 262144>(grid_3d.x_iter(), grid_3d.y_iter(), grid_3d.z_iter())
+    //     .octaves(1)
+    //     .frequency(1.0 / 4.0)
+    //     .into_iter()
+    //     .to_grayscale_image::<64, 64>("noise_images/value_batch_3d.png");
 
     // grid_2d
     //     .fbm::<Perlin>()
@@ -78,12 +113,12 @@ fn main() {
     //   .into_iter()
     //   .to_grayscale_image::<512, 512>("noise_images/perlin_tiles_2d.png");
 
-    grid_3d.fbm::<Perlin>()
-        .seed(81)
-        .octaves(4)
-        .frequency(1.0 / 16.0)
-        .into_iter()
-        .to_grayscale_image::<64, 4096>("noise_images/perlin_tiling_3d.png");
+    // grid_3d.fbm::<Perlin>()
+    //     .seed(81)
+    //     .octaves(4)
+    //     .frequency(1.0 / 16.0)
+    //     .into_iter()
+    //     .to_grayscale_image::<64, 4096>("noise_images/perlin_tiling_3d.png");
 
     // grid_2d
     //     .fbm::<Perlin>()

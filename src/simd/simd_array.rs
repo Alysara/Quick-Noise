@@ -650,7 +650,8 @@ impl<T: SimdElement, const N: usize> SimdArray<T, N> {
     pub fn masked_store_simd(&mut self, index: usize, vec: ArchSimd<T>, mask: ArchMask<T>) {
         assert!(
             index <= Self::TAIL_START,
-            "Index is out of bounds! Index: {index}, N Size: {N}, Num lanes: {}", ArchSimd::<T>::LANES, 
+            "Index is out of bounds! Index: {index}, N Size: {N}, Num lanes: {}",
+            ArchSimd::<T>::LANES,
         );
         unsafe {
             vec.masked_store(self.data.assume_init_mut().get_unchecked_mut(index..), mask);
@@ -1039,6 +1040,15 @@ impl<T: SimdFloat, const N: usize> SimdArray<T, N> {
 
         self.iter()
             .map(|t| t * t * t * t.mul_add(t.mul_add(six, neg_fifteen), ten))
+            .collect()
+    }
+
+    pub fn cubic_lerp(&self) -> Self {
+        let neg_two = ArchSimd::splat(NumCast::from(-2.0).unwrap());
+        let three = ArchSimd::splat(NumCast::from(3.0).unwrap());
+
+        self.iter()
+            .map(|t| t * t * t.mul_add(neg_two, three))
             .collect()
     }
 }
