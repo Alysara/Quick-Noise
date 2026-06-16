@@ -127,5 +127,5 @@ fn batch_2d_benchmark(c: &mut Criterion) {
 }
 
 // criterion_group!(benches, simd_array_benchmark, simd_vec_benchmark);
-criterion_group!(benches, grid_value_2d_benchmark);
+criterion_group!(benches, grid_value_3d_benchmark);
 criterion_main!(benches);

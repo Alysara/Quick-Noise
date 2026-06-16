@@ -15,7 +15,7 @@ use crate::math::vec::{Vec2, Vec3};
 use crate::simd::arch_simd::ArchSimd;
 use crate::simd::simd_array::SimdArray;
 use crate::simd::simd_traits::*;
-use crate::{BatchNoise, EmptyIter, Grid2D, Grid3D, ZeroIter};
+use crate::{BatchNoise, Dim2, Dim3, EmptyIter, Grid2D, Grid3D, ZeroIter};
 
 pub struct FbmGridWarpBuilder<
     T: BatchNoise,
@@ -58,6 +58,26 @@ params_fbm_builder!(
         ZIter: Iterator<Item = ArchSimd<f32>>
     ],
     [T, D, X, Y, Z, N, XIter, YIter, ZIter]
+);
+
+params_fbm_scaling_2d!(
+    FbmGridWarpBuilder,
+    [T: BatchNoise, const X: usize, const Y: usize, const Z: usize, const N: usize,
+        XIter: Iterator<Item = ArchSimd<f32>>,
+        YIter: Iterator<Item = ArchSimd<f32>>,
+        ZIter: Iterator<Item = ArchSimd<f32>>
+    ],
+    [T, Dim2, X, Y, Z, N, XIter, YIter, ZIter]
+);
+
+params_fbm_scaling_3d!(
+    FbmGridWarpBuilder,
+    [T: BatchNoise, const X: usize, const Y: usize, const Z: usize, const N: usize,
+        XIter: Iterator<Item = ArchSimd<f32>>,
+        YIter: Iterator<Item = ArchSimd<f32>>,
+        ZIter: Iterator<Item = ArchSimd<f32>>
+    ],
+    [T, Dim3, X, Y, Z, N, XIter, YIter, ZIter]
 );
 
 params_warp_builder!(
