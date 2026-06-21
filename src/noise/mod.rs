@@ -20,6 +20,7 @@ pub mod perlin {
 pub mod simplex {
     mod batched;
     mod core;
+    mod grid_2d;
     pub use core::Simplex;
 }
 

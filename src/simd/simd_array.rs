@@ -236,6 +236,18 @@ impl<T: SimdElement + fmt::Debug, const N: usize> fmt::Debug for SimdArray<T, N>
     }
 }
 
+impl<T: SimdElement, const N: usize> SimdArray<T, N> {
+    /// Returns a reference to the raw array data inside the SIMD array.
+    pub fn as_array(&self) -> &[T; N] {
+        unsafe { &*(self.data.as_ptr() as *const [T; N]) }
+    }
+
+    /// Returns a mutable reference to the raw array data inside the SIMD array.
+    pub fn as_array_mut(&mut self) -> &mut [T; N] {
+        unsafe { &mut *(self.data.as_mut_ptr() as *mut [T; N]) }
+    }
+}
+
 // ————————————————————————————————————————————————————————————————
 // ————— Simd Access ——————————————————————————————————————————————
 // ————————————————————————————————————————————————————————————————
@@ -666,14 +678,18 @@ impl<T: SimdElement, const N: usize> SimdArray<T, N> {
 impl<T: SimdElement, const N: usize> Add for SimdArray<T, N> {
     type Output = SimdArray<T, N>;
     fn add(self, rhs: Self) -> SimdArray<T, N> {
-        izip!(self.iter(), rhs.iter()).map(|(x, y)| x + y).collect()
+        izip!(self.iter_simd(), rhs.iter_simd())
+            .map(|(x, y)| x + y)
+            .collect()
     }
 }
 
 impl<T: SimdElement, const N: usize> Sub for SimdArray<T, N> {
     type Output = SimdArray<T, N>;
     fn sub(self, rhs: Self) -> SimdArray<T, N> {
-        izip!(self.iter(), rhs.iter()).map(|(x, y)| x - y).collect()
+        izip!(self.iter_simd(), rhs.iter_simd())
+            .map(|(x, y)| x - y)
+            .collect()
     }
 }
 
@@ -684,7 +700,9 @@ where
 {
     type Output = SimdArray<T, N>;
     fn mul(self, rhs: Self) -> SimdArray<T, N> {
-        izip!(self.iter(), rhs.iter()).map(|(x, y)| x * y).collect()
+        izip!(self.iter_simd(), rhs.iter_simd())
+            .map(|(x, y)| x * y)
+            .collect()
     }
 }
 
@@ -694,7 +712,9 @@ where
 {
     type Output = SimdArray<T, N>;
     fn div(self, rhs: Self) -> SimdArray<T, N> {
-        izip!(self.iter(), rhs.iter()).map(|(x, y)| x / y).collect()
+        izip!(self.iter_simd(), rhs.iter_simd())
+            .map(|(x, y)| x / y)
+            .collect()
     }
 }
 
@@ -704,7 +724,7 @@ where
 
 impl<T: SimdElement, const N: usize> AddAssign for SimdArray<T, N> {
     fn add_assign(&mut self, rhs: Self) {
-        izip!(self.iter_mut(), rhs.iter())
+        izip!(self.iter_mut_simd(), rhs.iter_simd())
             .map(|(mut x, y)| *x += y)
             .collect()
     }
@@ -712,7 +732,7 @@ impl<T: SimdElement, const N: usize> AddAssign for SimdArray<T, N> {
 
 impl<T: SimdElement, const N: usize> SubAssign for SimdArray<T, N> {
     fn sub_assign(&mut self, rhs: Self) {
-        izip!(self.iter_mut(), rhs.iter())
+        izip!(self.iter_mut_simd(), rhs.iter_simd())
             .map(|(mut x, y)| *x -= y)
             .collect()
     }
@@ -723,7 +743,7 @@ where
     ArchSimd<T>: MulAssign,
 {
     fn mul_assign(&mut self, rhs: Self) {
-        izip!(self.iter_mut(), rhs.iter())
+        izip!(self.iter_mut_simd(), rhs.iter_simd())
             .map(|(mut x, y)| *x *= y)
             .collect()
     }
@@ -734,7 +754,7 @@ where
     ArchSimd<T>: DivAssign,
 {
     fn div_assign(&mut self, rhs: Self) {
-        izip!(self.iter_mut(), rhs.iter())
+        izip!(self.iter_mut_simd(), rhs.iter_simd())
             .map(|(mut x, y)| *x /= y)
             .collect()
     }
@@ -743,7 +763,7 @@ where
 impl<T: SimdElement, const N: usize> Neg for SimdArray<T, N> {
     type Output = SimdArray<T, N>;
     fn neg(self) -> SimdArray<T, N> {
-        self.iter().map(|x| -x).collect()
+        self.iter_simd().map(|x| -x).collect()
     }
 }
 
@@ -860,7 +880,7 @@ where
 
         let mut cur_vec = ArchSimd::splat(offset) + iota_vec;
         let mut result = unsafe { Self::new_uninit() };
-        let mut iter = result.iter_mut();
+        let mut iter = result.iter_mut_simd();
 
         // Set first chunk first to avoid unnecessary tail increment.
         // (Also profiled +2% performance improvement).
@@ -893,7 +913,7 @@ where
         let mut cur_vec = ArchSimd::iota(offset);
 
         let mut result = unsafe { Self::new_uninit() };
-        let mut iter = result.iter_mut();
+        let mut iter = result.iter_mut_simd();
 
         // Set first chunk first to avoid unnecessary tail increment.
         // (Also profiled +2% performance improvement).
@@ -927,7 +947,7 @@ impl<T: SimdFloat, const N: usize> SimdArray<T, N> {
     ///
     /// assert_eq!(new_arr[0], 0.5);
     pub fn fract(&self) -> Self {
-        self.iter().map(|x| x.fract()).collect()
+        self.iter_simd().map(|x| x.fract()).collect()
     }
 
     // TODO: extend max and min to integer types.
@@ -950,7 +970,7 @@ impl<T: SimdFloat, const N: usize> SimdArray<T, N> {
     /// assert_eq!(max_arr[0], 15.0);
     pub fn max(&self, val: T) -> Self {
         let max_vec = ArchSimd::splat(val);
-        self.iter().map(|x| x.max(max_vec)).collect()
+        self.iter_simd().map(|x| x.max(max_vec)).collect()
     }
 
     /// Creates a new [`SimdArray`] containing the values of another
@@ -972,7 +992,7 @@ impl<T: SimdFloat, const N: usize> SimdArray<T, N> {
     /// assert_eq!(min_arr[0], 14.5);
     pub fn min(&self, val: T) -> Self {
         let min_vec = ArchSimd::splat(val);
-        self.iter().map(|x| x.min(min_vec)).collect()
+        self.iter_simd().map(|x| x.min(min_vec)).collect()
     }
 }
 
@@ -998,7 +1018,7 @@ impl<T: SimdFloat, const N: usize> SimdArray<T, N> {
     /// assert_eq!(result[0], 14.0);
     /// ```
     pub fn mul_add(self, mult: Self, offset: Self) -> Self {
-        izip!(self.iter(), mult.iter(), offset.iter())
+        izip!(self.iter_simd(), mult.iter_simd(), offset.iter_simd())
             .map(|(a, b, c)| a.mul_add(b, c))
             .collect()
     }
@@ -1024,7 +1044,7 @@ impl<T: SimdFloat, const N: usize> SimdArray<T, N> {
     /// assert_eq!(result[0], 2.0);
     /// ```
     pub fn mul_sub(self, mult: Self, offset: Self) -> Self {
-        izip!(self.iter(), mult.iter(), offset.iter())
+        izip!(self.iter_simd(), mult.iter_simd(), offset.iter_simd())
             .map(|(a, b, c)| a.mul_sub(b, c))
             .collect()
     }
@@ -1038,7 +1058,7 @@ impl<T: SimdFloat, const N: usize> SimdArray<T, N> {
         let ten = ArchSimd::splat(NumCast::from(10.0).unwrap());
         let neg_fifteen = ArchSimd::splat(NumCast::from(-15.0).unwrap());
 
-        self.iter()
+        self.iter_simd()
             .map(|t| t * t * t * t.mul_add(t.mul_add(six, neg_fifteen), ten))
             .collect()
     }
@@ -1047,7 +1067,7 @@ impl<T: SimdFloat, const N: usize> SimdArray<T, N> {
         let neg_two = ArchSimd::splat(NumCast::from(-2.0).unwrap());
         let three = ArchSimd::splat(NumCast::from(3.0).unwrap());
 
-        self.iter()
+        self.iter_simd()
             .map(|t| t * t * t.mul_add(neg_two, three))
             .collect()
     }
@@ -1255,13 +1275,13 @@ impl<T: SimdElement, const N: usize> SimdArray<T, N> {
     /// let scale = ArchSimd::splat(2.0);
     ///
     /// let new_arr: SimdArray::<f32, 35> =
-    ///     arr.iter()
+    ///     arr.iter_simd()
     ///        .map(|x| x * scale)
     ///        .collect();
     ///
     /// assert_eq!(new_arr[2], 1.6);
     /// ```
-    pub fn iter(&self) -> SimdArrayIter<'_, T, N> {
+    pub fn iter_simd(&self) -> SimdArrayIter<'_, T, N> {
         SimdArrayIter {
             array: self,
             index: 0,
@@ -1283,12 +1303,12 @@ impl<T: SimdElement, const N: usize> SimdArray<T, N> {
     /// let mut arr = SimdArray::<f32, 35>::iota_custom(0.0, 0.4);
     /// let scale = ArchSimd::splat(2.0);
     ///
-    /// arr.iter_mut()
+    /// arr.iter_mut_simd()
     ///    .for_each(|mut x| *x *= scale);
     ///
     /// assert_eq!(arr[2], 1.6);
     /// ```
-    pub fn iter_mut(&mut self) -> SimdArrayIterMut<'_, T, N> {
+    pub fn iter_mut_simd(&mut self) -> SimdArrayIterMut<'_, T, N> {
         SimdArrayIterMut {
             array: self,
             index: 0,
