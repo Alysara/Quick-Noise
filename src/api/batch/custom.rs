@@ -100,6 +100,16 @@ params_general_builder!(
     ['a, T, D, N, XIter, YIter, ZIter]
 );
 
+params_grided_seed_builder!(
+    CustomBatchBuilder,
+    ['a, T: BatchNoise, D: NoiseDimension, const N: usize,
+        XIter: Iterator<Item = ArchSimd<f32>>,
+        YIter: Iterator<Item = ArchSimd<f32>>,
+        ZIter: Iterator<Item = ArchSimd<f32>>
+    ],
+    ['a, T, D, N, XIter, YIter, ZIter]
+);
+
 impl<'a, T: BatchNoise, D: NoiseDimension, const N: usize, XIter, YIter, ZIter>
     CustomBatchBuilder<'a, T, D, N, XIter, YIter, ZIter>
 where

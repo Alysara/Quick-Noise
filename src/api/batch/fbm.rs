@@ -116,6 +116,16 @@ params_general_builder!(
     [T, D, N, XIter, YIter, ZIter]
 );
 
+params_grided_seed_builder!(
+    FbmBatchBuilder,
+    [T: BatchNoise, D: NoiseDimension, const N: usize,
+        XIter: Iterator<Item = ArchSimd<f32>>,
+        YIter: Iterator<Item = ArchSimd<f32>>,
+        ZIter: Iterator<Item = ArchSimd<f32>>
+    ],
+    [T, D, N, XIter, YIter, ZIter]
+);
+
 params_fbm_builder!(
     FbmBatchBuilder,
     [T: BatchNoise, D: NoiseDimension, const N: usize,

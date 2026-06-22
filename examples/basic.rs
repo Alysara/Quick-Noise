@@ -17,34 +17,47 @@ use quick_noise::{Batch2D, Batch3D, Cellular, Grid2D, Grid3D, Octave2D, Perlin, 
 
 #[cfg(feature = "image")]
 fn main() {
+    const GRID_SEED: i64 = 124384833;
+    const FBM_SEED: i64 = 911919;
     let grid_2d = Grid2D::<512, 512, 262144>::new()
         .position(0, 0)
-        .tiling(Some(128), Some(128))
-        .seed(104);
+        .seed(GRID_SEED);
 
-    let grid_3d = Grid3D::<64, 64, 64, 262144>::new()
-        .position(0, 0, 0)
-        .seed(103);
+    // let grid_3d = Grid3D::<64, 64, 64, 262144>::new()
+    //     .position(0, 0, 0)
+    //     .seed(103);
 
-    let mut array = unsafe { SimdArray::<f32, 262144>::new_uninit() };
-
-    grid_2d
-        .fbm::<Perlin>()
-        .octaves(2)
-        .frequency(1.0 / 64.0)
-        .amplitude(0.75)
-        .fill(&mut array);
-
-    grid_2d
-        .fbm::<Value>()
-        .octaves(6)
-        .frequency(1.0 / 32.0)
-        .amplitude(0.25)
-        .fill_onto(&mut array);
-
-    array
+    grid_2d.fbm::<Perlin>()
+        .octaves(1)
+        .seed(FBM_SEED)
         .into_iter()
-        .to_grayscale_image::<512, 512>("noise_images/perlin_value_grid_combo.png");
+        .to_grayscale_image::<512, 512>("noise_images/perlin_grid_2d_seeded.png");
+
+    Batch2D::fbm::<Perlin, 262144>(grid_2d.x_iter(), grid_2d.y_iter())
+        .octaves(1)
+        .seed_with_grid(GRID_SEED, FBM_SEED)
+        .into_iter()
+        .to_grayscale_image::<512, 512>("noise_images/perlin_batch_2d_seeded.png");
+
+    // let mut array = unsafe { SimdArray::<f32, 262144>::new_uninit() };
+
+    // grid_2d
+    //     .fbm::<Perlin>()
+    //     .octaves(2)
+    //     .frequency(1.0 / 64.0)
+    //     .amplitude(0.75)
+    //     .fill(&mut array);
+
+    // grid_2d
+    //     .fbm::<Value>()
+    //     .octaves(6)
+    //     .frequency(1.0 / 32.0)
+    //     .amplitude(0.25)
+    //     .fill_onto(&mut array);
+
+    // array
+        // .into_iter()
+        // .to_grayscale_image::<512, 512>("noise_images/perlin_value_grid_combo.png");
 
     // .into_iter()
     // .to_grayscale_image::<512, 512>("noise_images/value_grid_2d.png");

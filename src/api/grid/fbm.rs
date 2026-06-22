@@ -62,7 +62,7 @@ impl<
         let magnification = self.general_config.magnification;
 
         let seed =
-            Random::static_mix_u64_pair(self.general_config.seed, self.grid_config.grid_seed);
+            Random::static_mix_u64_pair(self.grid_config.grid_seed, self.general_config.seed);
 
         // FBM algorithm:
         let mut frequency = self.fbm_config.scaling * D::FVec::splat(self.fbm_config.frequency);

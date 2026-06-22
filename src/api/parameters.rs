@@ -48,6 +48,23 @@ macro_rules! declare_fill_onto {
 }
 pub(crate) use declare_fill_onto;
 
+macro_rules! params_grided_seed_builder {
+    ($name:ident, [ $($full_generics:tt)* ], [ $($short_generics:tt)* ]) => {
+        impl< $($full_generics)* > $name< $($short_generics)* > {
+            /// Determines the psuedo-random values used in noise generation.
+            /// Can reproduce the same noise output as grid noise given the
+            /// same grid seed + noise seed pair.
+            pub fn seed_with_grid(mut self, grid_seed: i64, noise_seed: i64) -> Self {
+                let grid_seed = Random::static_mix_u64(grid_seed as u64);
+                let noise_seed = Random::static_mix_u64(noise_seed as u64 ^ 0xD5E7B3C94F8A1E6B);
+                self.general_config.seed = Random::static_mix_u64_pair(grid_seed, noise_seed);
+                self
+            }
+        }
+    };
+}
+pub(crate) use params_grided_seed_builder;
+
 macro_rules! params_general_builder {
     ($name:ident, [ $($full_generics:tt)* ], [ $($short_generics:tt)* ]) => {
         impl< $($full_generics)* > $name< $($short_generics)* > {

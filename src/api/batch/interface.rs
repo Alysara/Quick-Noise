@@ -2,6 +2,7 @@ use crate::api::batch::custom::CustomBatchBuilder;
 use crate::api::batch::fbm::FbmBatchBuilder;
 use crate::api::defaults::ZeroIter;
 use crate::api::methods::Octave;
+use crate::math::random::Random;
 use crate::simd::arch_simd::ArchSimd;
 use crate::{Dim2, Dim3};
 
