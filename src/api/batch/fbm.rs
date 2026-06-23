@@ -47,7 +47,7 @@ where
     let mut seeds = [0u32; MAX_FBM_OCTAVES];
     let mut temp_freq = frequency;
     for seed in seeds.iter_mut().take(octaves) {
-        *seed = D::octave_seed(frequency * fbm_config.scaling, general_config.seed);
+        *seed = D::octave_seed(temp_freq * fbm_config.scaling, general_config.seed);
         temp_freq *= D::FVec::splat(fbm_config.lacunarity);
     }
 
@@ -71,15 +71,7 @@ where
         let mut y_freq = freq_tuple.1;
         let mut z_freq = freq_tuple.2;
         let mut weight = ArchSimd::splat(weight);
-        let mut result = D::batch::<T, N>(
-            seed,
-            x,
-            y,
-            z,
-            x_freq,
-            y_freq,
-            z_freq,
-        );
+        let mut result = D::batch::<T, N>(seed, x, y, z, x_freq, y_freq, z_freq) * weight;
 
         for seed in seeds.iter().take(octaves).skip(1) {
             x_freq *= lacunarity;
