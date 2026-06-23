@@ -22,11 +22,11 @@ fn main() {
     const GRID_SEED: i64 = 124384833;
     const FBM_SEED: i64 = 91191912;
     let grid_2d = Grid2D::<512, 512, 262144>::new()
-        .position(0, 0)
+        .position(100000, -100000)
         .seed(GRID_SEED);
 
     let grid_3d = Grid3D::<64, 64, 64, 262144>::new()
-        .position(0, 0, 0)
+        .position(1000, 0, -1000)
         .seed(GRID_SEED);
 
     let n: i64 = SystemTime::now()
@@ -34,20 +34,34 @@ fn main() {
         .unwrap()
         .as_millis() as i64; // or as_secs(), as_nanos()
 
-    grid_2d
+    grid_3d
         .fbm::<Perlin>()
-        .frequency(1. / 128.)
-        .octaves(6)
+        .octaves(1)
         .seed(FBM_SEED)
         .into_iter()
-        .to_grayscale_image::<512, 512>("noise_images/perlin_grid_2d_seeded.png");
+        .to_grayscale_image::<64, 4096>("noise_images/perlin_grid_3d_seeded.png");
 
-    Batch2D::fbm::<Perlin, 262144>(grid_2d.x_iter(), grid_2d.y_iter())
-        .frequency(1. / 128.)
-        .octaves(6)
+    Batch3D::fbm::<Perlin, 262144>(grid_3d.x_iter(), grid_3d.y_iter(), grid_3d.z_iter())
+        .octaves(1)
         .seed_with_grid(GRID_SEED, FBM_SEED)
         .into_iter()
-        .to_grayscale_image::<512, 512>("noise_images/perlin_batch_2d_seeded.png");
+        .to_grayscale_image::<64, 4096>("noise_images/perlin_batch_3d_seeded.png");
+
+
+    // grid_2d
+    //     .fbm::<Perlin>()
+    //     .octaves(6)
+    //     .frequency(1. / 128.)
+    //     .seed(FBM_SEED)
+    //     .into_iter()
+    //     .to_grayscale_image::<512, 512>("noise_images/perlin_grid_2d_seeded.png");
+    //
+    // Batch2D::fbm::<Perlin, 262144>(grid_2d.x_iter(), grid_2d.y_iter())
+    //     .octaves(6)
+    //     .frequency(1. / 128.)
+    //     .seed_with_grid(GRID_SEED, FBM_SEED)
+    //     .into_iter()
+    //     .to_grayscale_image::<512, 512>("noise_images/perlin_batch_2d_seeded.png");
 
     // let mut array = unsafe { SimdArray::<f32, 262144>::new_uninit() };
 

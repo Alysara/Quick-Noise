@@ -79,7 +79,7 @@ where
             z_freq *= lacunarity;
             weight *= persistence;
             result =
-                D::batch::<T, N>(*seed, x, y, z, x_freq, x_freq, x_freq).mul_add(weight, result);
+                D::batch::<T, N>(*seed, x, y, z, x_freq, y_freq, z_freq).mul_add(weight, result);
         }
 
         result
