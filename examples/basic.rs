@@ -17,27 +17,35 @@ use quick_noise::{Batch2D, Batch3D, Cellular, Grid2D, Grid3D, Octave2D, Perlin, 
 
 #[cfg(feature = "image")]
 fn main() {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
     const GRID_SEED: i64 = 124384833;
-    const FBM_SEED: i64 = 911919;
+    const FBM_SEED: i64 = 9119191;
     let grid_2d = Grid2D::<512, 512, 262144>::new()
         .position(0, 0)
         .seed(GRID_SEED);
 
-    // let grid_3d = Grid3D::<64, 64, 64, 262144>::new()
-    //     .position(0, 0, 0)
-    //     .seed(103);
+    let grid_3d = Grid3D::<64, 64, 64, 262144>::new()
+        .position(0, 0, 0)
+        .seed(GRID_SEED);
 
-    grid_2d.fbm::<Perlin>()
+    let n: i64 = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as i64; // or as_secs(), as_nanos()
+
+    grid_3d
+        .fbm::<Perlin>()
         .octaves(1)
         .seed(FBM_SEED)
         .into_iter()
-        .to_grayscale_image::<512, 512>("noise_images/perlin_grid_2d_seeded.png");
+        .to_grayscale_image::<64, 64>("noise_images/perlin_grid_3d_seeded.png");
 
-    Batch2D::fbm::<Perlin, 262144>(grid_2d.x_iter(), grid_2d.y_iter())
+    Batch3D::fbm::<Perlin, 262144>(grid_3d.x_iter(), grid_3d.y_iter(), grid_3d.z_iter())
         .octaves(1)
         .seed_with_grid(GRID_SEED, FBM_SEED)
         .into_iter()
-        .to_grayscale_image::<512, 512>("noise_images/perlin_batch_2d_seeded.png");
+        .to_grayscale_image::<64, 64>("noise_images/perlin_batch_3d_seeded.png");
 
     // let mut array = unsafe { SimdArray::<f32, 262144>::new_uninit() };
 
@@ -56,8 +64,8 @@ fn main() {
     //     .fill_onto(&mut array);
 
     // array
-        // .into_iter()
-        // .to_grayscale_image::<512, 512>("noise_images/perlin_value_grid_combo.png");
+    // .into_iter()
+    // .to_grayscale_image::<512, 512>("noise_images/perlin_value_grid_combo.png");
 
     // .into_iter()
     // .to_grayscale_image::<512, 512>("noise_images/value_grid_2d.png");

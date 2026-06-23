@@ -200,23 +200,10 @@ impl<const X: usize, const Y: usize, const Z: usize, const N: usize> PerlinGridN
         let mut grad_array_back = unsafe { SimdArray::<u32, X>::new_uninit() };
 
         // Main vectorized bit mixing loop.
-        let end_index = x_num_loops as usize + 1;
+        let end_index = x_num_loops + 1;
 
-        if tiling.x.is_none() {
-            let iota_vec = ArchSimd::iota(0) * ArchSimd::splat(seed);
-            let mut x_vec = ArchSimd::splat((x_start as u32).wrapping_mul(seed)) + iota_vec;
-            let x_vec_stride = ArchSimd::splat((ArchSimd::<f32>::LANES as u32).wrapping_mul(seed));
-
-            for i in (0..end_index).step_by(ArchSimd::<f32>::LANES) {
-                let x_shuf = x_vec.permute_8(shuffle_indices) ^ prime;
-                unsafe {
-                    grad_array_front.store_simd_tail_checked(i, (xy_mix_front * x_shuf) >> 29);
-                    grad_array_back.store_simd_tail_checked(i, (xy_mix_back * x_shuf) >> 29);
-                }
-                x_vec += x_vec_stride;
-            }
-        } else {
-            let x_tiling = ArchSimd::splat(tiling.x.unwrap() as f32);
+        if let Some(x_tiling) = tiling.x {
+            let x_tiling = ArchSimd::splat(x_tiling as f32);
             let mut x_vec = ArchSimd::splat(x_start) + ArchSimd::iota(0);
             let x_vec_stride = ArchSimd::splat(ArchSimd::<f32>::LANES as i32);
             let seed_vec = ArchSimd::splat(seed);
@@ -228,10 +215,23 @@ impl<const X: usize, const Y: usize, const Z: usize, const N: usize> PerlinGridN
 
                 let x_shuf = x_seeded.permute_8(shuffle_indices) ^ prime;
                 unsafe {
-                    grad_array_front.store_simd_tail_checked(i, (xy_mix_front * x_shuf) >> 29);
-                    grad_array_back.store_simd_tail_checked(i, (xy_mix_back * x_shuf) >> 29);
+                    grad_array_front.store_simd_tail_checked(i, (xy_mix_front * x_shuf) >> 28);
+                    grad_array_back.store_simd_tail_checked(i, (xy_mix_back * x_shuf) >> 28);
                 }
 
+                x_vec += x_vec_stride;
+            }
+        } else {
+            let iota_vec = ArchSimd::iota(0) * ArchSimd::splat(seed);
+            let mut x_vec = ArchSimd::splat((x_start as u32).wrapping_mul(seed)) + iota_vec;
+            let x_vec_stride = ArchSimd::splat((ArchSimd::<f32>::LANES as u32).wrapping_mul(seed));
+
+            for i in (0..end_index).step_by(ArchSimd::<f32>::LANES) {
+                let x_shuf = x_vec.permute_8(shuffle_indices) ^ prime;
+                unsafe {
+                    grad_array_front.store_simd_tail_checked(i, (xy_mix_front * x_shuf) >> 28);
+                    grad_array_back.store_simd_tail_checked(i, (xy_mix_back * x_shuf) >> 28);
+                }
                 x_vec += x_vec_stride;
             }
         }

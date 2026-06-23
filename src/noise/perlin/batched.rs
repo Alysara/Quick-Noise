@@ -118,9 +118,9 @@ impl BatchNoise for Perlin {
         let one: ArchSimd<f32> = ArchSimd::splat(1.0);
         let three_int: ArchSimd<u32> = ArchSimd::splat(3);
 
-        let c1: ArchSimd<u32> = ArchSimd::splat(0x09009999);
+        let c1: ArchSimd<u32> = ArchSimd::splat(0x90A5A500);
         let c2: ArchSimd<u32> = ArchSimd::splat(0xA59900A5);
-        let c3: ArchSimd<u32> = ArchSimd::splat(0x90A5A500);
+        let c3: ArchSimd<u32> = ArchSimd::splat(0x09009999);
 
         // Hash constants.
         const BYTE_SHUFFLE: [u8; 64] = [
@@ -131,8 +131,16 @@ impl BatchNoise for Perlin {
 
         const GRAD_TABLE: [f32; 4] = [0.0, 1.0, -1.0, 0.0];
 
+        // X: 0000 1001 0000 0000 1001 1001 1001 1001
+        // Y: 1010 0101 1001 1001 0000 0000 1010 0101
+        // Z: 1001 0000 1010 0101 1010 0101 0000 0000
+        //
+        // X: 09009999
+        // Y: A59900A5
+        // Z: 90A5A500
+
         let shuffle_indices = ArchSimd::<u8>::load(&BYTE_SHUFFLE[..]);
-        let channel_seed = ArchSimd::splat(seed as u32);
+        let channel_seed = ArchSimd::splat(seed);
         let prime = ArchSimd::splat(0x85ebca6b_u32);
 
         // Scale: 3
