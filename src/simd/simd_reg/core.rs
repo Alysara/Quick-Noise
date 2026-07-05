@@ -16,7 +16,7 @@ impl<T: SimdElement, F: SimdFamily> Simd<T, F> {
     pub const LANES: usize = F::SIMD_WIDTH / Self::LANE_SIZE;
 }
 
-impl<T: SimdElement, F: SimdFamily> SimdContext for Simd<T, F> {
-    type Element = T;
-    type Family = F;
-}
+// impl<T: SimdElement, F: SimdFamily> SimdContext for Simd<T, F> {
+//     type Element = T;
+//     type Family = F;
+// }

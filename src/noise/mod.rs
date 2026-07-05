@@ -8,6 +8,7 @@ pub mod perlin {
     mod batched;
     mod grid_2d;
     mod grid_3d;
+    mod dyn_grid_2d;
 
     // Public exports.
     pub use core::Perlin;

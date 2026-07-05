@@ -3,8 +3,6 @@ use crate::simd::traits::*;
 use std::ops::*;
 use num_traits::NumCast;
 use crate::simd::simd_reg::core::Simd;
-use crate::simd::simd_traits::*;
-use crate::simd::arch_simd::{ArchFamily, ArchSimd, ArchMask};
 
 
 // === Operations based on bit size ===
@@ -32,9 +30,9 @@ impl<T: SimdInteger, F: SimdFamily> BitXor for Simd<T, F> {
     }
 }
 
-impl<T: SimdInteger, F: SimdFamily> SimdAndNot for Simd<T, F> {
+impl<T: SimdInteger, F: SimdFamily> Simd<T, F> {
     #[inline(always)]
-    fn andnot(self, rhs: Self) -> Self {
+    pub fn andnot(self, rhs: Self) -> Self {
         Self::new(F::Vec::and_not(self.data, rhs.data))        
     }
 }

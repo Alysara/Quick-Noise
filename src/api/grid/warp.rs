@@ -33,8 +33,8 @@ pub struct FbmGridWarpBuilder<
     ZIter: Iterator<Item = ArchSimd<f32>>,
 {
     grid_config: GridConfig<D>,
-    general_config: GeneralBuilderConfig,
-    fbm_config: FbmBuilderConfig<D>,
+    general_config: GeneralConfig,
+    fbm_config: FbmConfig<D>,
     batch_config: BatchBuilderConfig<XIter, YIter, ZIter>,
     warp_config: WarpBuilderConfig,
     _noise_type: PhantomData<T>,

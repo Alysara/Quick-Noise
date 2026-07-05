@@ -5,6 +5,7 @@ use std::time::Instant;
 use itertools::izip;
 use quick_noise::emit::grayscale::NoiseImageExt;
 use quick_noise::math::Vec2;
+use quick_noise::simd::SimdSliceIterExt;
 use quick_noise::simd::arch_simd::ArchSimd;
 use quick_noise::simd::simd_array::SimdArray;
 use quick_noise::simplex::Simplex;
@@ -13,49 +14,82 @@ use quick_noise::testing::profiler;
 use quick_noise::testing::profiler as unofficial_profiler;
 // use criterion::profiler;
 // use quick_noise::emit::grayscale;
-use quick_noise::{Batch2D, Batch3D, Cellular, Grid2D, Grid3D, Octave2D, Perlin, Value};
+use quick_noise::{Batch2D, Batch3D, Cellular, Dim2, Dim3, GridNoise, Octave2D, Perlin, Value};
 
 #[cfg(feature = "image")]
 fn main() {
-    use std::time::{SystemTime, UNIX_EPOCH};
+    // println!("array: {:?}", array);
+    // let simd = ArchSimd::<f32>::iota(4.0);
+
+    // use std::time::{SystemTime, UNIX_EPOCH};
+
+    use quick_noise::Dim2;
 
     const GRID_SEED: i64 = 124384833;
     const FBM_SEED: i64 = 91191912;
-    let grid_2d = Grid2D::<512, 512, 262144>::new()
-        .position(100000, -100000)
+    let grid_2d = GridNoise::<Dim2>::new(32, 32)
+        .position(0, 0)
         .seed(GRID_SEED);
 
-    let grid_3d = Grid3D::<64, 64, 64, 262144>::new()
-        .position(1000, 0, -1000)
+    let grid_2d_big = GridNoise::<Dim2>::new(2048, 2048)
+        .position(0, 0)
         .seed(GRID_SEED);
 
-    let n: i64 = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_millis() as i64; // or as_secs(), as_nanos()
+    // let grid_3d = Grid3D::<64, 64, 64, 262144>::new()
+    //     .position(1000, 0, -1000)
+    //     .seed(GRID_SEED);
+    //
+    // let n: i64 = SystemTime::now()
+    //     .duration_since(UNIX_EPOCH)
+    //     .unwrap()
+    //     .as_millis() as i64; // or as_secs(), as_nanos()
 
-    grid_3d
-        .fbm::<Perlin>()
-        .octaves(1)
-        .seed(FBM_SEED)
-        .into_iter()
-        .to_grayscale_image::<64, 4096>("noise_images/perlin_grid_3d_seeded.png");
+    // grid_3d
+    //     .fbm::<Perlin>()
+    //     .octaves(1)
+    //     .seed(FBM_SEED)
+    //     .into_iter()
+    //     .to_grayscale_image::<64, 4096>("noise_images/perlin_grid_3d_seeded.png");
+    //
+    // Batch3D::fbm::<Perlin, 262144>(grid_3d.x_iter(), grid_3d.y_iter(), grid_3d.z_iter())
+    //     .octaves(1)
+    //     .seed_with_grid(GRID_SEED, FBM_SEED)
+    //     .into_iter()
+    //     .to_grayscale_image::<64, 4096>("noise_images/perlin_batch_3d_seeded.png");
 
-    Batch3D::fbm::<Perlin, 262144>(grid_3d.x_iter(), grid_3d.y_iter(), grid_3d.z_iter())
-        .octaves(1)
-        .seed_with_grid(GRID_SEED, FBM_SEED)
-        .into_iter()
-        .to_grayscale_image::<64, 4096>("noise_images/perlin_batch_3d_seeded.png");
+    let mut buffer = SimdArray::<f32, 1024>::new(0.0);
 
+    let time = Instant::now();
+    const NUM_RUNS: usize = 10000000;
+    let freq = 1. / 64.;
+    for _ in 0..NUM_RUNS {
+        grid_2d.fbm::<Perlin>().frequency(freq).fill(&mut buffer);
+        black_box(&buffer);
+    }
+    let total = time.elapsed();
+    println!(
+        "Total: {:?}, Average Completion: {:?}",
+        total,
+        total / NUM_RUNS as u32
+    );
 
     // grid_2d
     //     .fbm::<Perlin>()
-    //     .octaves(6)
-    //     .frequency(1. / 128.)
+    //     .octaves(1)
+    //     .frequency(1. / 32.)
     //     .seed(FBM_SEED)
     //     .into_iter()
-    //     .to_grayscale_image::<512, 512>("noise_images/perlin_grid_2d_seeded.png");
+    //     .to_grayscale_image::<32, 32>("noise_images/perlin_grid_2d.png");
     //
+
+    // grid_2d_big
+    //     .fbm::<Perlin>()
+    //     .octaves(6)
+    //     .frequency(1. / 128.0)
+    //     .seed(FBM_SEED)
+    //     .into_iter()
+    //     .to_grayscale_image::<2048, 2048>("noise_images/perlin_grid_2d.png");
+
     // Batch2D::fbm::<Perlin, 262144>(grid_2d.x_iter(), grid_2d.y_iter())
     //     .octaves(6)
     //     .frequency(1. / 128.)

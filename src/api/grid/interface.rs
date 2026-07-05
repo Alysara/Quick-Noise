@@ -1,19 +1,19 @@
 use crate::api::configs::GridConfig;
-use crate::api::grid::custom::CustomGridBuilder;
+// use crate::api::grid::custom::CustomGridBuilder;
 use crate::api::grid::fbm::FbmGridBuilder;
-use crate::api::grid::warp::FbmGridWarpBuilder;
-use crate::api::methods::{Dim2, Dim3, Octave};
+// use crate::api::grid::warp::FbmGridWarpBuilder;
+use crate::api::methods::{Dim2, Dim3, NoiseDimension, Octave};
 use crate::api::parameters::*;
 use crate::math::random::Random;
 use crate::math::vec::{Vec2, Vec3};
 use crate::simd::arch_simd::ArchSimd;
-use crate::simd::simd_array::SimdArray;
 use crate::{BatchNoise, ZeroIter};
 
-pub trait GridNoise: Default {
-    fn grid_2d<const X: usize, const Y: usize, const N: usize, const INITIALIZE: bool>(
+pub trait GridNoiseImpl: Default {
+    fn grid_2d<const INITIALIZE: bool>(
         seed: u32,
-        result: &mut SimdArray<f32, N>,
+        result: &mut [f32],
+        dimensions: Vec2<usize>,
         position: Vec2<i32>,
         frequency: Vec2<f32>,
         weight: f32,
@@ -21,15 +21,10 @@ pub trait GridNoise: Default {
         tiling: Vec2<Option<u32>>,
     );
 
-    fn grid_3d<
-        const X: usize,
-        const Y: usize,
-        const Z: usize,
-        const N: usize,
-        const INITIALIZE: bool,
-    >(
+    fn grid_3d<const INITIALIZE: bool>(
         seed: u32,
-        result: &mut SimdArray<f32, N>,
+        result: &mut [f32],
+        dimensions: Vec3<usize>,
         position: Vec3<i32>,
         frequency: Vec3<f32>,
         weight: f32,
@@ -45,143 +40,226 @@ pub trait GridNoise: Default {
 /// An interface struct for creating 2D noise.
 ///
 /// # Type Parameters
-/// * `X` - Length of the 2D Node in the X dimension
-/// * `Y` - Length of the 2D Node in the Y dimension
+/// * `D: NoiseDimension` - Determines how many dimensions the grid has.
 ///
 /// # Example
 /// ```
-/// use quick_noise::Grid3D;
+/// use quick_noise::GridNoise;
 ///
 /// // Subject to change.
-/// let grid = Grid3D::<32, 32, 32, 32768>::new()
+/// let grid = GridNoise::<Dim3>::new(32, 32, 32)
 ///     .position(0, 0, 0)
 ///     .seed(1);
 /// ```
+
 #[derive(Default)]
-pub struct Grid2D<const X: usize, const Y: usize, const N: usize> {
-    pub(crate) config: GridConfig<Dim2>,
+pub struct GridNoise<D: NoiseDimension> {
+    pub(crate) config: GridConfig<D>,
 }
 
-params_grid_2d!(Grid2D, [const X: usize, const Y: usize, const N: usize], [X, Y, N]);
-
-impl<const X: usize, const Y: usize, const N: usize> Grid2D<X, Y, N> {
-    pub fn new() -> Self {
-        assert_eq!(
-            N,
-            X * Y,
-            "Grid2D dimensions do not match SimdArray size! {X} * {Y} should be {}, not {N}!",
-            X * Y
-        );
-        Self {
-            config: GridConfig::<Dim2>::default(),
-        }
+impl<D: NoiseDimension> GridNoise<D> {
+    /// Determines the psuedo-random values used in noise generation called
+    /// on this grid. Different seeds produce different noise.
+    pub fn seed(mut self, seed: i64) -> Self {
+        self.config.grid_seed = Random::static_mix_u64(seed as u64);
+        self
     }
+}
 
-    pub(crate) fn from_config(config: GridConfig<Dim2>) -> Self {
+impl GridNoise<Dim2> {
+    /// Creates an anchor for a grid region that can be used for call noise.
+    ///
+    /// # Parameters
+    /// -`x`: Length of the grid region along the x-axis
+    /// -`y`: Length of the grid region along the y-axis
+    pub fn new(x: usize, y: usize) -> Self {
+        let mut config = GridConfig::default();
+        config.dimensions = Vec2::new(x, y);
         Self { config }
     }
 
-    pub fn fbm<T: GridNoise>(&self) -> FbmGridBuilder<T, Dim2, X, Y, 0, N> {
-        FbmGridBuilder::new(self.config)
+    /// Determines the position values provided to noise calls. This value represents
+    /// the position of this grid region in grid units determiend by its dimension.
+    /// A 32x32 grid at position { 1, 2 } covers samples in the range { [32-64), [64-96) }.
+    ///
+    /// # Default:
+    /// `0`: x
+    /// `0`: y
+    pub fn position(mut self, x: i32, y: i32) -> Self {
+        self.config.position = Vec2::new(x, y);
+        self
     }
 
-    pub fn custom<'a, T: GridNoise>(
-        &self,
-        octave_list: &'a [Octave<Dim2>],
-    ) -> CustomGridBuilder<'a, T, Dim2, X, Y, 0, N> {
-        CustomGridBuilder::new(self.config, octave_list)
+    /// Determines the distance the sample space has until it starts repeating noise
+    /// seamlessly. When values are left as None, noise does not repeat.
+    ///
+    /// # Default:
+    /// - `x`: None
+    /// - `y`: None
+    pub fn tiling(mut self, x: Option<u32>, y: Option<u32>) -> Self {
+        self.config.tiling = Vec2::new(x, y);
+        self
+    }
+}
+
+impl GridNoise<Dim3> {
+    /// Creates an anchor for a grid region that can be used for call noise.
+    ///
+    /// # Parameters
+    /// -`x`: Length of the grid region along the x-axis
+    /// -`y`: Length of the grid region along the y-axis
+    /// -`z`: Length of the grid region along the z-axis
+    pub fn new(x: usize, y: usize, z: usize) -> Self {
+        let mut config = GridConfig::default();
+        config.dimensions = Vec3::new(x, y, z);
+        Self { config }
     }
 
-    pub fn warp<T: BatchNoise>(
-        &self,
-        x_iter: impl Iterator<Item = ArchSimd<f32>>,
-        y_iter: impl Iterator<Item = ArchSimd<f32>>,
-    ) -> FbmGridWarpBuilder<
-        T,
-        Dim2,
-        X,
-        Y,
-        0,
-        N,
-        impl Iterator<Item = ArchSimd<f32>>,
-        impl Iterator<Item = ArchSimd<f32>>,
-        impl Iterator<Item = ArchSimd<f32>>,
-    > {
-        FbmGridWarpBuilder::new(self.config, x_iter, y_iter, ZeroIter::<N>::default())
+    /// Determines the position values provided to noise calls. This value represents
+    /// the position of this grid region in grid units determiend by its dimension.
+    /// A 32x32x32 grid at position { 1, 2, 3 } covers samples in the range
+    /// { [32-64), [64-96), [96-128) }.
+    ///
+    /// # Default:
+    /// `0`: x
+    /// `0`: y
+    /// `0`: z
+    pub fn position(mut self, x: i32, y: i32, z: i32) -> Self {
+        self.config.position = Vec3::new(x, y, z);
+        self
     }
+
+    /// Determines the distance the sample space has until it starts repeating noise
+    /// seamlessly. When values are left as None, noise does not repeat.
+    ///
+    /// # Default:
+    /// - `x`: None
+    /// - `y`: None
+    /// - `z`: None
+    pub fn tiling(mut self, x: Option<u32>, y: Option<u32>, z: Option<u32>) -> Self {
+        self.config.tiling = Vec3::new(x, y, z);
+        self
+    }
+}
+
+impl<D: NoiseDimension> GridNoise<D> {
+    // pub fn new() -> Self {
+    //     assert_eq!(
+    //         N,
+    //         X * Y,
+    //         "Grid2D dimensions do not match SimdArray size! {X} * {Y} should be {}, not {N}!",
+    //         X * Y
+    //     );
+    //     Self {
+    //         config: GridConfig::<Dim2>::default(),
+    //     }
+    // }
+
+    pub(crate) fn from_config(config: GridConfig<D>) -> Self {
+        Self { config }
+    }
+
+    pub fn fbm<T: GridNoiseImpl>(&self) -> FbmGridBuilder<D, T> {
+        FbmGridBuilder::from_config(self.config)
+    }
+
+    // pub fn custom<'a, T: GridNoiseImpl>(
+    //     &self,
+    //     octave_list: &'a [Octave<Dim2>],
+    // ) -> CustomGridBuilder<'a, T, Dim2, X, Y, 0, N> {
+    //     CustomGridBuilder::new(self.config, octave_list)
+    // }
+
+    // pub fn warp<T: BatchNoise>(
+    //     &self,
+    //     x_iter: impl Iterator<Item = ArchSimd<f32>>,
+    //     y_iter: impl Iterator<Item = ArchSimd<f32>>,
+    // ) -> FbmGridWarpBuilder<
+    //     T,
+    //     Dim2,
+    //     X,
+    //     Y,
+    //     0,
+    //     N,
+    //     impl Iterator<Item = ArchSimd<f32>>,
+    //     impl Iterator<Item = ArchSimd<f32>>,
+    //     impl Iterator<Item = ArchSimd<f32>>,
+    // > {
+    //     FbmGridWarpBuilder::new(self.config, x_iter, y_iter, ZeroIter::<N>::default())
+    // }
 }
 
 // ————————————————————————————————————————————————————————————————
 // ————— 3D Grid ——————————————————————————————————————————————————
 // ————————————————————————————————————————————————————————————————
 
-/// An interface struct for creating 3D noise.
-///
-/// # Type Parameters
-/// * `X` - Length of the 3D grid region in the X dimension
-/// * `Y` - Length of the 3D grid region in the Y dimension
-/// * `Z` - Length of the 3D grid region in the Z dimension
-///
-/// # Example
-/// ```
-/// use quick_noise::Grid2D;
-///
-/// // Subject to change.
-/// let grid = Grid2D::<32, 32, 1024>::new()
-///     .position(0, 0)
-///     .seed(1);
-/// ```
-#[derive(Default)]
-pub struct Grid3D<const X: usize, const Y: usize, const Z: usize, const N: usize> {
-    pub(crate) config: GridConfig<Dim3>,
-}
+// /// An interface struct for creating 3D noise.
+// ///
+// /// # Type Parameters
+// /// * `X` - Length of the 3D grid region in the X dimension
+// /// * `Y` - Length of the 3D grid region in the Y dimension
+// /// * `Z` - Length of the 3D grid region in the Z dimension
+// ///
+// /// # Example
+// /// ```
+// /// use quick_noise::Grid2D;
+// ///
+// /// // Subject to change.
+// /// let grid = Grid2D::<32, 32, 1024>::new()
+// ///     .position(0, 0)
+// ///     .seed(1);
+// /// ```
+// #[derive(Default)]
+// pub struct Grid3D<const X: usize, const Y: usize, const Z: usize, const N: usize> {
+//     pub(crate) config: GridConfig<Dim3>,
+// }
 
-params_grid_3d!(Grid3D, [const X: usize, const Y: usize, const Z: usize, const N: usize], [X, Y, Z, N]);
+// params_grid_3d!(Grid3D, [const X: usize, const Y: usize, const Z: usize, const N: usize], [X, Y, Z, N]);
 
-impl<const X: usize, const Y: usize, const Z: usize, const N: usize> Grid3D<X, Y, Z, N> {
-    pub fn new() -> Self {
-        assert_eq!(
-            N,
-            X * Y * Z,
-            "Grid3D dimensions do not match SimdArray size! {X} * {Y} * {Z} should be {}, not {N}!",
-            X * Y * Z
-        );
-        Self {
-            config: GridConfig::<Dim3>::default(),
-        }
-    }
+// impl<const X: usize, const Y: usize, const Z: usize, const N: usize> Grid3D<X, Y, Z, N> {
+//     pub fn new() -> Self {
+//         assert_eq!(
+//             N,
+//             X * Y * Z,
+//             "Grid3D dimensions do not match SimdArray size! {X} * {Y} * {Z} should be {}, not {N}!",
+//             X * Y * Z
+//         );
+//         Self {
+//             config: GridConfig::<Dim3>::default(),
+//         }
+//     }
 
-    pub(crate) fn from_config(config: GridConfig<Dim3>) -> Self {
-        Self { config }
-    }
+//     pub(crate) fn from_config(config: GridConfig<Dim3>) -> Self {
+//         Self { config }
+//     }
 
-    pub fn fbm<T: GridNoise>(&self) -> FbmGridBuilder<T, Dim3, X, Y, Z, N> {
-        FbmGridBuilder::new(self.config)
-    }
+//     pub fn fbm<T: GridNoiseImpl>(&self) -> FbmGridBuilder<T, Dim3, X, Y, Z, N> {
+//         FbmGridBuilder::new(self.config)
+//     }
 
-    pub fn custom<'a, T: GridNoise>(
-        &self,
-        octave_list: &'a [Octave<Dim3>],
-    ) -> CustomGridBuilder<'a, T, Dim3, X, Y, Z, N> {
-        CustomGridBuilder::new(self.config, octave_list)
-    }
+//     pub fn custom<'a, T: GridNoiseImpl>(
+//         &self,
+//         octave_list: &'a [Octave<Dim3>],
+//     ) -> CustomGridBuilder<'a, T, Dim3, X, Y, Z, N> {
+//         CustomGridBuilder::new(self.config, octave_list)
+//     }
 
-    pub fn warp<T: BatchNoise>(
-        &self,
-        x_iter: impl Iterator<Item = ArchSimd<f32>>,
-        y_iter: impl Iterator<Item = ArchSimd<f32>>,
-        z_iter: impl Iterator<Item = ArchSimd<f32>>,
-    ) -> FbmGridWarpBuilder<
-        T,
-        Dim3,
-        X,
-        Y,
-        Z,
-        N,
-        impl Iterator<Item = ArchSimd<f32>>,
-        impl Iterator<Item = ArchSimd<f32>>,
-        impl Iterator<Item = ArchSimd<f32>>,
-    > {
-        FbmGridWarpBuilder::new(self.config, x_iter, y_iter, z_iter)
-    }
-}
+//     pub fn warp<T: BatchNoise>(
+//         &self,
+//         x_iter: impl Iterator<Item = ArchSimd<f32>>,
+//         y_iter: impl Iterator<Item = ArchSimd<f32>>,
+//         z_iter: impl Iterator<Item = ArchSimd<f32>>,
+//     ) -> FbmGridWarpBuilder<
+//         T,
+//         Dim3,
+//         X,
+//         Y,
+//         Z,
+//         N,
+//         impl Iterator<Item = ArchSimd<f32>>,
+//         impl Iterator<Item = ArchSimd<f32>>,
+//         impl Iterator<Item = ArchSimd<f32>>,
+//     > {
+//         FbmGridWarpBuilder::new(self.config, x_iter, y_iter, z_iter)
+//     }
+// }

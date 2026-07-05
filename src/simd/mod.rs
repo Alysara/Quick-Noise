@@ -13,3 +13,5 @@ pub mod traits;
 #[cfg(test)]
 pub mod tests;
 
+pub use simd_reg::iters::SimdSliceIterExt;
+

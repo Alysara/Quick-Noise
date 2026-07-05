@@ -5,7 +5,7 @@ use crate::simd::architectures::families::Neon;
 use crate::simd::architectures::families::Scalar128;
 #[cfg(target_arch = "x86_64")]
 use crate::simd::architectures::families::{Avx2, Avx512, Sse};
-use crate::simd::simd_mask::core::SimdMask;
+use crate::simd::simd_mask::core::Mask;
 use crate::simd::simd_reg::core::Simd;
 
 // Static dispatch for identifying lane sizes and number of simd registers.
@@ -22,7 +22,7 @@ cfg_if::cfg_if! {
         pub const SIMD_WIDTH: usize = 32;
         pub const NUM_SIMD_REG: usize = 16;
         pub type ArchSimd<T> = Simd<T, Avx2>;
-        pub type ArchMask<T> = SimdMask<T, Avx2>;
+        pub type ArchMask<T> = Mask<T, Avx2>;
         pub type ArchFamily = Avx2;
     } else if #[cfg(all(target_arch = "x86_64", target_feature = "sse2"))] {
         pub const SIMD_WIDTH: usize = 16;
@@ -78,7 +78,7 @@ cfg_if::cfg_if! {
 
 pub type ScalarFamily = <ArchFamily as SimdFamily>::ScalarFamily;
 pub type ScalarSimd<T> = Simd<T, ScalarFamily>;
-pub type ScalarMask<T> = SimdMask<T, ScalarFamily>;
+pub type ScalarMask<T> = Mask<T, ScalarFamily>;
 
 // pub type ArchSimd<T: SimdInfo> = Simd<T, { T::LANES }>;
 

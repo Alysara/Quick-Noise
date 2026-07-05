@@ -26,8 +26,8 @@ pub(crate) fn batch_fbm_noise<
     YIter,
     ZIter,
 >(
-    general_config: GeneralBuilderConfig,
-    fbm_config: FbmBuilderConfig<D>,
+    general_config: GeneralConfig,
+    fbm_config: FbmConfig<D>,
     batch_config: BatchBuilderConfig<XIter, YIter, ZIter>,
 ) -> impl Iterator<Item = ArchSimd<f32>>
 where
@@ -92,8 +92,8 @@ where
     YIter: Iterator<Item = ArchSimd<f32>>,
     ZIter: Iterator<Item = ArchSimd<f32>>,
 {
-    general_config: GeneralBuilderConfig,
-    fbm_config: FbmBuilderConfig<D>,
+    general_config: GeneralConfig,
+    fbm_config: FbmConfig<D>,
     batch_config: BatchBuilderConfig<XIter, YIter, ZIter>,
     _noise_type: PhantomData<T>,
 }
@@ -165,8 +165,8 @@ where
     }
 
     pub(crate) fn from_configs(
-        general_config: GeneralBuilderConfig,
-        fbm_config: FbmBuilderConfig<D>,
+        general_config: GeneralConfig,
+        fbm_config: FbmConfig<D>,
         batch_config: BatchBuilderConfig<XIter, YIter, ZIter>,
     ) -> Self {
         Self {
@@ -177,30 +177,30 @@ where
         }
     }
 
-    declare_fill!(self, output, {
-        let mut i = 0;
-        self.into_iter().for_each(|x| {
-            output.store_simd(i, x);
-            i += ArchSimd::<f32>::LANES;
-        });
-    });
+    // declare_fill!(self, output, {
+    //     let mut i = 0;
+    //     self.into_iter().for_each(|x| {
+    //         output.store_simd(i, x);
+    //         i += ArchSimd::<f32>::LANES;
+    //     });
+    // });
 
-    declare_fill_onto!(self, output, {
-        let mut i = 0;
-        self.into_iter().for_each(|x| {
-            let cur = output.load_simd(i);
-            output.store_simd(i, cur + x);
-            i += ArchSimd::<f32>::LANES;
-        });
-    });
+    // declare_fill_onto!(self, output, {
+    //     let mut i = 0;
+    //     self.into_iter().for_each(|x| {
+    //         let cur = output.load_simd(i);
+    //         output.store_simd(i, cur + x);
+    //         i += ArchSimd::<f32>::LANES;
+    //     });
+    // });
 
-    declare_build!(self, { self.into_iter().collect() });
+    // declare_build!(self, { self.into_iter().collect() });
 
-    declare_into_iter!(self, {
-        batch_fbm_noise::<T, D, N, XIter, YIter, ZIter>(
-            self.general_config,
-            self.fbm_config,
-            self.batch_config,
-        )
-    });
+    // declare_into_iter!(self, {
+    //     batch_fbm_noise::<T, D, N, XIter, YIter, ZIter>(
+    //         self.general_config,
+    //         self.fbm_config,
+    //         self.batch_config,
+    //     )
+    // });
 }

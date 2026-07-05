@@ -2,9 +2,7 @@ use crate::simd::architectures::arch_impl::*;
 use crate::simd::array_trait::Array;
 use crate::simd::traits::*;
 use crate::simd::simd_reg::core::Simd;
-use crate::simd::simd_mask::core::SimdMask;
-use crate::simd::simd_traits::*;
-use crate::simd::simd_reg::universal_impl;
+use crate::simd::simd_mask::core::Mask;
 use num_traits::NumCast;
 
 impl<T: SimdElement, F: SimdFamily> Simd<T, F> {
@@ -19,11 +17,9 @@ impl<T: SimdElement, F: SimdFamily> Simd<T, F> {
             }
         )
     }
-}
 
-impl<T: SimdWideType, F: SimdFamily> SimdMaskedLoad<T, F> for Simd<T, F> {
     #[inline(always)]
-    fn masked_load(slice: &[T], mask: SimdMask<T, F>) -> Self {
+    pub fn masked_load(slice: &[T], mask: Mask<T, F>) -> Self {
         Self::new(
             match T::BIT_SIZE {
                 BitSize::Size64 => F::Vec::masked_load_64(slice.as_ptr(), mask.data),
@@ -33,16 +29,14 @@ impl<T: SimdWideType, F: SimdFamily> SimdMaskedLoad<T, F> for Simd<T, F> {
         )
     }
 
-    fn partial_load(slice: &[T], amount: usize) -> Self {
+    pub fn partial_load(slice: &[T], amount: usize) -> Self {
         let amount_vec = Self::splat(<T as NumCast>::from(amount).unwrap());
         let mask = Self::iota(<T as NumCast>::from(0).unwrap()).simd_lt(amount_vec);
         Self::masked_load(slice, mask)
     }
-}
-
-impl<T: SimdElement, F: SimdFamily> SimdMaskedStore<T, F> for Simd<T, F> {
+    
     #[inline(always)]
-    fn masked_store(self, slice: &mut [T], mask: SimdMask<T, F>) {
+    pub fn masked_store(self, slice: &mut [T], mask: Mask<T, F>) {
         match T::BIT_SIZE {
             BitSize::Size64 => F::Vec::masked_store_64(self.data, slice.as_mut_ptr(), mask.data),
             BitSize::Size32 => F::Vec::masked_store_32(self.data, slice.as_mut_ptr(), mask.data),
@@ -51,7 +45,7 @@ impl<T: SimdElement, F: SimdFamily> SimdMaskedStore<T, F> for Simd<T, F> {
     }
 
     // TODO: Support all bit sizes, and also use integer comparisons rather than floats.
-    fn partial_store(self, slice: &mut [T], amount: usize) {
+    pub fn partial_store(self, slice: &mut [T], amount: usize) {
         match T::BIT_SIZE {
             BitSize::Size64 => {
                 let iota = Simd::iota(0u64);
@@ -95,7 +89,7 @@ impl<T: SimdElement, F: SimdFamily> Simd<T, F> {
 impl<F: SimdFamily> Simd<u32, F> {
     pub fn gather<S: SimdElement + SimdElement<BitWidthType = B32>, const N: usize>(self, slice: &[S; N]) -> Simd<S, F> {
         if N <= Self::LANES {
-            let data = Simd::<S, F>::load(&slice[..]);
+            let data = Simd::<S, F>::from_slice(&slice[..]);
             data.permute_32(self)
         } else {
             Simd::new(self.data.gather_32_from_32::<S, 4>(slice.as_ptr()))

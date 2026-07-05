@@ -3,7 +3,7 @@ use std::mem::{transmute, transmute_copy};
 
 use crate::simd::architectures::arch_impl::*;
 use crate::simd::architectures::macros::*;
-use crate::simd::simd_mask::core::SimdMask;
+use crate::simd::simd_mask::core::Mask;
 
 #[derive(Copy, Clone)]
 #[repr(transparent)]

@@ -3,12 +3,12 @@ use std::ops::Index;
 use crate::api::batch::interface::BatchNoise;
 use crate::api::configs::GridConfig;
 // use crate::api::batch::interface::BatchNoise;
-use crate::api::grid::interface::GridNoise;
+use crate::api::grid::interface::GridNoiseImpl;
 use crate::math::random::Random;
-use crate::math::vec::{ArithmeticVec, BasicVec, Vec2, Vec3};
+use crate::math::vec::{ArithmeticVec, BasicVec, Vec2, Vec3, VecHorz};
 use crate::simd::arch_simd::ArchSimd;
 use crate::simd::simd_array::SimdArray;
-use crate::{EmptyIter, Grid2D, Grid3D, ZeroIter};
+use crate::{EmptyIter, GridNoise, ZeroIter};
 
 pub enum NoiseDim {
     Dim2,
@@ -23,20 +23,15 @@ pub struct Dim3;
 pub trait NoiseDimension: Default {
     type FVec: ArithmeticVec<f32> + Into<(ArchSimd<f32>, ArchSimd<f32>, ArchSimd<f32>)>;
     type IVec: ArithmeticVec<i32>;
+    type USizeVec: ArithmeticVec<usize>;
     type Vec<T: Copy>: Copy + BasicVec<T>;
 
     const DIM: NoiseDim;
 
-    fn grid<
-        T: GridNoise,
-        const X: usize,
-        const Y: usize,
-        const Z: usize,
-        const N: usize,
-        const INITIALIZE: bool,
-    >(
+    fn grid<T: GridNoiseImpl, const INITIALIZE: bool>(
         seed: u32,
-        result: &mut SimdArray<f32, N>,
+        result: &mut [f32],
+        dimensions: Self::USizeVec,
         position: Self::IVec,
         frequency: Self::FVec,
         weight: f32,
@@ -68,28 +63,24 @@ pub trait NoiseDimension: Default {
 impl NoiseDimension for Dim2 {
     type FVec = Vec2<f32>;
     type IVec = Vec2<i32>;
+    type USizeVec = Vec2<usize>;
     type Vec<T: Copy> = Vec2<T>;
     const DIM: NoiseDim = NoiseDim::Dim2;
 
-    fn grid<
-        T: GridNoise,
-        const X: usize,
-        const Y: usize,
-        const Z: usize,
-        const N: usize,
-        const INITIALIZE: bool,
-    >(
+    fn grid<T: GridNoiseImpl, const INITIALIZE: bool>(
         seed: u32,
-        result: &mut SimdArray<f32, N>,
+        result: &mut [f32],
+        dimensions: Self::USizeVec,
         position: Self::IVec,
         frequency: Self::FVec,
         weight: f32,
         magnification: f32,
         tiling: Self::Vec<Option<u32>>,
     ) {
-        T::grid_2d::<X, Y, N, INITIALIZE>(
+        T::grid_2d::<INITIALIZE>(
             seed,
             result,
+            dimensions,
             position,
             frequency,
             weight,
@@ -125,7 +116,7 @@ impl NoiseDimension for Dim2 {
         impl Iterator<Item = ArchSimd<f32>>,
         impl Iterator<Item = ArchSimd<f32>>,
     ) {
-        let grid = Grid2D::<X, Y, N>::from_config(config);
+        let grid = GridNoise::<Dim2>::from_config(config);
         (grid.x_iter(), grid.y_iter(), ZeroIter::<N>::default())
     }
 }
@@ -133,28 +124,27 @@ impl NoiseDimension for Dim2 {
 impl NoiseDimension for Dim3 {
     type FVec = Vec3<f32>;
     type IVec = Vec3<i32>;
+    type USizeVec = Vec3<usize>;
     type Vec<T: Copy> = Vec3<T>;
     const DIM: NoiseDim = NoiseDim::Dim3;
 
     fn grid<
-        T: GridNoise,
-        const X: usize,
-        const Y: usize,
-        const Z: usize,
-        const N: usize,
+        T: GridNoiseImpl,
         const INITIALIZE: bool,
     >(
         seed: u32,
-        result: &mut SimdArray<f32, N>,
+        result: &mut [f32],
+        dimensions: Self::USizeVec,
         position: Self::IVec,
         frequency: Self::FVec,
         weight: f32,
         magnification: f32,
         tiling: Self::Vec<Option<u32>>,
     ) {
-        T::grid_3d::<X, Y, Z, N, INITIALIZE>(
+        T::grid_3d::<INITIALIZE>(
             seed,
             result,
+            dimensions,
             position,
             frequency,
             weight,
@@ -191,7 +181,7 @@ impl NoiseDimension for Dim3 {
         impl Iterator<Item = ArchSimd<f32>>,
         impl Iterator<Item = ArchSimd<f32>>,
     ) {
-        let grid = Grid3D::<X, Y, Z, N>::from_config(config);
+        let grid = GridNoise::<Dim3>::from_config(config);
         (grid.x_iter(), grid.y_iter(), grid.z_iter())
     }
 }

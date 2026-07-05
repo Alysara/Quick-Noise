@@ -7,7 +7,6 @@ use num_traits::NumCast;
 use crate::simd::architectures::arch_impl::*;
 use crate::simd::array_trait::Array;
 use crate::simd::simd_reg::core::Simd;
-use crate::simd::simd_traits::*;
 use crate::simd::traits::*;
 
 // Universal Operations.
@@ -21,36 +20,78 @@ impl<T: SimdElement, F: SimdFamily> Simd<T, F> {
     }
 }
 
-impl<T: SimdElement, F: SimdFamily> SimdZero for Simd<T, F> {
+impl<T: SimdElement, F: SimdFamily> Simd<T, F> {
     #[inline(always)]
-    fn zero() -> Self {
+    pub fn zero() -> Self {
         Self::new(F::Vec::zero())
     }
-}
 
-impl<T: SimdElement, F: SimdFamily> SimdLoad<T> for Simd<T, F> {
     #[inline(always)]
-    fn load_aligned(slice: &[T]) -> Self {
-        unsafe {
-            let ptr = slice.as_ptr();
-            // assert!(ptr.align_offset(Self::SIMD_WIDTH) == 0);
-            debug_assert!(slice.len() >= Self::LANES);
-            Self::new(F::Vec::load_aligned(ptr))
-        }
+    pub fn from_aligned_slice(slice: &[T]) -> Self {
+        let ptr = slice.as_ptr();
+        assert!(ptr.align_offset(Self::SIMD_WIDTH) == 0);
+        assert!(slice.len() >= Self::LANES);
+        Self::new(F::Vec::load_aligned(ptr))
+    }
+
+    /// # Safety
+    /// Does not check if the slice goes out of bounds.
+    #[inline(always)]
+    pub unsafe fn from_aligned_slice_unchecked(slice: &[T]) -> Self {
+        let ptr = slice.as_ptr();
+        debug_assert!(ptr.align_offset(Self::SIMD_WIDTH) == 0);
+        debug_assert!(slice.len() >= Self::LANES);
+        Self::new(F::Vec::load_aligned(ptr))
     }
 
     #[inline(always)]
-    fn load(slice: &[T]) -> Self {
-        unsafe {
-            // assert!(slice.len() >= Self::LANES);
+    pub fn from_slice(slice: &[T]) -> Self {
+        if slice.len() >= Self::LANES {
             Self::new(F::Vec::load_unaligned(slice.as_ptr()))
+        } else {
+            let mut array = Self::zero().to_array();
+            for (arr, val) in array.iter_mut().zip(slice.iter()) {
+                *arr = *val;
+            }
+            unsafe { Self::from_slice_unchecked(array.as_slice()) }
         }
     }
-}
 
-impl<T: SimdElement, F: SimdFamily> SimdStore<T> for Simd<T, F> {
+    /// # Safety
+    /// Requires allocated memory to be behind (left) of the slice.
+    /// Bounds are not checked.
+    /// Length of the slice must be less than or equal to the number of lanes.
     #[inline(always)]
-    fn store_aligned(self, slice: &mut [T]) {
+    pub unsafe fn from_slice_partial(slice: &[T]) -> Self {
+        debug_assert!(slice.len() <= Self::LANES);
+        unsafe {
+            let offset = Self::LANES - slice.len();
+            let raw_ptr = slice.as_ptr().sub(offset);
+            let simd = Self::new(F::Vec::load_unaligned(raw_ptr));
+            simd.left_lane_shift(offset as u32)
+        }
+    }
+
+    /// # Safety
+    /// Does not check if the slice goes out of bounds.
+    #[inline(always)]
+    pub unsafe fn from_slice_unchecked(slice: &[T]) -> Self {
+        debug_assert!(slice.len() >= Self::LANES);
+        Self::new(F::Vec::load_unaligned(slice.as_ptr()))
+    }
+
+    #[inline(always)]
+    pub fn copy_to_aligned_slice(self, slice: &mut [T]) {
+        let ptr = slice.as_mut_ptr();
+        assert!(ptr.align_offset(Self::SIMD_WIDTH) == 0);
+        assert!(slice.len() >= Self::LANES);
+        self.data.store_aligned(ptr);
+    }
+
+    /// # Safety
+    /// Does not check if the slice goes out of bounds.
+    #[inline(always)]
+    pub unsafe fn copy_to_aligned_slice_unchecked(self, slice: &mut [T]) {
         let ptr = slice.as_mut_ptr();
         debug_assert!(ptr.align_offset(Self::SIMD_WIDTH) == 0);
         debug_assert!(slice.len() >= Self::LANES);
@@ -58,37 +99,55 @@ impl<T: SimdElement, F: SimdFamily> SimdStore<T> for Simd<T, F> {
     }
 
     #[inline(always)]
-    fn store(self, slice: &mut [T]) {
-        unsafe {
+    pub fn copy_to_slice(self, slice: &mut [T]) {
+        if slice.len() >= Self::LANES {
             let ptr = slice.as_mut_ptr();
-            // assert!(slice.len() >= Self::LANES);
             self.data.store_unaligned(ptr);
+        } else {
+            // Scalar/tail case.
+            let array = self.to_array();
+            slice
+                .iter_mut()
+                .zip(array.iter())
+                .for_each(|(src, new)| *src = *new);
         }
     }
-}
 
-impl<T: SimdElement, F: SimdFamily> SimdToArray<T, F> for Simd<T, F> {
+    /// # Safety
+    /// Does not check if the slice goes out of bounds.
     #[inline(always)]
-    fn to_array(self) -> T::Array<F> {
+    pub unsafe fn copy_to_slice_unchecked(self, slice: &mut [T]) {
+        let ptr = slice.as_mut_ptr();
+        debug_assert!(slice.len() >= Self::LANES);
+        self.data.store_unaligned(ptr);
+    }
+
+    // pub fn copy_to_slice(self, slice: &mut [T]) {
+    //
+    // }
+
+    /// Converts the Simd register into an array.
+    ///
+    /// # Example
+    ///
+    /// TODO
+    /// use quick_noise::simd::
+    #[inline(always)]
+    pub fn to_array(self) -> T::Array<F> {
         let mut array = T::Array::<F>::from_fn(|_| T::from(0).unwrap());
-        self.store(array.as_mut_slice());
+        self.copy_to_slice(array.as_mut_slice());
         array
     }
-}
 
-// TODO: Fdd non-generic constant version solution.
-impl<T: SimdElement, F: SimdFamily> SimdIota<T> for Simd<T, F> {
     #[inline(always)]
-    fn iota(offset: T) -> Self {
-        let iota_array = T::Array::<F>::from_fn(|i| <T as NumCast>::from(i).unwrap().safe_add(offset));
-        Self::load(iota_array.as_slice())
+    pub fn iota(offset: T) -> Self {
+        let iota_array =
+            T::Array::<F>::from_fn(|i| <T as NumCast>::from(i).unwrap().safe_add(offset));
+        Self::from_slice(iota_array.as_slice())
     }
 }
 
-impl<T: SimdElement, F: SimdFamily> fmt::Debug for Simd<T, F>
-where
-    Simd<T, F>: SimdBasic<T, F>,
-{
+impl<T: SimdElement, F: SimdFamily> fmt::Debug for Simd<T, F> {
     #[inline(always)]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let buf = self.to_array();
@@ -199,37 +258,36 @@ impl<T: SimdElement, F: SimdFamily> Default for Simd<T, F> {
     }
 }
 
-impl<T: SimdElement, F: SimdFamily> SimdClamp for Simd<T, F> {
+impl<T: SimdElement, F: SimdFamily> Simd<T, F> {
     #[inline(always)]
-    fn clamp(self, min_value: T, max_value: T) -> Self {
+    pub fn clamp(self, min_value: T, max_value: T) -> Self {
         self.clamp_min(min_value).clamp_max(max_value)
     }
+
     #[inline(always)]
-    fn clamp_max(self, max_value: Self::Element) -> Self {
+    pub fn clamp_max(self, max_value: T) -> Self {
         let max_vec = Self::splat(max_value);
         self.simd_gt(max_vec).select(max_vec, self)
     }
+
     #[inline(always)]
-    fn clamp_min(self, min_value: Self::Element) -> Self {
+    pub fn clamp_min(self, min_value: T) -> Self {
         let min_vec = Self::splat(min_value);
         self.simd_lt(min_vec).select(min_vec, self)
     }
-}
 
-impl<T: SimdElement, F: SimdFamily> SimdBlockByteShift for Simd<T, F> {
     #[inline(always)]
-    fn block_left_byte_shift<const N: i32>(self) -> Self {
+    pub fn block_left_byte_shift<const N: i32>(self) -> Self {
         Self::new(self.data.block_left_byte_shift::<N>())
     }
+
     #[inline(always)]
-    fn block_right_byte_shift<const N: i32>(self) -> Self {
+    pub fn block_right_byte_shift<const N: i32>(self) -> Self {
         Self::new(self.data.block_right_byte_shift::<N>())
     }
-}
 
-impl<T: SimdElement, F: SimdFamily> SimdImmediateBlend for Simd<T, F> {
     #[inline(always)]
-    fn blend<const N: i32>(self, false_values: Self) -> Self {
+    pub fn blend<const N: i32>(self, false_values: Self) -> Self {
         match T::BIT_SIZE {
             BitSize::Size64 => Self::new(self.data.blend_32::<N>(false_values.data)),
             BitSize::Size32 => Self::new(self.data.blend_32::<N>(false_values.data)),

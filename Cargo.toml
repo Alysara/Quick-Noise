@@ -17,13 +17,12 @@ opt-level = 3
 [dependencies]
 num-traits = "0.2.19"
 image = { version = "0.25.9", default-features = false, features = ["png"], optional = true }
-cfg-if = "1.0.4"
 paste = "1.0.15"
 itertools = "0.14.0"
-either = "1.16.0"
+cfg-if = "1.0.4"
 
 [dev-dependencies]
-criterion = "0.8.2"
+criterion = { version = "0.8.2", default-features = false, features = ["cargo_bench_support"] }
 # fastnoise2 = "0.4.0"
 
 [features]

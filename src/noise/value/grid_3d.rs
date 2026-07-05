@@ -287,7 +287,7 @@ impl<const X: usize, const Y: usize, const Z: usize, const N: usize> ValueGridNo
             1, 7, 4, 6, 5, 11, 8, 10, 9, 15, 12, 14, 13,
         ];
 
-        let shuffle_indices = ArchSimd::<u8>::load(&BYTE_SHUFFLE[..]);
+        let shuffle_indices = ArchSimd::<u8>::from_slice(&BYTE_SHUFFLE[..]);
 
         let prime = ArchSimd::splat(0x85ebca6b_u32);
         let z_shuf_front = z_vec_front.permute_8(shuffle_indices) ^ prime;

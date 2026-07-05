@@ -1,24 +1,41 @@
-use crate::api::grid::interface::GridNoise;
+use std::mem::MaybeUninit;
+use std::time::Instant;
+
+use crate::api::grid::interface::GridNoiseImpl;
 use crate::math::vec::{Vec2, Vec3};
+use crate::perlin::dyn_grid_2d::grid_2d;
 use crate::perlin::{PerlinGridNoise2D, PerlinGridNoise3D};
 use crate::simd::simd_array::SimdArray;
 
 #[derive(Default, Copy, Clone)]
 pub struct Perlin {}
 
-impl GridNoise for Perlin {
-    fn grid_2d<const X: usize, const Y: usize, const N: usize, const INITIALIZE: bool>(
+impl GridNoiseImpl for Perlin {
+    fn grid_2d<const INITIALIZE: bool>(
         seed: u32,
-        result: &mut SimdArray<f32, N>,
+        result: &mut [f32],
+        dimensions: Vec2<usize>,
         position: Vec2<i32>,
         frequency: Vec2<f32>,
         weight: f32,
         magnification: f32,
         tiling: Vec2<Option<u32>>,
     ) {
-        PerlinGridNoise2D::<X, Y, N>::grid_2d::<INITIALIZE>(
-            seed,
+        // let result: &mut SimdArray<f32, 1024> = unsafe { std::mem::transmute(result.as_mut_ptr())};
+        // PerlinGridNoise2D::<32, 32, 1024>::grid_2d::<INITIALIZE>(
+        //     seed,
+        //     result,
+        //     position,
+        //     frequency,
+        //     weight,
+        //     magnification,
+        //     tiling,
+        // );
+
+        grid_2d::<INITIALIZE>(
+            dimensions,
             result,
+            seed,
             position,
             frequency,
             weight,
@@ -27,30 +44,25 @@ impl GridNoise for Perlin {
         );
     }
 
-    fn grid_3d<
-        const X: usize,
-        const Y: usize,
-        const Z: usize,
-        const N: usize,
-        const INITIALIZE: bool,
-    >(
+    fn grid_3d<const INITIALIZE: bool>(
         seed: u32,
-        result: &mut SimdArray<f32, N>,
+        result: &mut [f32],
+        dimensions: Vec3<usize>,
         position: Vec3<i32>,
         frequency: Vec3<f32>,
         weight: f32,
         magnification: f32,
         tiling: Vec3<Option<u32>>,
     ) {
-        PerlinGridNoise3D::<X, Y, Z, N>::grid_3d::<INITIALIZE>(
-            seed,
-            result,
-            position,
-            frequency,
-            weight,
-            magnification,
-            tiling,
-        );
+        // PerlinGridNoise3D::<X, Y, Z, N>::grid_3d::<INITIALIZE>(
+        //     seed,
+        //     result,
+        //     position,
+        //     frequency,
+        //     weight,
+        //     magnification,
+        //     tiling,
+        // );
     }
 }
 

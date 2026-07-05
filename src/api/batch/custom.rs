@@ -24,7 +24,7 @@ pub(crate) fn custom_noise<
     YIter,
     ZIter,
 >(
-    general_config: GeneralBuilderConfig,
+    general_config: GeneralConfig,
     batch_config: BatchBuilderConfig<XIter, YIter, ZIter>,
     custom_config: CustomBuilderConfig<'a, D>,
 ) -> impl Iterator<Item = ArchSimd<f32>>
@@ -84,7 +84,7 @@ pub struct CustomBatchBuilder<
     YIter: Iterator<Item = ArchSimd<f32>>,
     ZIter: Iterator<Item = ArchSimd<f32>>,
 {
-    general_config: GeneralBuilderConfig,
+    general_config: GeneralConfig,
     batch_config: BatchBuilderConfig<XIter, YIter, ZIter>,
     custom_config: CustomBuilderConfig<'a, D>,
     _noise_type: PhantomData<T>,
@@ -130,30 +130,30 @@ where
         }
     }
 
-    declare_fill!(self, output, {
-        let mut i = 0;
-        self.into_iter().for_each(|x| {
-            output.store_simd(i, x);
-            i += ArchSimd::<f32>::LANES;
-        });
-    });
+    // declare_fill!(self, output, {
+    //     let mut i = 0;
+    //     self.into_iter().for_each(|x| {
+    //         output.store_simd(i, x);
+    //         i += ArchSimd::<f32>::LANES;
+    //     });
+    // });
 
-    declare_fill_onto!(self, output, {
-        let mut i = 0;
-        self.into_iter().for_each(|x| {
-            let cur = output.load_simd(i);
-            output.store_simd(i, cur + x);
-            i += ArchSimd::<f32>::LANES;
-        });
-    });
+    // declare_fill_onto!(self, output, {
+    //     let mut i = 0;
+    //     self.into_iter().for_each(|x| {
+    //         let cur = output.load_simd(i);
+    //         output.store_simd(i, cur + x);
+    //         i += ArchSimd::<f32>::LANES;
+    //     });
+    // });
 
-    declare_build!(self, { self.into_iter().collect() });
+    // declare_build!(self, { self.into_iter().collect() });
 
-    declare_into_iter!(self, {
-        custom_noise::<T, D, N, XIter, YIter, ZIter>(
-            self.general_config,
-            self.batch_config,
-            self.custom_config,
-        )
-    });
+    // declare_into_iter!(self, {
+    //     custom_noise::<T, D, N, XIter, YIter, ZIter>(
+    //         self.general_config,
+    //         self.batch_config,
+    //         self.custom_config,
+    //     )
+    // });
 }

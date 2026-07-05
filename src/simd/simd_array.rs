@@ -276,18 +276,18 @@ impl<T: SimdElement, const N: usize> SimdArray<T, N> {
             for i in 0..N {
                 array[i] = self[i];
             }
-            return ArchSimd::load(array.as_mut_slice());
+            return ArchSimd::from_slice(array.as_mut_slice());
         }
 
         if index > Self::TAIL_START {
             let offset = ArchSimd::<T>::LANES - (N - index);
             let new_index = index - offset;
             let slice = unsafe { &self.data.assume_init_ref().get_unchecked(new_index..) };
-            return ArchSimd::load(slice).left_lane_shift(offset as u32);
+            return ArchSimd::from_slice(slice).left_lane_shift(offset as u32);
         }
 
         // Regular case.
-        unsafe { ArchSimd::load(self.data.assume_init_ref().get_unchecked(index..)) }
+        unsafe { ArchSimd::from_slice(self.data.assume_init_ref().get_unchecked(index..)) }
     }
 
     /// # Safety
@@ -305,18 +305,18 @@ impl<T: SimdElement, const N: usize> SimdArray<T, N> {
             for i in 0..N {
                 array[i] = self[i];
             }
-            return ArchSimd::load(array.as_mut_slice());
+            return ArchSimd::from_slice(array.as_mut_slice());
         }
 
         if index > Self::TAIL_START {
             let offset = ArchSimd::<T>::LANES - (N - index);
             let new_index = index - offset;
             let slice = unsafe { &self.data.assume_init_ref().get_unchecked(new_index..) };
-            return ArchSimd::load(slice).left_lane_shift(offset as u32);
+            return ArchSimd::from_slice(slice).left_lane_shift(offset as u32);
         }
 
         // Regular case.
-        unsafe { ArchSimd::load(self.data.assume_init_ref().get_unchecked(index..)) }
+        unsafe { ArchSimd::from_slice(self.data.assume_init_ref().get_unchecked(index..)) }
     }
 
     #[inline(always)]
@@ -329,18 +329,18 @@ impl<T: SimdElement, const N: usize> SimdArray<T, N> {
             for i in 0..N {
                 array[i] = self[i];
             }
-            return ArchSimd::load(array.as_mut_slice());
+            return ArchSimd::from_slice(array.as_mut_slice());
         }
 
         if index > Self::TAIL_START {
             let offset = ArchSimd::<T>::LANES - (N - index);
             let new_index = index - offset;
             let slice = unsafe { &self.data.assume_init_ref().get_unchecked(new_index..) };
-            return ArchSimd::load(slice);
+            return ArchSimd::from_slice(slice);
         }
 
         // Regular case.
-        unsafe { ArchSimd::load(self.data.assume_init_ref().get_unchecked(index..)) }
+        unsafe { ArchSimd::from_slice(self.data.assume_init_ref().get_unchecked(index..)) }
     }
 
     /// Returns a simd register containing `ArchSimd::LANES` number
@@ -368,7 +368,7 @@ impl<T: SimdElement, const N: usize> SimdArray<T, N> {
             for i in 0..N {
                 array[i] = self[i];
             }
-            return ArchSimd::load(array.as_mut_slice());
+            return ArchSimd::from_slice(array.as_mut_slice());
         }
 
         debug_assert!(
@@ -378,7 +378,7 @@ impl<T: SimdElement, const N: usize> SimdArray<T, N> {
         );
 
         // Regular case.
-        unsafe { ArchSimd::load(self.data.assume_init_ref().get_unchecked(index..)) }
+        unsafe { ArchSimd::from_slice(self.data.assume_init_ref().get_unchecked(index..)) }
     }
 
     #[inline(always)]
@@ -426,7 +426,7 @@ impl<T: SimdElement, const N: usize> SimdArray<T, N> {
         }
         // debug_assert!(index % ArchSimd::<T>::LANES == 0);
         unsafe {
-            vec.store(self.data.assume_init_mut().get_unchecked_mut(index..));
+            vec.copy_to_slice(self.data.assume_init_mut().get_unchecked_mut(index..));
         }
     }
 
@@ -456,7 +456,7 @@ impl<T: SimdElement, const N: usize> SimdArray<T, N> {
         }
         // debug_assert!(index % ArchSimd::<T>::LANES == 0);
         unsafe {
-            vec.store(self.data.assume_init_mut().get_unchecked_mut(index..));
+            vec.copy_to_slice(self.data.assume_init_mut().get_unchecked_mut(index..));
         }
     }
 
@@ -483,7 +483,7 @@ impl<T: SimdElement, const N: usize> SimdArray<T, N> {
         }
         // debug_assert!(index % ArchSimd::<T>::LANES == 0);
         unsafe {
-            vec.store(self.data.assume_init_mut().get_unchecked_mut(index..));
+            vec.copy_to_slice(self.data.assume_init_mut().get_unchecked_mut(index..));
         }
     }
 
@@ -512,7 +512,7 @@ impl<T: SimdElement, const N: usize> SimdArray<T, N> {
     #[inline(always)]
     pub unsafe fn store_simd_unchecked(&mut self, index: usize, vec: ArchSimd<T>) {
         unsafe {
-            vec.store(self.data.assume_init_mut().get_unchecked_mut(index..));
+            vec.copy_to_slice(self.data.assume_init_mut().get_unchecked_mut(index..));
         }
     }
 

@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use crate::grid_helpers::{configure_tiling, grid_fill_indices};
 use crate::math::vec::{BasicVec, Vec2};
 use crate::noise::perlin::constants::*;
@@ -27,7 +29,6 @@ impl<const X: usize, const Y: usize, const N: usize> PerlinGridNoise2D<X, Y, N> 
     const BLOCK_TAIL_START: usize = (X / BLOCK_LANES) * BLOCK_LANES;
     const SIMD_TAIL_START: usize = SimdArray::<f32, X>::TAIL_START;
 
-    #[inline(always)]
     pub fn grid_2d<const INITIALIZE: bool>(
         seed: u32,
         result: &mut SimdArray<f32, N>,
@@ -37,6 +38,7 @@ impl<const X: usize, const Y: usize, const N: usize> PerlinGridNoise2D<X, Y, N> 
         magnification: f32,
         tiling: Vec2<Option<u32>>,
     ) {
+        // let time = Instant::now();
         let increment: Vec2<f32> = frequency * magnification;
         let block_pos: Vec2<i32> = position * Vec2::new(Y as i32, X as i32);
 
@@ -66,6 +68,8 @@ impl<const X: usize, const Y: usize, const N: usize> PerlinGridNoise2D<X, Y, N> 
 
         // Initialize gradient vectors.
         let mut d_vecs: PerlinContainer2D<X> = unsafe { PerlinContainer2D::new_uninit() };
+
+        // println!("Prologue done in {:?}!", time.elapsed());
 
         // Set the top gradients.
         let (tl, tr) = d_vecs.tl_tr_mut();
@@ -133,6 +137,7 @@ impl<const X: usize, const Y: usize, const N: usize> PerlinGridNoise2D<X, Y, N> 
         x_distances: &SimdArray<f32, X>,
         tiling: &Vec2<Option<u32>>,
     ) {
+        // let time = Instant::now();
         // Temporary buffer to store indices for gradient values.
         let mut grad_array = unsafe { SimdArray::<u32, X>::new_uninit() };
 
@@ -146,7 +151,7 @@ impl<const X: usize, const Y: usize, const N: usize> PerlinGridNoise2D<X, Y, N> 
             10, 9, 15, 12, 14, 13, 3, 0, 2, 1, 7, 4, 6, 5, 11, 8, 10, 9, 15, 12, 14, 13, 3, 0, 2,
             1, 7, 4, 6, 5, 11, 8, 10, 9, 15, 12, 14, 13,
         ];
-        let shuffle_indices = ArchSimd::<u8>::load(&BYTE_SHUFFLE[..]);
+        let shuffle_indices = ArchSimd::<u8>::from_slice(&BYTE_SHUFFLE[..]);
         let y_shuf = y_vec.permute_8(shuffle_indices) ^ prime;
 
         if tiling.x.is_none() {
@@ -218,6 +223,8 @@ impl<const X: usize, const Y: usize, const N: usize> PerlinGridNoise2D<X, Y, N> 
         // Compute y dot products (Better to do here since these dot products get reused and operate per element).
         left.x *= *x_distances;
         right.x = right.x.mul_sub(*x_distances, right.x); // equivalent to -> right.x *= x_distances - 1.0
+
+        // println!("Gradients done in {:?}!", time.elapsed());
     }
 
     #[inline(always)]
@@ -232,6 +239,7 @@ impl<const X: usize, const Y: usize, const N: usize> PerlinGridNoise2D<X, Y, N> 
         weight: f32,
         result: &mut SimdArray<f32, N>,
     ) {
+        // let time = Instant::now();
         let weight_vec = ArchSimd::splat(weight);
         let y_weighted_increment = ArchSimd::splat(y_increment * weight);
         let y_upper_increment = ArchSimd::splat(y_frac_start);
@@ -280,6 +288,7 @@ impl<const X: usize, const Y: usize, const N: usize> PerlinGridNoise2D<X, Y, N> 
                 result,
             );
         }
+        // println!("Bilerp done in {:?}!", time.elapsed());
     }
 
     #[inline(always)]

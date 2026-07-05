@@ -214,7 +214,7 @@ impl Random {
             2, 1, 3, 0, 2, 1,
         ];
 
-        let shuffle_indices = ArchSimd::<u8>::load(&BYTE_SHUFFLE[..]);
+        let shuffle_indices = ArchSimd::<u8>::from_slice(&BYTE_SHUFFLE[..]);
         let channel_seed = ArchSimd::splat(self.channel_seed as u32);
         let prime = ArchSimd::splat(0x85ebca6b_u32 as u32);
 
@@ -330,7 +330,7 @@ impl Random {
 
         let seed = ArchSimd::splat(self.channel_seed as u32);
         let prime = ArchSimd::splat(0x85ebca6b_u32);
-        let shuffle_indices = ArchSimd::load(&BYTE_SHUFFLE[..]);
+        let shuffle_indices = ArchSimd::from_slice(&BYTE_SHUFFLE[..]);
 
         let x1 = x_lo * seed;
         let y1 = y_lo * seed;

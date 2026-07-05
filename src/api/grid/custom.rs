@@ -1,11 +1,11 @@
 use std::marker::PhantomData;
 
 use crate::api::configs::*;
-use crate::api::grid::interface::GridNoise;
+use crate::api::grid::interface::GridNoiseImpl;
 use crate::api::methods::{NoiseDimension, Octave};
 use crate::api::parameters::*;
 use crate::math::random::Random;
-use crate::math::vec::VecHorzMax;
+use crate::math::vec::VecHorz;
 use crate::simd::arch_simd::ArchSimd;
 use crate::simd::simd_array::SimdArray;
 
@@ -13,7 +13,7 @@ use crate::simd::simd_array::SimdArray;
 /// a custom list of octaves. Uses the performant perlin algorithm.
 pub struct CustomGridBuilder<
     'a,
-    T: GridNoise,
+    T: GridNoiseImpl,
     D: NoiseDimension,
     const X: usize,
     const Y: usize,
@@ -21,19 +21,19 @@ pub struct CustomGridBuilder<
     const N: usize,
 > {
     grid_config: GridConfig<D>,
-    general_config: GeneralBuilderConfig,
+    general_config: GeneralConfig,
     custom_config: CustomBuilderConfig<'a, D>,
     _noise_type: PhantomData<T>,
 }
 
 params_general_builder!(
-    CustomGridBuilder, ['a, T: GridNoise, D: NoiseDimension, const X: usize, const Y: usize, const Z: usize, const N: usize],
+    CustomGridBuilder, ['a, T: GridNoiseImpl, D: NoiseDimension, const X: usize, const Y: usize, const Z: usize, const N: usize],
     ['a, T, D, X, Y, Z, N]
 );
 
 impl<
     'a,
-    T: GridNoise,
+    T: GridNoiseImpl,
     D: NoiseDimension,
     const X: usize,
     const Y: usize,

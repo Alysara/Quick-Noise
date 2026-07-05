@@ -30,7 +30,7 @@ impl BatchNoise for Perlin {
             1, 7, 4, 6, 5, 11, 8, 10, 9, 15, 12, 14, 13,
         ];
 
-        let shuffle_indices = ArchSimd::<u8>::load(&BYTE_SHUFFLE[..]);
+        let shuffle_indices = ArchSimd::<u8>::from_slice(&BYTE_SHUFFLE[..]);
         let channel_seed = ArchSimd::splat(seed);
         let prime = ArchSimd::splat(0x85ebca6b_u32);
 
@@ -139,7 +139,7 @@ impl BatchNoise for Perlin {
         // Y: A59900A5
         // Z: 90A5A500
 
-        let shuffle_indices = ArchSimd::<u8>::load(&BYTE_SHUFFLE[..]);
+        let shuffle_indices = ArchSimd::<u8>::from_slice(&BYTE_SHUFFLE[..]);
         let channel_seed = ArchSimd::splat(seed);
         let prime = ArchSimd::splat(0x85ebca6b_u32);
 

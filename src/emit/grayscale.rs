@@ -1,3 +1,4 @@
+#[cfg(feature = "image")]
 use std::cmp::min;
 use std::fs;
 use std::path::Path;

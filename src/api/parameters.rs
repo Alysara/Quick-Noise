@@ -7,7 +7,7 @@
 /// Common interface for execucting all noise builders.
 ///
 /// All builders support these three execution methods:
-///  - `build()`: Create a new array
+///  - `build()`: Create a new Vec
 ///  - `into_iter()`: Get a lazy iterator
 ///  - `fill()`: Reuse existing memory
 ///  - `fill_onto()`: Add onto existing values
@@ -18,7 +18,7 @@ macro_rules! declare_build {
         /// Needs to know the length of the output SimdArray because
         /// const generic expr is not yet available in stable Rust when this was
         /// created.
-        pub fn build($self) -> SimdArray<f32, N> $body
+        pub fn build($self) -> Vec<f32> $body
     };
 }
 pub(crate) use declare_build;
@@ -35,7 +35,7 @@ pub(crate) use declare_into_iter;
 macro_rules! declare_fill {
     ($self:ident, $result:ident, $body:tt) => {
         /// Creates the noise and puts the result in a given array.
-        pub fn fill($self, $result: &mut SimdArray<f32, N>) $body
+        pub fn fill($self, $result: &mut [f32]) $body
     };
 }
 pub(crate) use declare_fill;
@@ -43,7 +43,7 @@ pub(crate) use declare_fill;
 macro_rules! declare_fill_onto {
     ($self:ident, $result:ident, $body:tt) => {
         /// Creates the noise and *adds* to the existing values in a given array.
-        pub fn fill_onto($self, $result: &mut SimdArray<f32, N>) $body
+        pub fn fill_onto($self, $result: &mut [f32]) $body
     };
 }
 pub(crate) use declare_fill_onto;

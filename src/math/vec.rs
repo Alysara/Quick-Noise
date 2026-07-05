@@ -8,7 +8,6 @@ use std::ops::{
 use num_traits::float::*;
 
 use crate::simd::arch_simd::ArchSimd;
-use crate::simd::simd_traits::SimdZero;
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Default)]
@@ -47,7 +46,7 @@ pub trait ArithmeticVec<T>:
     BasicVec<T>
     + Copy
     + Sized
-    + VecHorzMax<T>
+    + VecHorz<T>
     + Add<Output = Self>
     + Sub<Output = Self>
     + Mul<Output = Self>
@@ -74,8 +73,10 @@ where
 
 impl ArithmeticVec<f32> for Vec2<f32> {}
 impl ArithmeticVec<i32> for Vec2<i32> {}
+impl ArithmeticVec<usize> for Vec2<usize> {}
 impl ArithmeticVec<f32> for Vec3<f32> {}
 impl ArithmeticVec<i32> for Vec3<i32> {}
+impl ArithmeticVec<usize> for Vec3<usize> {}
 
 // === Constructors ===
 
@@ -505,7 +506,7 @@ impl<T: Float> Vec3<T> {
 
 // === Horizontal Operations ===
 
-pub trait VecHorzMax<T: PartialOrd + Copy>: BasicVec<T> + Index<usize, Output = T> {
+pub trait VecHorz<T: PartialOrd + Copy + MulAssign>: BasicVec<T> + Index<usize, Output = T> {
     fn horizontal_max(&self) -> T {
         let mut max = self[0];
         for i in 1..self.len() {
@@ -515,10 +516,17 @@ pub trait VecHorzMax<T: PartialOrd + Copy>: BasicVec<T> + Index<usize, Output = 
         }
         max
     }
+    fn horizontal_product(&self) -> T {
+        let mut prod = self[0];
+        for i in 1..self.len() {
+            prod *= self[i];
+        }
+        prod
+    }
 }
 
-impl<T: PartialOrd + Copy> VecHorzMax<T> for Vec2<T> {}
-impl<T: PartialOrd + Copy> VecHorzMax<T> for Vec3<T> {}
+impl<T: PartialOrd + Copy + MulAssign> VecHorz<T> for Vec2<T> {}
+impl<T: PartialOrd + Copy + MulAssign> VecHorz<T> for Vec3<T> {}
 
 impl<T: Add<Output = T>> Vec2<T> {
     pub fn sum(self) -> T {

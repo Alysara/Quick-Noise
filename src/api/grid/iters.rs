@@ -1,39 +1,40 @@
-use crate::Grid3D;
-use crate::api::grid::interface::Grid2D;
+use crate::{Dim2, Dim3, GridNoise};
 use crate::simd::arch_simd::{ArchMask, ArchSimd};
-use crate::simd::simd_traits::*;
 
-impl<const X: usize, const Y: usize, const N: usize> Grid2D<X, Y, N> {
+impl GridNoise<Dim2> {
     #[inline(always)]
     pub fn x_iter(&self) -> RowIter {
-        let start = (self.config.position.x * X as i32) as f32;
-        RowIter::new(X, Y, start)
+        let start = (self.config.position.x * self.config.dimensions.x as i32) as f32;
+        RowIter::new(self.config.dimensions.x, self.config.dimensions.y, start)
     }
 
     #[inline(always)]
     pub fn y_iter(&self) -> SliceIter {
-        let start = (self.config.position.y * Y as i32) as f32;
-        SliceIter::new(X, Y, 1, start)
+        let start = (self.config.position.y * self.config.dimensions.y as i32) as f32;
+        SliceIter::new(self.config.dimensions.x, self.config.dimensions.y, 1, start)
     }
 }
 
-impl<const X: usize, const Y: usize, const Z: usize, const N: usize> Grid3D<X, Y, Z, N> {
+impl GridNoise<Dim3> {
     #[inline(always)]
     pub fn x_iter(&self) -> SliceIter {
-        let start = (self.config.position.x * X as i32) as f32;
-        SliceIter::new(Z * Y, X, 1, start)
+        let dim = self.config.dimensions;
+        let start = (self.config.position.x * dim.x as i32) as f32;
+        SliceIter::new(dim.z * dim.y, dim.x, 1, start)
     }
 
     #[inline(always)]
     pub fn y_iter(&self) -> SliceIter {
-        let start = (self.config.position.y * Y as i32) as f32;
-        SliceIter::new(Z, Y, X, start)
+        let dim = self.config.dimensions;
+        let start = (self.config.position.y * dim.y as i32) as f32;
+        SliceIter::new(dim.z, dim.y, dim.x, start)
     }
 
     #[inline(always)]
     pub fn z_iter(&self) -> RowIter {
-        let start = (self.config.position.z * Z as i32) as f32;
-        RowIter::new(Z, Y * Z, start)
+        let dim = self.config.dimensions;
+        let start = (self.config.position.z * dim.z as i32) as f32;
+        RowIter::new(dim.x, dim.y * dim.z, start)
     }
 }
 
