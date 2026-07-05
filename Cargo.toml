@@ -10,9 +10,12 @@ edition = "2024"
 [profile.release]
 opt-level = 3
 debug = "line-tables-only"
+strip = false
 
 [profile.bench]
 opt-level = 3
+debug = "line-tables-only"
+strip = false
 
 [dependencies]
 num-traits = "0.2.19"

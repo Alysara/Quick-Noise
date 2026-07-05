@@ -27,11 +27,14 @@ impl ArenaCache {
 
     #[inline(always)]
     pub fn as_mut_slice(&mut self) -> &mut [MaybeUninit<f32>] {
-        if self.heap.capacity() > 0 {
+        let slice = if self.heap.capacity() > 0 {
             self.heap.spare_capacity_mut()
         } else {
             self.stack.as_mut_slice()
-        }
+        };
+
+        let offset = slice.as_ptr().align_offset(64);
+        &mut slice[offset..]
     }
 }
 
@@ -53,6 +56,7 @@ impl<'a> Arena<'a> {
         }
 
         let whole = std::mem::take(&mut self.slice);
+
         let (buf, rem) = whole.split_at_mut(capacity);
         self.slice = rem;
         unsafe { std::mem::transmute(buf) }
@@ -302,8 +306,8 @@ pub(super) fn grid_fill_indices_slice(
 /// * 'index' - the index to start setting values at in all arrays
 /// * 'amount' - the amount of elements to fill with the specified value
 #[inline(always)]
-pub fn multiset_slice<const M: usize>(
-    arrays: &mut [&mut [MaybeUninit<f32>]; M],
+pub fn multiset_slice<'a, const M: usize>(
+    arrays: &mut [&mut &'a mut [MaybeUninit<f32>]; M],
     values: &[f32; M],
     mut index: usize,
     mut amount: isize,

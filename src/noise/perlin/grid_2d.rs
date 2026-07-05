@@ -125,7 +125,7 @@ impl<const X: usize, const Y: usize, const N: usize> PerlinGridNoise2D<X, Y, N> 
         }
     }
 
-    #[inline(always)]
+    #[inline(never)]
     pub(super) fn grid_gradients_2d(
         seed: u32,
         left: &mut Vec2<SimdArray<f32, X>>,
@@ -141,8 +141,7 @@ impl<const X: usize, const Y: usize, const N: usize> PerlinGridNoise2D<X, Y, N> 
         // Temporary buffer to store indices for gradient values.
         let mut grad_array = unsafe { SimdArray::<u32, X>::new_uninit() };
 
-        let y_rem = tiling.y
-            .map_or(y_start, |t| y_start % t as i32);
+        let y_rem = tiling.y.map_or(y_start, |t| y_start % t as i32);
         let y_vec = ArchSimd::splat((y_rem as u32).wrapping_mul(seed));
 
         let prime = ArchSimd::splat(0x85ebca6b_u32);
@@ -151,7 +150,7 @@ impl<const X: usize, const Y: usize, const N: usize> PerlinGridNoise2D<X, Y, N> 
             10, 9, 15, 12, 14, 13, 3, 0, 2, 1, 7, 4, 6, 5, 11, 8, 10, 9, 15, 12, 14, 13, 3, 0, 2,
             1, 7, 4, 6, 5, 11, 8, 10, 9, 15, 12, 14, 13,
         ];
-        let shuffle_indices = ArchSimd::<u8>::from_slice(&BYTE_SHUFFLE[..]);
+        let shuffle_indices = unsafe { ArchSimd::<u8>::from_slice_unchecked(&BYTE_SHUFFLE[..]) };
         let y_shuf = y_vec.permute_8(shuffle_indices) ^ prime;
 
         if tiling.x.is_none() {

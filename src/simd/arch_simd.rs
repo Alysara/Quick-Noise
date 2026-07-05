@@ -28,7 +28,7 @@ cfg_if::cfg_if! {
         pub const SIMD_WIDTH: usize = 16;
         pub const NUM_SIMD_REG: usize = 16;
         pub type ArchSimd<T> = Simd<T, Sse>;
-        pub type ArchMask<T> = SimdMask<T, Sse>;
+        pub type ArchMask<T> = Mask<T, Sse>;
         pub type ArchFamily = Sse;
     }
 

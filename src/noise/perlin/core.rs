@@ -21,27 +21,27 @@ impl GridNoiseImpl for Perlin {
         magnification: f32,
         tiling: Vec2<Option<u32>>,
     ) {
-        // let result: &mut SimdArray<f32, 1024> = unsafe { std::mem::transmute(result.as_mut_ptr())};
-        // PerlinGridNoise2D::<32, 32, 1024>::grid_2d::<INITIALIZE>(
-        //     seed,
-        //     result,
-        //     position,
-        //     frequency,
-        //     weight,
-        //     magnification,
-        //     tiling,
-        // );
-
-        grid_2d::<INITIALIZE>(
-            dimensions,
-            result,
+        let result: &mut SimdArray<f32, 1024> = unsafe { std::mem::transmute(result.as_mut_ptr()) };
+        PerlinGridNoise2D::<32, 32, 1024>::grid_2d::<INITIALIZE>(
             seed,
+            result,
             position,
             frequency,
             weight,
             magnification,
             tiling,
         );
+
+        // grid_2d::<INITIALIZE>(
+        //     dimensions,
+        //     result,
+        //     seed,
+        //     position,
+        //     frequency,
+        //     weight,
+        //     magnification,
+        //     tiling,
+        // );
     }
 
     fn grid_3d<const INITIALIZE: bool>(

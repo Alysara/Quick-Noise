@@ -157,7 +157,9 @@ pub fn grid_2d<const INITIALIZE: bool>(
     grid_fill_indices_slice(x_grid_indices, x_distances, &mut num_loops.x);
     grid_fill_indices_slice(y_grid_indices, y_distances, &mut num_loops.y);
 
-    // println!("x_grid_indices: {:?}", x_grid_indices);
+    // println!("x_grid_indices: {:?}", unsafe {
+    //     x_grid_indices.assume_init_ref()
+    // });
 
     // Adjust the tiling.
     let octave_tiling = configure_tiling(&tiling, &frequency);
@@ -176,6 +178,7 @@ pub fn grid_2d<const INITIALIZE: bool>(
         grad_buffer,
         grid_start.x,
         grid_start.y,
+        dimensions.x,
         x_grid_indices,
         num_loops.x,
         x_distances,
@@ -196,6 +199,7 @@ pub fn grid_2d<const INITIALIZE: bool>(
             grad_buffer,
             grid_start.x,
             grid_start.y + y_it as i32 + 1,
+            dimensions.x,
             x_grid_indices,
             num_loops.x,
             x_distances,
@@ -224,7 +228,7 @@ pub fn grid_2d<const INITIALIZE: bool>(
     }
 }
 
-#[inline(always)]
+#[inline(never)]
 pub(super) fn grid_gradients_2d<'a>(
     seed: u32,
     left: &mut Vec2<&'a mut [MaybeUninit<f32>]>,
@@ -232,14 +236,16 @@ pub(super) fn grid_gradients_2d<'a>(
     grad_buffer: &mut [MaybeUninit<u32>],
     x_start: i32,
     y_start: i32,
+    x_dim: usize,
     x_grid_indices: &[MaybeUninit<u32>],
     x_num_loops: usize,
     x_distances: &[MaybeUninit<f32>],
     tiling: &Vec2<Option<u32>>,
 ) {
     // let time = Instant::now();
-    let y_rem = tiling.y.map_or(y_start, |t| y_start % t as i32);
-    let y_vec = ArchSimd::splat((y_rem as u32).wrapping_mul(seed));
+    // let y_rem = tiling.y.map_or(y_start, |t| y_start % t as i32);
+    // let y_vec = ArchSimd::splat((y_rem as u32).wrapping_mul(seed));
+    let y_vec = ArchSimd::splat((y_start as u32).wrapping_mul(seed));
 
     let prime = ArchSimd::splat(0x85ebca6b_u32);
     const BYTE_SHUFFLE: [u8; 64] = [
@@ -250,50 +256,51 @@ pub(super) fn grid_gradients_2d<'a>(
     let shuffle_indices = ArchSimd::<u8>::from_slice(&BYTE_SHUFFLE[..]);
     let y_shuf = y_vec.permute_8(shuffle_indices) ^ prime;
 
-    if let Some(x_tiling) = tiling.x {
-        let x_tiling = ArchSimd::splat(x_tiling as f32);
-        let mut x_vec = ArchSimd::splat(x_start) + ArchSimd::iota(0);
-        let x_vec_stride = ArchSimd::splat(ArchSimd::<f32>::LANES as i32);
-        let seed_vec = ArchSimd::splat(seed);
+    // if let Some(x_tiling) = tiling.x {
+    //     let x_tiling = ArchSimd::splat(x_tiling as f32);
+    //     let mut x_vec = ArchSimd::splat(x_start) + ArchSimd::iota(0);
+    //     let x_vec_stride = ArchSimd::splat(ArchSimd::<f32>::LANES as i32);
+    //     let seed_vec = ArchSimd::splat(seed);
 
-        let end_index = x_num_loops + 1;
-        for i in (0..end_index).step_by(ArchSimd::<f32>::LANES) {
-            let x_floats = x_vec.cast_float();
-            let x_rem = x_floats - (x_floats / x_tiling).floor() * x_tiling;
-            let x_seeded = x_rem.cast_int_round().raw_cast() * seed_vec;
+    //     let end_index = x_num_loops + 1;
+    //     for i in (0..end_index).step_by(ArchSimd::<f32>::LANES) {
+    //         let x_floats = x_vec.cast_float();
+    //         let x_rem = x_floats - (x_floats / x_tiling).floor() * x_tiling;
+    //         let x_seeded = x_rem.cast_int_round().raw_cast() * seed_vec;
 
-            let x_shuf = x_seeded.permute_8(shuffle_indices) ^ prime;
-            let indices: ArchSimd<u32> = (y_shuf * x_shuf) >> 29;
-            unsafe {
-                indices
-                    .copy_to_slice_unchecked(grad_buffer.get_unchecked_mut(i..).assume_init_mut())
-            };
-            x_vec += x_vec_stride;
-        }
-    } else {
-        let iota_vec = ArchSimd::iota(0) * ArchSimd::splat(seed);
-        let mut x_vec = ArchSimd::splat((x_start as u32).wrapping_mul(seed)) + iota_vec;
-        let x_vec_stride = ArchSimd::splat((ArchSimd::<f32>::LANES as u32).wrapping_mul(seed));
+    //         let x_shuf = x_seeded.permute_8(shuffle_indices) ^ prime;
+    //         let indices: ArchSimd<u32> = (y_shuf * x_shuf) >> 29;
+    //         unsafe {
+    //             indices
+    //                 .copy_to_slice_unchecked(grad_buffer.get_unchecked_mut(i..).assume_init_mut())
+    //         };
+    //         x_vec += x_vec_stride;
+    //     }
+    // } else {
+    let iota_vec = ArchSimd::iota(0) * ArchSimd::splat(seed);
+    let mut x_vec = ArchSimd::splat((x_start as u32).wrapping_mul(seed)) + iota_vec;
+    let x_vec_stride = ArchSimd::splat((ArchSimd::<f32>::LANES as u32).wrapping_mul(seed));
 
-        // Main vectorized bit mixing loop.
-        let end_index = x_num_loops + 1;
-        for i in (0..end_index).step_by(ArchSimd::<f32>::LANES) {
-            let x_shuf = x_vec.permute_8(shuffle_indices) ^ prime;
-            let indices: ArchSimd<u32> = (y_shuf * x_shuf) >> 29;
-            unsafe {
-                indices
-                    .copy_to_slice_unchecked(grad_buffer.get_unchecked_mut(i..).assume_init_mut())
-            };
-            x_vec += x_vec_stride;
-        }
+    // Main vectorized bit mixing loop.
+    let end_index = x_num_loops + 1;
+    for i in (0..end_index).step_by(ArchSimd::<f32>::LANES) {
+        let x_shuf = x_vec.permute_8(shuffle_indices) ^ prime;
+        let indices: ArchSimd<u32> = (y_shuf * x_shuf) >> 29;
+        unsafe {
+            indices.copy_to_aligned_slice_unchecked(
+                grad_buffer.get_unchecked_mut(i..).assume_init_mut(),
+            )
+        };
+        x_vec += x_vec_stride;
     }
+    // }
 
-    let mut arrays = [
-        std::mem::take(&mut left.y),
-        std::mem::take(&mut left.x),
-        std::mem::take(&mut right.y),
-        std::mem::take(&mut right.x),
-    ];
+    // let mut arrays = [
+    //     &mut left.y,
+    //     &mut left.x,
+    //     &mut right.y,
+    //     &mut right.x,
+    // ];
 
     // Loop through the y chunks.
     let mut x_cur_index = 0;
@@ -302,51 +309,58 @@ pub(super) fn grid_gradients_2d<'a>(
 
         // Find range of gradients to set.
         let x_next_index = unsafe { x_next_index.assume_init() };
-        let set_amount = x_next_index - x_cur_index;
+        let mut amount = (x_next_index - x_cur_index) as isize;
 
         unsafe {
             let l = grad_buffer.get_unchecked(x_it).assume_init() as usize;
             let r = grad_buffer.get_unchecked(x_it + 1).assume_init() as usize;
 
-            let values = [
-                GRADIENTS_2D.get_unchecked(l).y,
-                GRADIENTS_2D.get_unchecked(l).x,
-                GRADIENTS_2D.get_unchecked(r).y,
-                GRADIENTS_2D.get_unchecked(r).x,
-            ];
+            let ly = ArchSimd::splat(GRADIENTS_2D.get_unchecked(l).y);
+            let lx = ArchSimd::splat(GRADIENTS_2D.get_unchecked(l).x);
+            let ry = ArchSimd::splat(GRADIENTS_2D.get_unchecked(r).y);
+            let rx = ArchSimd::splat(GRADIENTS_2D.get_unchecked(r).x);
 
-            multiset_slice::<4>(
-                &mut arrays,
-                &values,
-                x_cur_index as usize,
-                set_amount as isize,
-            );
+            // multiset_slice::<4>(
+            //     &mut arrays,
+            //     &values,
+            //     x_cur_index as usize,
+            //     set_amount as isize,
+            // );
+
+            let mut index = x_cur_index as usize;
+            while amount > 0 {
+                ly.copy_to_slice_unchecked(left.y.get_unchecked_mut(index..).assume_init_mut());
+                lx.copy_to_slice_unchecked(left.x.get_unchecked_mut(index..).assume_init_mut());
+                ry.copy_to_slice_unchecked(right.y.get_unchecked_mut(index..).assume_init_mut());
+                rx.copy_to_slice_unchecked(right.x.get_unchecked_mut(index..).assume_init_mut());
+
+                amount -= ArchSimd::<f32>::LANES as isize;
+                index += ArchSimd::<f32>::LANES;
+            }
         }
 
         x_cur_index = x_next_index;
     }
 
-    let [ly, lx, ry, rx] = arrays;
-    left.y = ly;
-    left.x = lx;
-    right.y = ry;
-    right.x = rx;
-
     // Compute y dot products (Better to do here since these dot products get reused and operate per element).
-    for i in (0..x_distances.len()).step_by(ArchSimd::<f32>::LANES) {
+    for i in (0..x_dim).step_by(ArchSimd::<f32>::LANES) {
         unsafe {
-            let cur_dist =
-                ArchSimd::from_slice_unchecked(x_distances.get_unchecked(i..).assume_init_ref());
+            let cur_dist = ArchSimd::from_aligned_slice_unchecked(
+                x_distances.get_unchecked(i..).assume_init_ref(),
+            );
             let cur_left =
-                ArchSimd::from_slice_unchecked(left.x.get_unchecked(i..).assume_init_ref());
-            let cur_right =
-                ArchSimd::from_slice_unchecked(right.x.get_unchecked(i..).assume_init_ref());
+                ArchSimd::from_aligned_slice_unchecked(left.x.get_unchecked(i..).assume_init_ref());
+            let cur_right = ArchSimd::from_aligned_slice_unchecked(
+                right.x.get_unchecked(i..).assume_init_ref(),
+            );
 
             let new_left = cur_dist * cur_left;
             let new_right = cur_right.mul_sub(cur_dist, cur_right);
 
-            new_left.copy_to_slice_unchecked(left.x.get_unchecked_mut(i..).assume_init_mut());
-            new_right.copy_to_slice_unchecked(right.x.get_unchecked_mut(i..).assume_init_mut());
+            new_left
+                .copy_to_aligned_slice_unchecked(left.x.get_unchecked_mut(i..).assume_init_mut());
+            new_right
+                .copy_to_aligned_slice_unchecked(right.x.get_unchecked_mut(i..).assume_init_mut());
         }
     }
 }
@@ -460,31 +474,31 @@ fn grid_dotted_bilerp_helper<const INITIALIZE: bool, const IS_TAIL: bool>(
             let index = x_it + LANES * block;
             let (x_lerp, x_tl, x_tr, x_bl, x_br, y_tl, y_tr, y_bl, y_br) = unsafe {
                 (
-                    ArchSimd::from_slice_unchecked(
+                    ArchSimd::from_aligned_slice_unchecked(
                         x_lerp_array.get_unchecked(index..).assume_init_ref(),
                     ),
-                    ArchSimd::from_slice_unchecked(
+                    ArchSimd::from_aligned_slice_unchecked(
                         gradients.tl.x.get_unchecked(index..).assume_init_ref(),
                     ),
-                    ArchSimd::from_slice_unchecked(
+                    ArchSimd::from_aligned_slice_unchecked(
                         gradients.tr.x.get_unchecked(index..).assume_init_ref(),
                     ),
-                    ArchSimd::from_slice_unchecked(
+                    ArchSimd::from_aligned_slice_unchecked(
                         gradients.bl.x.get_unchecked(index..).assume_init_ref(),
                     ),
-                    ArchSimd::from_slice_unchecked(
+                    ArchSimd::from_aligned_slice_unchecked(
                         gradients.br.x.get_unchecked(index..).assume_init_ref(),
                     ),
-                    ArchSimd::from_slice_unchecked(
+                    ArchSimd::from_aligned_slice_unchecked(
                         gradients.tl.y.get_unchecked(index..).assume_init_ref(),
                     ),
-                    ArchSimd::from_slice_unchecked(
+                    ArchSimd::from_aligned_slice_unchecked(
                         gradients.tr.y.get_unchecked(index..).assume_init_ref(),
                     ),
-                    ArchSimd::from_slice_unchecked(
+                    ArchSimd::from_aligned_slice_unchecked(
                         gradients.bl.y.get_unchecked(index..).assume_init_ref(),
                     ),
-                    ArchSimd::from_slice_unchecked(
+                    ArchSimd::from_aligned_slice_unchecked(
                         gradients.br.y.get_unchecked(index..).assume_init_ref(),
                     ),
                 )
@@ -578,13 +592,14 @@ fn process_lerp_block<const INITIALIZE: bool, const IS_TAIL: bool>(
         let val = if INITIALIZE {
             output
         } else {
-            output + unsafe { ArchSimd::from_slice_unchecked(result.get_unchecked(index..)) }
+            output
+                + unsafe { ArchSimd::from_aligned_slice_unchecked(result.get_unchecked(index..)) }
         };
 
         if IS_TAIL && config.has_simd_tail && x_index >= config.simd_tail_start {
             val.copy_to_slice(&mut result[index..]);
         } else {
-            unsafe { val.copy_to_slice_unchecked(result.get_unchecked_mut(index..)) };
+            unsafe { val.copy_to_aligned_slice_unchecked(result.get_unchecked_mut(index..)) };
         };
 
         base_dif[block] += y_offset_dif[block];

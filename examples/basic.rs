@@ -60,7 +60,7 @@ fn main() {
     let mut buffer = SimdArray::<f32, 1024>::new(0.0);
 
     let time = Instant::now();
-    const NUM_RUNS: usize = 10000000;
+    const NUM_RUNS: usize = 1_000_000;
     let freq = 1. / 64.;
     for _ in 0..NUM_RUNS {
         grid_2d.fbm::<Perlin>().frequency(freq).fill(&mut buffer);
