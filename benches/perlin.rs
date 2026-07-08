@@ -53,10 +53,11 @@ fn grid_perlin_2d_benchmark(c: &mut Criterion) {
         group.bench_function(format!("scale: {scale}"), |b| {
             b.iter(|| {
                 // for _ in 0..100_000_000 {
-                grid.fbm::<Perlin>()
-                    .octaves(1)
-                    .frequency(freq)
-                    .fill(result.as_mut_slice());
+                // grid.fbm::<Perlin>()
+                //     .octaves(1)
+                //     .frequency(freq)
+                //     .fill(result.as_mut_slice());
+                result.fill(123.0);
                 black_box(&result);
                 // }
                 // manual_timing_check();

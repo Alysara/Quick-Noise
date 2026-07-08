@@ -29,7 +29,7 @@ fn main() {
         .position(0, 0)
         .seed(GRID_SEED);
 
-    let grid_2d_big = GridNoise::<2>::new(2047, 2047)
+    let grid_2d_big = GridNoise::<2>::new(2048, 2048)
         .position(0, 0)
         .seed(GRID_SEED);
 
@@ -86,7 +86,7 @@ fn main() {
         .frequency(1. / 128.0)
         .seed(FBM_SEED)
         .into_iter()
-        .to_grayscale_image(2047, 2047, "noise_images/perlin_grid_2d.png");
+        .to_grayscale_image(2048, 2048, "noise_images/perlin_grid_2d.png");
 
     // Batch2D::fbm::<Perlin, 262144>(grid_2d.x_iter(), grid_2d.y_iter())
     //     .octaves(6)
