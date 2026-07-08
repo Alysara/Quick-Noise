@@ -1,6 +1,4 @@
 use crate::api::configs::*;
-use crate::api::methods::NoiseDimension;
-use crate::math::vec::{BasicVec, Vec2, Vec3};
 use crate::perlin::{Octave2D, Octave3D};
 use crate::simd::arch_simd::ArchSimd;
 
@@ -21,34 +19,32 @@ impl Default for GeneralConfig {
     }
 }
 
-impl<D: NoiseDimension> Default for FbmConfig<D> {
+impl<const D: usize> Default for FbmConfig<D> {
     fn default() -> Self {
         Self {
             octaves: 1,
             frequency: 0.03125,
             lacunarity: 2.0,
             persistence: 0.5,
-            scaling: D::FVec::splat(1.0),
+            scaling: [1.0; D],
         }
     }
 }
 
-impl<D: NoiseDimension> Default for GridConfig<D> {
+impl<const D: usize> Default for GridConfig<D> {
     fn default() -> Self {
         Self {
-            dimensions: D::USizeVec::splat(32),
+            dimensions: [32; D],
             grid_seed: 0xc4ceb9fe1a85ec53,
-            position: D::IVec::splat(0),
-            tiling: D::Vec::splat(None),
+            position: [0; D],
+            tiling: [None; D],
         }
     }
 }
 
 impl Default for WarpBuilderConfig {
     fn default() -> Self {
-        Self {
-            strength: 100.0,
-        }
+        Self { strength: 100.0 }
     }
 }
 

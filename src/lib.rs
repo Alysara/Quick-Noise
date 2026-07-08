@@ -20,10 +20,10 @@ pub mod emit {
 }
 
 mod api;
-pub use api::batch::interface::{Batch2D, Batch3D, BatchNoise};
+// pub use api::batch::interface::{Batch2D, Batch3D, BatchNoise};
 pub use api::defaults::*;
 pub use api::grid::interface::{GridNoise, GridNoiseImpl};
-pub use api::methods::{Dim2, Dim3, Octave2D, Octave3D};
+pub use api::methods::{Octave};
 pub use noise::cellular::Cellular;
 pub use noise::perlin::Perlin;
 pub use noise::simplex::Simplex;

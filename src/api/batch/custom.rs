@@ -4,7 +4,7 @@ use itertools::izip;
 
 use crate::api::batch::interface::BatchNoise;
 use crate::api::configs::*;
-use crate::api::methods::{NoiseDimension, Octave};
+use crate::api::methods::Octave;
 use crate::api::parameters::*;
 use crate::math::random::Random;
 use crate::simd::arch_simd::ArchSimd;

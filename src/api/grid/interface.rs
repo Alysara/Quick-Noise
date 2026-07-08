@@ -2,35 +2,26 @@ use crate::api::configs::GridConfig;
 // use crate::api::grid::custom::CustomGridBuilder;
 use crate::api::grid::fbm::FbmGridBuilder;
 // use crate::api::grid::warp::FbmGridWarpBuilder;
-use crate::api::methods::{Dim2, Dim3, NoiseDimension, Octave};
+use crate::api::methods::Octave;
 use crate::api::parameters::*;
 use crate::math::random::Random;
 use crate::math::vec::{Vec2, Vec3};
 use crate::simd::arch_simd::ArchSimd;
-use crate::{BatchNoise, ZeroIter};
+// use crate::{BatchNoise, ZeroIter};
 
-pub trait GridNoiseImpl: Default {
-    fn grid_2d<const INITIALIZE: bool>(
-        seed: u32,
-        result: &mut [f32],
-        dimensions: Vec2<usize>,
-        position: Vec2<i32>,
-        frequency: Vec2<f32>,
-        weight: f32,
-        magnification: f32,
-        tiling: Vec2<Option<u32>>,
-    );
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub struct GridNoiseParams<const D: usize> {
+    pub seed: u32,
+    pub grid_size: [usize; D],
+    pub position: [i32; D],
+    pub frequency: [f32; D],
+    pub weight: f32,
+    pub magnification: f32,
+    pub tiling: [Option<u32>; D],
+}
 
-    fn grid_3d<const INITIALIZE: bool>(
-        seed: u32,
-        result: &mut [f32],
-        dimensions: Vec3<usize>,
-        position: Vec3<i32>,
-        frequency: Vec3<f32>,
-        weight: f32,
-        magnification: f32,
-        tiling: Vec3<Option<u32>>,
-    );
+pub trait GridNoiseImpl<const D: usize>: Default + Copy + Clone + PartialEq {
+    fn sample<const INIT: bool>(params: GridNoiseParams<D>, dst: &mut [f32]);
 }
 
 // ————————————————————————————————————————————————————————————————
@@ -53,11 +44,11 @@ pub trait GridNoiseImpl: Default {
 /// ```
 
 #[derive(Default)]
-pub struct GridNoise<D: NoiseDimension> {
+pub struct GridNoise<const D: usize> {
     pub(crate) config: GridConfig<D>,
 }
 
-impl<D: NoiseDimension> GridNoise<D> {
+impl<const D: usize> GridNoise<D> {
     /// Determines the psuedo-random values used in noise generation called
     /// on this grid. Different seeds produce different noise.
     pub fn seed(mut self, seed: i64) -> Self {
@@ -66,7 +57,7 @@ impl<D: NoiseDimension> GridNoise<D> {
     }
 }
 
-impl GridNoise<Dim2> {
+impl GridNoise<2> {
     /// Creates an anchor for a grid region that can be used for call noise.
     ///
     /// # Parameters
@@ -74,7 +65,7 @@ impl GridNoise<Dim2> {
     /// -`y`: Length of the grid region along the y-axis
     pub fn new(x: usize, y: usize) -> Self {
         let mut config = GridConfig::default();
-        config.dimensions = Vec2::new(x, y);
+        config.dimensions = [x, y];
         Self { config }
     }
 
@@ -86,7 +77,7 @@ impl GridNoise<Dim2> {
     /// `0`: x
     /// `0`: y
     pub fn position(mut self, x: i32, y: i32) -> Self {
-        self.config.position = Vec2::new(x, y);
+        self.config.position = [x, y];
         self
     }
 
@@ -97,12 +88,12 @@ impl GridNoise<Dim2> {
     /// - `x`: None
     /// - `y`: None
     pub fn tiling(mut self, x: Option<u32>, y: Option<u32>) -> Self {
-        self.config.tiling = Vec2::new(x, y);
+        self.config.tiling = [x, y];
         self
     }
 }
 
-impl GridNoise<Dim3> {
+impl GridNoise<3> {
     /// Creates an anchor for a grid region that can be used for call noise.
     ///
     /// # Parameters
@@ -111,7 +102,7 @@ impl GridNoise<Dim3> {
     /// -`z`: Length of the grid region along the z-axis
     pub fn new(x: usize, y: usize, z: usize) -> Self {
         let mut config = GridConfig::default();
-        config.dimensions = Vec3::new(x, y, z);
+        config.dimensions = [x, y, z];
         Self { config }
     }
 
@@ -125,7 +116,7 @@ impl GridNoise<Dim3> {
     /// `0`: y
     /// `0`: z
     pub fn position(mut self, x: i32, y: i32, z: i32) -> Self {
-        self.config.position = Vec3::new(x, y, z);
+        self.config.position = [x, y, z];
         self
     }
 
@@ -137,13 +128,13 @@ impl GridNoise<Dim3> {
     /// - `y`: None
     /// - `z`: None
     pub fn tiling(mut self, x: Option<u32>, y: Option<u32>, z: Option<u32>) -> Self {
-        self.config.tiling = Vec3::new(x, y, z);
+        self.config.tiling = [x, y, z];
         self
     }
 }
 
-impl<D: NoiseDimension> GridNoise<D> {
-    // pub fn new() -> Self {
+impl<const D: usize> GridNoise<D> {
+    // pub fn new -> Self {
     //     assert_eq!(
     //         N,
     //         X * Y,
@@ -159,7 +150,7 @@ impl<D: NoiseDimension> GridNoise<D> {
         Self { config }
     }
 
-    pub fn fbm<T: GridNoiseImpl>(&self) -> FbmGridBuilder<D, T> {
+    pub fn fbm<T: GridNoiseImpl<D>>(&self) -> FbmGridBuilder<D, T> {
         FbmGridBuilder::from_config(self.config)
     }
 

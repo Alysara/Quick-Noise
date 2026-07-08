@@ -1,8 +1,8 @@
 use crate::api::grid::interface::GridNoiseImpl;
 use crate::math::vec::{Vec2, Vec3};
 use crate::simd::simd_array::SimdArray;
-use crate::value::grid_2d::ValueGridNoise2D;
-use crate::value::grid_3d::ValueGridNoise3D;
+// use crate::value::grid_2d::ValueGridNoise2D;
+// use crate::value::grid_3d::ValueGridNoise3D;
 
 #[derive(Default, Copy, Clone)]
 pub struct Value {}

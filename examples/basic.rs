@@ -14,7 +14,7 @@ use quick_noise::testing::profiler;
 use quick_noise::testing::profiler as unofficial_profiler;
 // use criterion::profiler;
 // use quick_noise::emit::grayscale;
-use quick_noise::{Batch2D, Batch3D, Cellular, Dim2, Dim3, GridNoise, Octave2D, Perlin, Value};
+use quick_noise::{Cellular, GridNoise, Octave, Perlin, Value};
 
 #[cfg(feature = "image")]
 fn main() {
@@ -23,15 +23,13 @@ fn main() {
 
     // use std::time::{SystemTime, UNIX_EPOCH};
 
-    use quick_noise::Dim2;
-
     const GRID_SEED: i64 = 124384833;
     const FBM_SEED: i64 = 91191912;
-    let grid_2d = GridNoise::<Dim2>::new(32, 32)
+    let grid_2d = GridNoise::<2>::new(32, 32)
         .position(0, 0)
         .seed(GRID_SEED);
 
-    let grid_2d_big = GridNoise::<Dim2>::new(2048, 2048)
+    let grid_2d_big = GridNoise::<2>::new(2047, 2047)
         .position(0, 0)
         .seed(GRID_SEED);
 
@@ -59,19 +57,19 @@ fn main() {
 
     let mut buffer = SimdArray::<f32, 1024>::new(0.0);
 
-    let time = Instant::now();
-    const NUM_RUNS: usize = 1_000_000;
-    let freq = 1. / 64.;
-    for _ in 0..NUM_RUNS {
-        grid_2d.fbm::<Perlin>().frequency(freq).fill(&mut buffer);
-        black_box(&buffer);
-    }
-    let total = time.elapsed();
-    println!(
-        "Total: {:?}, Average Completion: {:?}",
-        total,
-        total / NUM_RUNS as u32
-    );
+    // let time = Instant::now();
+    // const NUM_RUNS: usize = 100_000_000;
+    // let freq = 1. / 64.;
+    // for _ in 0..NUM_RUNS {
+    //     grid_2d.fbm::<Perlin>().frequency(freq).fill(&mut buffer);
+    //     black_box(&buffer);
+    // }
+    // let total = time.elapsed();
+    // println!(
+    //     "Total: {:?}, Average Completion: {:?}",
+    //     total,
+    //     total / NUM_RUNS as u32
+    // );
 
     // grid_2d
     //     .fbm::<Perlin>()
@@ -79,16 +77,16 @@ fn main() {
     //     .frequency(1. / 32.)
     //     .seed(FBM_SEED)
     //     .into_iter()
-    //     .to_grayscale_image::<32, 32>("noise_images/perlin_grid_2d.png");
-    //
+    //     .to_grayscale_image(32, 32, "noise_images/perlin_grid_2d.png");
 
-    // grid_2d_big
-    //     .fbm::<Perlin>()
-    //     .octaves(6)
-    //     .frequency(1. / 128.0)
-    //     .seed(FBM_SEED)
-    //     .into_iter()
-    //     .to_grayscale_image::<2048, 2048>("noise_images/perlin_grid_2d.png");
+
+    grid_2d_big
+        .fbm::<Perlin>()
+        .octaves(1)
+        .frequency(1. / 128.0)
+        .seed(FBM_SEED)
+        .into_iter()
+        .to_grayscale_image(2047, 2047, "noise_images/perlin_grid_2d.png");
 
     // Batch2D::fbm::<Perlin, 262144>(grid_2d.x_iter(), grid_2d.y_iter())
     //     .octaves(6)

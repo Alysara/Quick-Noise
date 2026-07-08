@@ -8,14 +8,14 @@ use crate::simd::simd_traits::*;
 
 // TODO: Add error handling here.
 pub trait NoiseImageExt: Iterator<Item = ArchSimd<f32>> + Sized {
-    fn to_grayscale_image<const X: usize, const Y: usize>(mut self, path: impl AsRef<Path>) {
+    fn to_grayscale_image(mut self, x: usize, y: usize, path: impl AsRef<Path>) {
         if let Some(parent) = path.as_ref().parent()
             && !parent.exists()
         {
             fs::create_dir_all(parent).expect("Failed to create parent");
         }
 
-        let size = X * Y;
+        let size = x * y;
         let mut pixels = vec![0; size];
 
         const LANES: usize = ArchSimd::<f32>::LANES;
@@ -35,7 +35,7 @@ pub trait NoiseImageExt: Iterator<Item = ArchSimd<f32>> + Sized {
             }
         }
 
-        image::save_buffer(&path, &pixels, X as u32, Y as u32, image::ColorType::L8)
+        image::save_buffer(&path, &pixels, x as u32, y as u32, image::ColorType::L8)
             .expect("Failed to write height map!");
     }
 }

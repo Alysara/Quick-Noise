@@ -2,13 +2,10 @@ use std::hint::black_box;
 use std::time::Instant;
 
 use criterion::{Criterion, Throughput, criterion_group, criterion_main};
-use quick_noise::math::Vec2;
-use quick_noise::perlin::PerlinGridNoise2D;
 use quick_noise::simd::simd_array::SimdArray;
-use quick_noise::{Batch2D, Dim2, Dim3, GridNoise, GridNoiseImpl, Perlin, Value, ZeroIter};
+use quick_noise::{GridNoise, GridNoiseImpl, Perlin, Value, ZeroIter};
 
-const SCALES: [f32; 1] = [64.0];
-// , 48.0, 32.0, 24.0, 16.0, 12.0, 8.0, 6.0, 4.0, 3.0, 2.0];
+const SCALES: [f32; 11]= [64.0, 48.0, 32.0, 24.0, 16.0, 12.0, 8.0, 6.0, 4.0, 3.0, 2.0];
 
 // fn simd_vec_benchmark(c: &mut Criterion) {
 //     let mut group = c.benchmark_group("simd_vec");
@@ -42,21 +39,25 @@ const SCALES: [f32; 1] = [64.0];
 fn grid_perlin_2d_benchmark(c: &mut Criterion) {
     // manual_timing_check();
     let mut group = c.benchmark_group("perlin_noise_2d");
-    for scale in SCALES {
-        group.throughput(Throughput::Elements(1024));
 
-        let grid = GridNoise::<Dim2>::new(32, 32);
-        let mut result = unsafe { SimdArray::<f32, 1024>::new_uninit() };
+    const GRID_SIZE: usize = 1024;
+    const GRID_AREA: usize = GRID_SIZE * GRID_SIZE;
+    for scale in SCALES {
+        group.throughput(Throughput::Elements(GRID_AREA as u64));
+
+        let grid = GridNoise::<2>::new(GRID_SIZE, GRID_SIZE);
+        // let mut result = unsafe { SimdArray::<f32, 1024>::new_uninit() };
+        let mut result = vec![0.0; GRID_AREA];
 
         let freq = 1.0 / scale;
         group.bench_function(format!("scale: {scale}"), |b| {
             b.iter(|| {
                 // for _ in 0..100_000_000 {
-                // grid.fbm::<Perlin>()
-                //     .octaves(1)
-                //     .frequency(freq)
-                //     .fill(result.as_array_mut().as_mut_slice());
-                // black_box(&result);
+                grid.fbm::<Perlin>()
+                    .octaves(1)
+                    .frequency(freq)
+                    .fill(result.as_mut_slice());
+                black_box(&result);
                 // }
                 // manual_timing_check();
 
@@ -71,15 +72,15 @@ fn grid_perlin_2d_benchmark(c: &mut Criterion) {
                 //     Vec2::new(None, None),
                 // );
 
-                PerlinGridNoise2D::<32, 32, 1024>::grid_2d::<true>(
-                    12312312,
-                    &mut result,
-                    Vec2::new(0, 0),
-                    Vec2::new(freq, freq),
-                    1.0,
-                    1.0,
-                    Vec2::new(None, None),
-                );
+                // PerlinGridNoise2D::<32, 32, 1024>::grid_2d::<true>(
+                //     12312312,
+                //     &mut result,
+                //     Vec2::new(0, 0),
+                //     Vec2::new(freq, freq),
+                //     1.0,
+                //     1.0,
+                //     Vec2::new(None, None),
+                // );
             });
         });
 
@@ -105,24 +106,24 @@ fn grid_perlin_2d_benchmark(c: &mut Criterion) {
 //     }
 // }
 
-fn grid_perlin_3d_benchmark(c: &mut Criterion) {
-    let mut group = c.benchmark_group("perlin_noise_3d");
-    for scale in SCALES {
-        group.throughput(Throughput::Elements(4096));
-
-        let grid = GridNoise::<Dim3>::new(32, 32, 32);
-        let mut result = unsafe { SimdArray::<f32, 4096>::new_uninit() };
-
-        group.bench_function(format!("scale: {scale}"), |b| {
-            b.iter(|| {
-                grid.fbm::<Perlin>()
-                    .frequency(1.0 / scale)
-                    .fill(result.as_array_mut().as_mut_slice());
-                black_box(&result);
-            });
-        });
-    }
-}
+// fn grid_perlin_3d_benchmark(c: &mut Criterion) {
+//     let mut group = c.benchmark_group("perlin_noise_3d");
+//     for scale in SCALES {
+//         group.throughput(Throughput::Elements(4096));
+//
+//         let grid = GridNoise::<3>::new(32, 32, 32);
+//         let mut result = unsafe { SimdArray::<f32, 4096>::new_uninit() };
+//
+//         group.bench_function(format!("scale: {scale}"), |b| {
+//             b.iter(|| {
+//                 grid.fbm::<Perlin>()
+//                     .frequency(1.0 / scale)
+//                     .fill(result.as_array_mut().as_mut_slice());
+//                 black_box(&result);
+//             });
+//         });
+//     }
+// }
 
 // fn grid_value_3d_benchmark(c: &mut Criterion) {
 //     let mut group = c.benchmark_group("value_noise_3d");
@@ -161,7 +162,7 @@ fn grid_perlin_3d_benchmark(c: &mut Criterion) {
 // }
 
 fn manual_timing_check() {
-    let grid = GridNoise::<Dim2>::new(32, 32);
+    let grid = GridNoise::<2>::new(32, 32);
     let mut result = unsafe { SimdArray::<f32, 1024>::new_uninit() };
     let freq = 1.0 / 64.0;
 

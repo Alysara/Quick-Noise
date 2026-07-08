@@ -1,8 +1,7 @@
-use crate::api::methods::{NoiseDimension, Octave};
-use crate::math::vec::{Vec2, Vec3, VecHorz};
+use crate::api::methods::Octave;
 use crate::simd::arch_simd::ArchSimd;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub(crate) struct GeneralConfig {
     pub(crate) seed: u64,
     pub(crate) amplitude: f32,
@@ -10,18 +9,18 @@ pub(crate) struct GeneralConfig {
     pub(crate) normalization: bool,
 }
 
-#[derive(Copy, Clone)]
-pub(crate) struct FbmConfig<D: NoiseDimension> {
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub(crate) struct FbmConfig<const D: usize> {
     pub(crate) octaves: usize,
     pub(crate) frequency: f32,
     pub(crate) lacunarity: f32,
     pub(crate) persistence: f32,
-    pub(crate) scaling: D::FVec,
+    pub(crate) scaling: [f32; D],
 }
 
-impl<D: NoiseDimension> FbmConfig<D> {
+impl<const D: usize> FbmConfig<D> {
     pub(crate) fn num_grid_octaves(&self) -> usize {
-        let max_scaling = self.scaling.horizontal_max();
+        let max_scaling = self.scaling.iter().fold(0.0, |max, x| x.max(max));
 
         let mut cur_freq = self.frequency * max_scaling;
         if cur_freq >= 1.0 || self.lacunarity >= 1.0 {
@@ -62,15 +61,16 @@ impl<D: NoiseDimension> FbmConfig<D> {
     }
 }
 
-pub(crate) struct CustomBuilderConfig<'a, D: NoiseDimension> {
+pub(crate) struct CustomBuilderConfig<'a, const D: usize> {
     pub(crate) octave_list: &'a [Octave<D>],
 }
 
-impl<'a, D: NoiseDimension> CustomBuilderConfig<'a, D> {
+impl<'a, const D: usize> CustomBuilderConfig<'a, D> {
     pub(crate) fn normalize_grid_amplitude(&self, amplitude: f32) -> f32 {
         let mut sum = 0.0;
         for octave in self.octave_list {
-            if octave.frequency.horizontal_max() < 1.0 {
+            let max_freq = octave.frequency.iter().fold(0.0, |max, x| x.max(max));
+            if max_freq < 1.0 {
                 sum += octave.weight;
             }
         }
@@ -96,19 +96,12 @@ impl<'a, D: NoiseDimension> CustomBuilderConfig<'a, D> {
     }
 }
 
-// #[derive(Copy, Clone)]
-pub(crate) struct GridConfig<D: NoiseDimension> {
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub(crate) struct GridConfig<const D: usize> {
     pub(crate) grid_seed: u64,
-    pub(crate) dimensions: D::USizeVec,
-    pub(crate) position: D::IVec,
-    pub(crate) tiling: D::Vec<Option<u32>>,
-}
-
-impl<D: NoiseDimension> Copy for GridConfig<D> {}
-impl<D: NoiseDimension> Clone for GridConfig<D> {
-    fn clone(&self) -> Self {
-        *self
-    }
+    pub(crate) dimensions: [usize; D],
+    pub(crate) position: [i32; D],
+    pub(crate) tiling: [Option<u32>; D],
 }
 
 pub(crate) struct BatchBuilderConfig<XIter, YIter, ZIter>

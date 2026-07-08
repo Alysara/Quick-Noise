@@ -183,7 +183,7 @@ macro_rules! params_fbm_scaling_2d {
         ///  - `1.0`: y_scaling
         impl< $($full_generics)* > $name< $($short_generics)* > {
             pub fn scaling(mut self, x_scaling: f32, y_scaling: f32) -> Self {
-                self.fbm_config.scaling = Vec2::new(x_scaling, y_scaling);
+                self.fbm_config.scaling = [x_scaling, y_scaling];
                 self
             }
         }
@@ -203,7 +203,7 @@ macro_rules! params_fbm_scaling_3d {
             ///  - `1.0`: y_scaling
             ///  - `1.0`: z_scaling
             pub fn scaling(mut self, x_scaling: f32, y_scaling: f32, z_scaling: f32) -> Self {
-                self.fbm_config.scaling = Vec3::new(x_scaling, y_scaling, z_scaling);
+                self.fbm_config.scaling = [x_scaling, y_scaling, z_scaling];
                 self
             }
         }
@@ -229,7 +229,7 @@ macro_rules! params_grid_2d {
             /// `0`: x
             /// `0`: y
             pub fn position(mut self, x: i32, y: i32) -> Self {
-                self.config.position = Vec2::new(x, y);
+                self.config.position = [x, y];
                 self
             }
 
@@ -240,7 +240,7 @@ macro_rules! params_grid_2d {
             /// - `x`: None
             /// - `y`: None
             pub fn tiling(mut self, x: Option<u32>, y: Option<u32>) -> Self {
-                self.config.tiling = Vec2::new(x, y);
+                self.config.tiling = [x, y];
                 self
             }
         }
@@ -269,7 +269,7 @@ macro_rules! params_grid_3d {
             /// `0`: y
             /// `0`: z
             pub fn position(mut self, x: i32, y: i32, z: i32) -> Self {
-                self.config.position = Vec3::new(x, y, z);
+                self.config.position = [x, y, z];
                 self
             }
 
@@ -281,7 +281,7 @@ macro_rules! params_grid_3d {
             /// - `y`: None
             /// - `z`: None
             pub fn tiling(mut self, x: Option<u32>, y: Option<u32>, z: Option<u32>) -> Self {
-                self.config.tiling = Vec3::new(x, y, z);
+                self.config.tiling = [x, y, z];
                 self
             }
         }
