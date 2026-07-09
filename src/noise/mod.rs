@@ -7,7 +7,7 @@ pub mod perlin {
     // mod interpolation;
     // mod batched;
     // mod grid_2d;
-    // mod grid_3d;
+    mod grid_3d;
     mod grid_2d;
     mod grid_data;
 

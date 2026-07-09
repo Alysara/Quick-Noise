@@ -3,13 +3,13 @@ use std::mem::MaybeUninit;
 use std::ops::Range;
 
 use crate::api::grid::interface::GridNoiseParams;
-use crate::grid_helpers::{Arena, ArenaCache, assume_init_slice, pad_grid_size, validate_grid_size};
+use crate::grid_helpers::{
+    Arena, ArenaBuffer, BLOCK_LANES, InterpolationConfig, LANES, NUM_BLOCKS, assume_init_slice, pad_grid_size, validate_grid_size
+};
 use crate::noise::perlin::constants::*;
 use crate::perlin::grid_data::PerlinGridData;
 use crate::simd::arch_simd::{ArchSimd, NUM_SIMD_REG};
 use crate::{GridNoiseImpl, Perlin};
-
-use std::array::from_fn;
 
 // ————————————————————————————————————————————————————————————————
 // ————— 2D Perlin Grid ———————————————————————————————————————————
@@ -33,45 +33,10 @@ impl<'a> PerlinGradients2D<'a> {
         }
     }
 
+    #[inline(always)]
     pub fn swap_top_bottom(&mut self) {
         std::mem::swap(&mut self.tl, &mut self.bl);
         std::mem::swap(&mut self.tr, &mut self.br);
-    }
-}
-
-const NUM_BLOCKS: usize = NUM_SIMD_REG / 8;
-const LANES: usize = ArchSimd::<f32>::LANES;
-const BLOCK_LANES: usize = NUM_BLOCKS * LANES;
-
-pub struct BilerpConfig {
-    pub simd_tail_size: usize,
-    pub has_simd_tail: bool,
-    pub has_block_head: bool,
-    pub has_block_tail: bool,
-    pub block_tail_size: usize,
-    pub block_tail_start: usize,
-    pub simd_tail_start: usize,
-}
-
-impl BilerpConfig {
-    pub fn new(x_dim: usize) -> Self {
-        let simd_tail_size: usize = x_dim % LANES;
-        let has_simd_tail: bool = simd_tail_size > 0;
-        let has_block_head: bool = x_dim >= BLOCK_LANES;
-        let has_block_tail: bool = !x_dim.is_multiple_of(BLOCK_LANES);
-        let block_tail_size: usize = (x_dim % BLOCK_LANES).div_ceil(LANES);
-        let block_tail_start: usize = (x_dim / BLOCK_LANES) * BLOCK_LANES;
-        let simd_tail_start: usize = x_dim - simd_tail_size;
-
-        Self {
-            simd_tail_size,
-            has_simd_tail,
-            has_block_head,
-            has_block_tail,
-            block_tail_size,
-            block_tail_start,
-            simd_tail_start,
-        }
     }
 }
 
@@ -93,26 +58,25 @@ impl<'a> fmt::Debug for PerlinGradients2D<'a> {
 }
 
 impl GridNoiseImpl<2> for Perlin {
-    #[inline(always)]
     fn sample<const INIT: bool>(params: GridNoiseParams<2>, dst: &mut [f32]) {
         validate_grid_size(params.grid_size, dst.len());
         let padded_size = pad_grid_size(params.grid_size);
 
-        let required_cache = padded_size[1] * 3 + padded_size[0] * 12 + LANES * 8;
-        let mut cache = ArenaCache::with_capacity(required_cache);
+        let required_cache = padded_size[1] * 3 + padded_size[0] * 12;
+        let mut cache = ArenaBuffer::with_capacity(required_cache);
         let mut arena = Arena::with_cache(&mut cache);
 
         // SIMD Slice constants.
-        let bilerp_config = BilerpConfig::new(params.grid_size[0]);
+        let bilerp_config = InterpolationConfig::new(params.grid_size[0]);
 
         let mut sub_arena = arena.allocate_arena(padded_size[0] * 3 + padded_size[1] * 3);
         let mut grid_data = PerlinGridData::new(&params, &mut sub_arena, &padded_size);
 
         // Allocate scratch buffer for gradients.
-        let grad_scratch = arena.allocate(padded_size[0]);
+        let grad_scratch = arena.allocate(padded_size[0] + LANES);
 
         // Initialize gradient vectors.
-        let mut gradients = PerlinGradients2D::new(&mut arena, padded_size[0] + LANES);
+        let mut gradients = PerlinGradients2D::new(&mut arena, padded_size[0]);
 
         // Set the top gradients.
         grid_gradients_2d(
@@ -278,7 +242,7 @@ pub(super) fn grid_gradients_2d<'a>(
 /// Handles interpolation execution state and fills
 /// the dst slice with interpolated values from gradient dot produtcts.
 pub(crate) struct DottedBilerpExecuter<'a> {
-    config: &'a BilerpConfig,
+    config: &'a InterpolationConfig,
     params: &'a GridNoiseParams<2>,
     grid_data: &'a PerlinGridData<'a, 2>,
     gradients: &'a PerlinGradients2D<'a>,
@@ -296,7 +260,7 @@ pub(crate) struct DottedBilerpExecuter<'a> {
 /// Fills the dst slice with interpolated dot products from gradients.
 #[inline(always)]
 pub(super) fn grid_dotted_bilerp<const INIT: bool>(
-    config: &BilerpConfig,
+    config: &InterpolationConfig,
     params: &GridNoiseParams<2>,
     grid_data: &PerlinGridData<2>,
     gradients: &PerlinGradients2D,
@@ -309,31 +273,20 @@ pub(super) fn grid_dotted_bilerp<const INIT: bool>(
             .assume_init()
     };
 
-    let weight_vec = ArchSimd::splat(params.weight);
-    let y_weighted_increment = ArchSimd::splat(grid_data.increment[1] * params.weight);
-    let y_upper_increment = ArchSimd::splat(y_frac_start);
-    let y_lower_increment = ArchSimd::splat(y_frac_start - 1.0);
-
-    // Set up registers per block. Initialization is just to keep Rust happy. Compiler will optimize away.
-    let top: [ArchSimd<f32>; NUM_BLOCKS] = Default::default();
-    let dif: [ArchSimd<f32>; NUM_BLOCKS] = Default::default();
-    let d_top: [ArchSimd<f32>; NUM_BLOCKS] = Default::default();
-    let d_dif: [ArchSimd<f32>; NUM_BLOCKS] = Default::default();
-
     let mut executer = DottedBilerpExecuter {
         config,
         params,
         grid_data,
         gradients,
         y_range,
-        top,
-        dif,
-        d_top,
-        d_dif,
-        weight_vec,
-        y_weighted_increment,
-        y_upper_increment,
-        y_lower_increment,
+        top: Default::default(),
+        dif: Default::default(),
+        d_top: Default::default(),
+        d_dif: Default::default(),
+        weight_vec: ArchSimd::splat(params.weight),
+        y_weighted_increment: ArchSimd::splat(grid_data.increment[1] * params.weight),
+        y_upper_increment: ArchSimd::splat(y_frac_start),
+        y_lower_increment: ArchSimd::splat(y_frac_start - 1.0),
     };
 
     if config.has_block_head {
@@ -344,6 +297,9 @@ pub(super) fn grid_dotted_bilerp<const INIT: bool>(
         executer.interpolate::<INIT, true>(dst);
         std::hint::cold_path();
     }
+
+    // let elapsed = time.elapsed();
+    // println!("Bilerp completed in {:?}", elapsed);
 }
 
 impl<'a> DottedBilerpExecuter<'a> {
@@ -368,7 +324,7 @@ impl<'a> DottedBilerpExecuter<'a> {
                     self.process_factors::<INIT, IS_TAIL>(x, y + 1, dst);
                     self.process_factors::<INIT, IS_TAIL>(x, y + 2, dst);
                     self.process_factors::<INIT, IS_TAIL>(x, y + 3, dst);
-                    y+= 4;
+                    y += 4;
                 }
             }
         }
@@ -447,9 +403,10 @@ impl<'a> DottedBilerpExecuter<'a> {
         };
 
         for block in range {
-            let x_index = x + LANES * block;
+            let x_index = x + block * LANES;
             let index = x_index + y * self.params.grid_size[0];
             let output = y_lerp.mul_add(self.dif[block], self.top[block]);
+            // println!("index: {index}, output: {:?}", output);
 
             let val = match (INIT, IS_TAIL) {
                 (true, _) => output,
@@ -461,10 +418,11 @@ impl<'a> DottedBilerpExecuter<'a> {
                 },
             };
 
-            if IS_TAIL && self.config.has_simd_tail && x_index >= self.config.simd_tail_start {
-                val.copy_to_slice(&mut dst[index..]);
+            let slice = unsafe { dst.get_unchecked_mut(index..) };
+            if IS_TAIL {
+                val.copy_to_slice(slice);
             } else {
-                unsafe { val.copy_to_slice_unchecked(dst.get_unchecked_mut(index..)) };
+                unsafe { val.copy_to_slice_unchecked(slice) };
             };
 
             self.dif[block] += self.d_dif[block];

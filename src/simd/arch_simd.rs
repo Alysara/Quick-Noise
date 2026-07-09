@@ -13,7 +13,7 @@ use crate::simd::simd_reg::core::Simd;
 cfg_if::cfg_if! {
     // x86_64
     if #[cfg(all(target_arch = "x86_64", target_feature = "avx512f"))] {
-        pub const SIMD_WIDTH: usize = 64;
+       pub const SIMD_WIDTH: usize = 64;
         pub const NUM_SIMD_REG: usize = 32;
         pub type ArchSimd<T> = Simd<T, Avx512>;
         pub type ArchMask<T> = SimdMask<T, Avx512>;

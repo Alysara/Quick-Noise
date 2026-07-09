@@ -1,3 +1,4 @@
+
 use std::array::from_fn;
 use std::fmt;
 use std::mem::MaybeUninit;
@@ -7,7 +8,8 @@ use paste::paste;
 
 use crate::api::grid::interface::GridNoiseParams;
 use crate::grid_helpers::{
-    Arena, ArenaBuffer, BLOCK_LANES, InterpolationConfig, LANES, MaybeUninitSliceSimdExt, NUM_BLOCKS, assume_init_slice, pad_grid_size, validate_grid_size
+    Arena, ArenaBuffer, MaybeUninitSliceSimdExt, assume_init_slice, pad_grid_size,
+    validate_grid_size,
 };
 use crate::noise::perlin::constants::*;
 use crate::perlin::grid_data::PerlinGridData;
@@ -19,60 +21,161 @@ use crate::{GridNoiseImpl, Perlin};
 // ————————————————————————————————————————————————————————————————
 
 pub struct PerlinGradients3D<'a> {
-    pub tlf: [&'a mut [MaybeUninit<f32>]; 3],
-    pub trf: [&'a mut [MaybeUninit<f32>]; 3],
-    pub blf: [&'a mut [MaybeUninit<f32>]; 3],
-    pub brf: [&'a mut [MaybeUninit<f32>]; 3],
-    pub tlb: [&'a mut [MaybeUninit<f32>]; 3],
-    pub trb: [&'a mut [MaybeUninit<f32>]; 3],
-    pub blb: [&'a mut [MaybeUninit<f32>]; 3],
-    pub brb: [&'a mut [MaybeUninit<f32>]; 3],
-    pub scratch: [&'a mut [MaybeUninit<u32>]; 2],
+    top: &'a mut [MaybeUninit<f32>],
+    bottom: &'a mut [MaybeUninit<f32>],
+    scratch: &'a mut [MaybeUninit<u32>],
+    size: usize,
+}
+
+macro_rules! add_gradient_axis {
+    ($corner:ident, $buffer:ident, $axis:ident, $offset:literal) => {
+        paste! {
+            #[inline(always)]
+            pub unsafe fn [<load_ $corner _ $axis>](&self, index: usize, buf_size: usize) -> ArchSimd<f32> {
+                unsafe { self.$buffer.load_simd_aligned(index + $offset * buf_size) }
+            }
+
+            #[inline(always)]
+            pub unsafe fn [<write_ $corner _ $axis>](&mut self, index: usize, buf_size: usize, simd: ArchSimd<f32>) {
+                unsafe { self.$buffer.write_simd_aligned(index + $offset * buf_size, simd) }
+            }
+
+            #[inline(always)]
+            pub unsafe fn [<write_ $corner _ $axis _unaligned>](&mut self, index: usize, buf_size: usize, simd: ArchSimd<f32>) {
+                unsafe { self.$buffer.write_simd(index + $offset * buf_size, simd) }
+            }
+        }
+    };
+}
+
+macro_rules! add_gradient_corner {
+    ($corner:ident, $buffer:ident, $x_off:literal, $y_off:literal, $z_off:literal) => {
+        add_gradient_axis!($corner, $buffer, x, $x_off);
+        add_gradient_axis!($corner, $buffer, y, $y_off);
+        add_gradient_axis!($corner, $buffer, z, $z_off);
+    };
 }
 
 impl<'a> PerlinGradients3D<'a> {
     #[inline(always)]
     pub fn new(arena: &'a mut Arena, size: usize) -> Self {
         Self {
-            tlf: from_fn(|_| arena.allocate(size)),
-            trf: from_fn(|_| arena.allocate(size)),
-            blf: from_fn(|_| arena.allocate(size)),
-            brf: from_fn(|_| arena.allocate(size)),
-            tlb: from_fn(|_| arena.allocate(size)),
-            trb: from_fn(|_| arena.allocate(size)),
-            blb: from_fn(|_| arena.allocate(size)),
-            brb: from_fn(|_| arena.allocate(size)),
-            scratch: from_fn(|_| arena.allocate(size)),
+            top: arena.allocate(size * 12),
+            bottom: arena.allocate(size * 12),
+            scratch: arena.allocate(size * 2),
+            size,
         }
     }
 
     #[inline(always)]
     pub fn swap_top_bottom(&mut self) {
-        std::mem::swap(&mut self.tlf, &mut self.blf);
-        std::mem::swap(&mut self.trf, &mut self.brf);
-        std::mem::swap(&mut self.tlb, &mut self.blb);
-        std::mem::swap(&mut self.trb, &mut self.brb);
+        std::mem::swap(&mut self.top, &mut self.bottom);
     }
+
+    #[inline(always)]
+    pub unsafe fn write_scratch0(&mut self, index: usize, simd: ArchSimd<u32>) {
+        unsafe { self.scratch.write_simd_aligned(index, simd) }
+    }
+
+    #[inline(always)]
+    pub unsafe fn write_scratch1(&mut self, index: usize, buf_size: usize, simd: ArchSimd<u32>) {
+        unsafe { self.scratch.write_simd_aligned(index + buf_size, simd) }
+    }
+
+    add_gradient_corner!(tlf, top, 0, 1, 2);
+    add_gradient_corner!(trf, top, 3, 4, 5);
+    add_gradient_corner!(tlb, top, 6, 7, 8);
+    add_gradient_corner!(trb, top, 9, 10, 11);
+
+    add_gradient_corner!(blf, bottom, 0, 1, 2);
+    add_gradient_corner!(brf, bottom, 3, 4, 5);
+    add_gradient_corner!(blb, bottom, 6, 7, 8);
+    add_gradient_corner!(brb, bottom, 9, 10, 11);
 }
 
 impl<'a> fmt::Debug for PerlinGradients3D<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         unsafe {
             f.debug_struct("PerlinGradients3D")
-                .field("tl.x", &assume_init_slice(self.tlf[0]))
-                .field("tr.x", &assume_init_slice(self.trf[0]))
-                .field("bl.x", &assume_init_slice(self.blf[0]))
-                .field("br.x", &assume_init_slice(self.brf[0]))
-                .field("tl.y", &assume_init_slice(self.tlf[1]))
-                .field("tr.y", &assume_init_slice(self.trf[1]))
-                .field("bl.y", &assume_init_slice(self.blf[1]))
-                .field("br.y", &assume_init_slice(self.brf[1]))
+                .field("tl.x", &assume_init_slice(&self.top[..self.size]))
+                .field("tr.x", &assume_init_slice(&self.top[3 * self.size..4 * self.size]))
+                .field("bl.x", &assume_init_slice(&self.bottom[..self.size]))
+                .field("br.x", &assume_init_slice(&self.bottom[3 * self.size..4 * self.size]))
+                .field("tl.y", &assume_init_slice(&self.top[self.size..2 * self.size]))
+                .field("tr.y", &assume_init_slice(&self.top[4 * self.size..5 * self.size]))
+                .field("bl.y", &assume_init_slice(&self.bottom[self.size..2 * self.size]))
+                .field("br.y", &assume_init_slice(&self.bottom[4 * self.size..5 * self.size]))
                 .finish()
+        }
+    }
+}
+// impl<'a> PerlinGradients3D<'a> {
+//     #[inline(always)]
+//     pub fn new(arena: &'a mut Arena, size: usize) -> Self {
+//         Self {
+//             tlf: from_fn(|_| arena.allocate(size)),
+//             trf: from_fn(|_| arena.allocate(size)),
+//             blf: from_fn(|_| arena.allocate(size)),
+//             brf: from_fn(|_| arena.allocate(size)),
+//             tlb: from_fn(|_| arena.allocate(size)),
+//             trb: from_fn(|_| arena.allocate(size)),
+//             blb: from_fn(|_| arena.allocate(size)),
+//             brb: from_fn(|_| arena.allocate(size)),
+//             scratch: from_fn(|_| arena.allocate(size)),
+//         }
+//     }
+//
+//     #[inline(always)]
+//     pub fn swap_top_bottom(&mut self) {
+//         std::mem::swap(&mut self.tlf, &mut self.blf);
+//         std::mem::swap(&mut self.trf, &mut self.brf);
+//         std::mem::swap(&mut self.tlb, &mut self.blb);
+//         std::mem::swap(&mut self.trb, &mut self.brb);
+//     }
+// }
+
+// impl<'a> fmt::Debug for PerlinGradients3D<'a> {
+//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+//         unsafe {
+//             f.debug_struct("PerlinGradients3D")
+//                 .field("tl.x", &assume_init_slice(self.tlf[0]))
+//                 .field("tr.x", &assume_init_slice(self.trf[0]))
+//                 .field("bl.x", &assume_init_slice(self.blf[0]))
+//                 .field("br.x", &assume_init_slice(self.brf[0]))
+//                 .field("tl.y", &assume_init_slice(self.tlf[1]))
+//                 .field("tr.y", &assume_init_slice(self.trf[1]))
+//                 .field("bl.y", &assume_init_slice(self.blf[1]))
+//                 .field("br.y", &assume_init_slice(self.brf[1]))
+//                 .finish()
+//         }
+//     }
+// }
+
+const NUM_BLOCKS: usize = NUM_SIMD_REG / 8;
+const LANES: usize = ArchSimd::<f32>::LANES;
+const BLOCK_LANES: usize = NUM_BLOCKS * LANES;
+
+pub struct TrilerpConfig {
+    pub has_block_head: bool,
+    pub has_block_tail: bool,
+    pub block_tail_size: usize,
+    pub block_tail_start: usize,
+}
+
+impl TrilerpConfig {
+    #[inline(always)]
+    pub fn new(x_dim: usize) -> Self {
+        Self {
+            has_block_head: x_dim >= BLOCK_LANES,
+            has_block_tail: !x_dim.is_multiple_of(BLOCK_LANES),
+            block_tail_size: (x_dim % BLOCK_LANES).div_ceil(LANES),
+            block_tail_start: (x_dim / BLOCK_LANES) * BLOCK_LANES,
         }
     }
 }
 
 impl GridNoiseImpl<3> for Perlin {
+    #[inline(never)]
     fn sample<const INIT: bool>(params: GridNoiseParams<3>, dst: &mut [f32]) {
         // Validate and pad grid size.
         validate_grid_size(params.grid_size, dst.len());
@@ -87,7 +190,7 @@ impl GridNoiseImpl<3> for Perlin {
 
         // Allocation setup.
 
-        let bilerp_config = InterpolationConfig::new(params.grid_size[0]);
+        let bilerp_config = TrilerpConfig::new(params.grid_size[0]);
         let grid_data = PerlinGridData::new(&params, &mut data_arena, &padded_size);
         let mut trilerp_buffers = DottedTrilerpBuffers::new(&mut trilerp_arena, padded_size[0]);
         let mut gradients = PerlinGradients3D::new(&mut arena, padded_size[0]);
@@ -189,8 +292,8 @@ pub(super) fn grid_gradients_3d<'a>(
             let grads: [_; 2] = from_fn(|i| (zy_mix[i] * x_shuf) >> 28);
 
             unsafe {
-                gradients.scratch[0].write_simd_aligned(i, grads[0]);
-                gradients.scratch[1].write_simd_aligned(i, grads[1]);
+                gradients.write_scratch0(i, grads[0]);
+                gradients.write_scratch1(i, grid_data.padded_size[0], grads[1]);
             };
 
             x_vec += x_vec_stride;
@@ -206,8 +309,8 @@ pub(super) fn grid_gradients_3d<'a>(
             let grads: [_; 2] = from_fn(|i| (zy_mix[i] * x_shuf) >> 28);
 
             unsafe {
-                gradients.scratch[0].write_simd_aligned(i, grads[0]);
-                gradients.scratch[1].write_simd_aligned(i, grads[1]);
+                gradients.write_scratch0(i, grads[0]);
+                gradients.write_scratch1(i, grid_data.padded_size[0], grads[1]);
             };
             x_vec += x_vec_stride;
         }
@@ -216,18 +319,19 @@ pub(super) fn grid_gradients_3d<'a>(
     grid_gradients_3d_set_loop::<true>(grid_data, gradients);
     grid_gradients_3d_set_loop::<false>(grid_data, gradients);
 
+    let buf_size = grid_data.padded_size[0];
     for i in (0..params.grid_size[0]).step_by(LANES) {
         unsafe {
             let cur_dist = grid_data.distances[0].load_simd_aligned(i);
-            let lf = gradients.blf[0].load_simd_aligned(i);
-            let rf = gradients.brf[0].load_simd_aligned(i);
-            let lb = gradients.blb[0].load_simd_aligned(i);
-            let rb = gradients.brb[0].load_simd_aligned(i);
+            let lf = gradients.load_blf_x(i, buf_size);
+            let rf = gradients.load_brf_x(i, buf_size);
+            let lb = gradients.load_blb_x(i, buf_size);
+            let rb = gradients.load_brb_x(i, buf_size);
 
-            gradients.blf[0].write_simd_aligned(i, lf * cur_dist);
-            gradients.brf[0].write_simd_aligned(i, rf.mul_sub(cur_dist, rf));
-            gradients.blb[0].write_simd_aligned(i, lb * cur_dist);
-            gradients.brb[0].write_simd_aligned(i, rb.mul_sub(cur_dist, rb));
+            gradients.write_blf_x(i, buf_size, lf * cur_dist);
+            gradients.write_brf_x(i, buf_size, rf.mul_sub(cur_dist, rf));
+            gradients.write_blb_x(i, buf_size, lb * cur_dist);
+            gradients.write_brb_x(i, buf_size, rb.mul_sub(cur_dist, rb));
         }
     }
 }
@@ -237,19 +341,7 @@ pub(super) fn grid_gradients_3d_set_loop<'a, const IS_FRONT: bool>(
     grid_data: &PerlinGridData<3>,
     gradients: &mut PerlinGradients3D<'a>,
 ) {
-    let (grad_buffer, left, right) = if IS_FRONT {
-        (
-            &mut gradients.scratch[0],
-            &mut gradients.blf,
-            &mut gradients.brf,
-        )
-    } else {
-        (
-            &mut gradients.scratch[0],
-            &mut gradients.blb,
-            &mut gradients.brb,
-        )
-    };
+    let buf_size = grid_data.padded_size[0];
 
     let mut x_cur_index = 0;
     for x_it in 0..grid_data.num_loops[0] {
@@ -258,8 +350,8 @@ pub(super) fn grid_gradients_3d_set_loop<'a, const IS_FRONT: bool>(
         let mut amount = (x_next_index - x_cur_index) as isize;
 
         unsafe {
-            let l = grad_buffer.get_unchecked(x_it).assume_init() as usize;
-            let r = grad_buffer.get_unchecked(x_it + 1).assume_init() as usize;
+            let l = gradients.scratch.get_unchecked(x_it).assume_init() as usize;
+            let r = gradients.scratch.get_unchecked(x_it + 1).assume_init() as usize;
 
             let l = GRADIENTS_3D.get_unchecked(l);
             let r = GRADIENTS_3D.get_unchecked(r);
@@ -273,12 +365,21 @@ pub(super) fn grid_gradients_3d_set_loop<'a, const IS_FRONT: bool>(
 
             let mut index = x_cur_index as usize;
             while amount > 0 {
-                left[0].write_simd(index, lx);
-                left[1].write_simd(index, ly);
-                left[2].write_simd(index, lz);
-                right[0].write_simd(index, rx);
-                right[1].write_simd(index, ry);
-                right[2].write_simd(index, rz);
+                if IS_FRONT {
+                    gradients.write_blf_x_unaligned(index, buf_size, lx);
+                    gradients.write_blf_y_unaligned(index, buf_size, ly);
+                    gradients.write_blf_z_unaligned(index, buf_size, lz);
+                    gradients.write_brf_x_unaligned(index, buf_size, rx);
+                    gradients.write_brf_y_unaligned(index, buf_size, ry);
+                    gradients.write_brf_z_unaligned(index, buf_size, rz);
+                } else {
+                    gradients.write_blb_x_unaligned(index, buf_size, lx);
+                    gradients.write_blb_y_unaligned(index, buf_size, ly);
+                    gradients.write_blb_z_unaligned(index, buf_size, lz);
+                    gradients.write_brb_x_unaligned(index, buf_size, rx);
+                    gradients.write_brb_y_unaligned(index, buf_size, ry);
+                    gradients.write_brb_z_unaligned(index, buf_size, rz);
+                }
 
                 amount -= LANES as isize;
                 index += LANES;
@@ -290,44 +391,76 @@ pub(super) fn grid_gradients_3d_set_loop<'a, const IS_FRONT: bool>(
 }
 
 pub(crate) struct DottedTrilerpBuffers<'a> {
-    y_tf_offset: &'a mut [MaybeUninit<f32>],
-    y_bf_offset: &'a mut [MaybeUninit<f32>],
-    y_top_offset_dif: &'a mut [MaybeUninit<f32>],
-    y_bottom_offset_dif: &'a mut [MaybeUninit<f32>],
-    z_tf_offset: &'a mut [MaybeUninit<f32>],
-    z_bf_offset: &'a mut [MaybeUninit<f32>],
-    z_top_offset_dif: &'a mut [MaybeUninit<f32>],
-    z_bottom_offset_dif: &'a mut [MaybeUninit<f32>],
-    tf_base: &'a mut [MaybeUninit<f32>],
-    bf_base: &'a mut [MaybeUninit<f32>],
-    top_base_dif: &'a mut [MaybeUninit<f32>],
-    bottom_base_dif: &'a mut [MaybeUninit<f32>],
+    // buf_size: usize,
+    buffer: &'a mut [MaybeUninit<f32>],
+    // y_tf_offset: &'a mut [MaybeUninit<f32>],
+    // y_bf_offset: &'a mut [MaybeUninit<f32>],
+    // y_top_offset_dif: &'a mut [MaybeUninit<f32>],
+    // y_bottom_offset_dif: &'a mut [MaybeUninit<f32>],
+    // z_tf_offset: &'a mut [MaybeUninit<f32>],
+    // z_bf_offset: &'a mut [MaybeUninit<f32>],
+    // z_top_offset_dif: &'a mut [MaybeUninit<f32>],
+    // z_bottom_offset_dif: &'a mut [MaybeUninit<f32>],
+    // tf_base: &'a mut [MaybeUninit<f32>],
+    // bf_base: &'a mut [MaybeUninit<f32>],
+    // top_base_dif: &'a mut [MaybeUninit<f32>],
+    // bottom_base_dif: &'a mut [MaybeUninit<f32>],
+}
+
+macro_rules! add_sub_buffer {
+    ($name:ident, $index:literal) => {
+        paste! {
+            #[inline(always)]
+            pub unsafe fn [<load_ $name>](&self, index: usize, buf_size: usize) -> ArchSimd<f32> {
+                unsafe { self.buffer.load_simd_aligned(index + $index * buf_size) }
+            }
+
+            #[inline(always)]
+            pub unsafe fn [<write_ $name>](&mut self, index: usize, buf_size: usize, simd: ArchSimd<f32>) {
+                unsafe { self.buffer.write_simd_aligned(index + $index * buf_size, simd) }
+            }
+        }
+    };
 }
 
 impl<'a> DottedTrilerpBuffers<'a> {
-    #[inline(always)]
     pub fn new(arena: &'a mut Arena, x_size: usize) -> Self {
         Self {
-            y_tf_offset: arena.allocate(x_size),
-            y_bf_offset: arena.allocate(x_size),
-            y_top_offset_dif: arena.allocate(x_size),
-            y_bottom_offset_dif: arena.allocate(x_size),
-            z_tf_offset: arena.allocate(x_size),
-            z_bf_offset: arena.allocate(x_size),
-            z_top_offset_dif: arena.allocate(x_size),
-            z_bottom_offset_dif: arena.allocate(x_size),
-            tf_base: arena.allocate(x_size),
-            bf_base: arena.allocate(x_size),
-            top_base_dif: arena.allocate(x_size),
-            bottom_base_dif: arena.allocate(x_size),
+            // buf_size: x_size,
+            buffer: arena.allocate(x_size * 12),
+            // y_tf_offset: arena.allocate(x_size),
+            // y_bf_offset: arena.allocate(x_size),
+            // y_top_offset_dif: arena.allocate(x_size),
+            // y_bottom_offset_dif: arena.allocate(x_size),
+            // z_tf_offset: arena.allocate(x_size),
+            // z_bf_offset: arena.allocate(x_size),
+            // z_top_offset_dif: arena.allocate(x_size),
+            // z_bottom_offset_dif: arena.allocate(x_size),
+            // tf_base: arena.allocate(x_size),
+            // bf_base: arena.allocate(x_size),
+            // top_base_dif: arena.allocate(x_size),
+            // bottom_base_dif: arena.allocate(x_size),
         }
     }
+
+    add_sub_buffer!(y_tf_offset, 0);
+    add_sub_buffer!(y_bf_offset, 1);
+    add_sub_buffer!(y_top_offset_dif, 2);
+    add_sub_buffer!(y_bottom_offset_dif, 3);
+    add_sub_buffer!(z_tf_offset, 4);
+    add_sub_buffer!(z_bf_offset, 5);
+    add_sub_buffer!(z_top_offset_dif, 6);
+    add_sub_buffer!(z_bottom_offset_dif, 7);
+    add_sub_buffer!(tf_base, 8);
+    add_sub_buffer!(bf_base, 9);
+    add_sub_buffer!(top_base_dif, 10);
+    add_sub_buffer!(bottom_base_dif, 11);
 }
 
 /// Handles interpolation execution state and fills
 /// the dst slice with interpolated values from gradient dot produtcts.
 pub(crate) struct DottedTrilerpExecuter<'a> {
-    config: &'a InterpolationConfig,
+    config: &'a TrilerpConfig,
     params: &'a GridNoiseParams<3>,
     grid_data: &'a PerlinGridData<'a, 3>,
     gradients: &'a PerlinGradients3D<'a>,
@@ -350,7 +483,7 @@ pub(crate) struct DottedTrilerpExecuter<'a> {
 #[inline(always)]
 pub(super) fn grid_dotted_trilerp<const INIT: bool>(
     buffers: &mut DottedTrilerpBuffers,
-    config: &InterpolationConfig,
+    config: &TrilerpConfig,
     params: &GridNoiseParams<3>,
     grid_data: &PerlinGridData<3>,
     gradients: &PerlinGradients3D,
@@ -388,16 +521,16 @@ pub(super) fn grid_dotted_trilerp<const INIT: bool>(
         z_inc_lo: ArchSimd::splat(z_frac_start - 1.0),
     };
 
-    executer.initialize_trilerp_buffers(buffers);
+    executer.initialize_trilerp_buffers(grid_data.padded_size[0], buffers);
 
     if config.has_block_head {
         executer.interpolate::<INIT, false>(buffers, dst);
     }
 
-    if config.has_block_tail {
-        executer.interpolate::<INIT, true>(buffers, dst);
-        std::hint::cold_path();
-    }
+    // if config.has_block_tail {
+    //     executer.interpolate::<INIT, true>(buffers, dst);
+    //     std::hint::cold_path();
+    // }
 }
 
 impl<'a> DottedTrilerpExecuter<'a> {
@@ -412,6 +545,7 @@ impl<'a> DottedTrilerpExecuter<'a> {
         } else {
             0..self.config.block_tail_start
         };
+        let buf_size = self.grid_data.padded_size[0];
 
         let mut z_cur = ArchSimd::splat(0.0);
         let z_hop = self.params.grid_size[0] * self.params.grid_size[1];
@@ -422,7 +556,7 @@ impl<'a> DottedTrilerpExecuter<'a> {
             let z_lerp = ArchSimd::splat(z_lerp);
 
             for x in range.clone().step_by(BLOCK_LANES) {
-                self.intialize_factors::<IS_TAIL>(buffers, x, z_cur, z_lerp);
+                self.intialize_factors::<IS_TAIL>(buf_size, buffers, x, z_cur, z_lerp);
 
                 let index = z * z_hop + x;
                 let mut y = self.y_range.start;
@@ -445,37 +579,37 @@ impl<'a> DottedTrilerpExecuter<'a> {
     }
 
     #[inline(always)]
-    fn initialize_trilerp_buffers(&mut self, buffers: &mut DottedTrilerpBuffers) {
+    fn initialize_trilerp_buffers(&mut self, buf_size: usize, buffers: &mut DottedTrilerpBuffers) {
         for x in (0..self.params.grid_size[0]).step_by(LANES) {
             unsafe {
                 let x_lerp = self.grid_data.fade_factors[0].load_simd_aligned(x);
 
-                let x_tlf = self.gradients.tlf[0].load_simd_aligned(x);
-                let x_trf = self.gradients.trf[0].load_simd_aligned(x);
-                let x_blf = self.gradients.blf[0].load_simd_aligned(x);
-                let x_brf = self.gradients.brf[0].load_simd_aligned(x);
-                let x_tlb = self.gradients.tlb[0].load_simd_aligned(x);
-                let x_trb = self.gradients.trb[0].load_simd_aligned(x);
-                let x_blb = self.gradients.blb[0].load_simd_aligned(x);
-                let x_brb = self.gradients.brb[0].load_simd_aligned(x);
+                let x_tlf = self.gradients.load_tlf_x(x, buf_size);
+                let x_trf = self.gradients.load_trf_x(x, buf_size);
+                let x_blf = self.gradients.load_blf_x(x, buf_size);
+                let x_brf = self.gradients.load_brf_x(x, buf_size);
+                let x_tlb = self.gradients.load_tlb_x(x, buf_size);
+                let x_trb = self.gradients.load_trb_x(x, buf_size);
+                let x_blb = self.gradients.load_blb_x(x, buf_size);
+                let x_brb = self.gradients.load_brb_x(x, buf_size);
 
-                let y_tlf = self.gradients.tlf[1].load_simd_aligned(x);
-                let y_trf = self.gradients.trf[1].load_simd_aligned(x);
-                let y_blf = self.gradients.blf[1].load_simd_aligned(x);
-                let y_brf = self.gradients.brf[1].load_simd_aligned(x);
-                let y_tlb = self.gradients.tlb[1].load_simd_aligned(x);
-                let y_trb = self.gradients.trb[1].load_simd_aligned(x);
-                let y_blb = self.gradients.blb[1].load_simd_aligned(x);
-                let y_brb = self.gradients.brb[1].load_simd_aligned(x);
+                let y_tlf = self.gradients.load_tlf_y(x, buf_size);
+                let y_trf = self.gradients.load_trf_y(x, buf_size);
+                let y_blf = self.gradients.load_blf_y(x, buf_size);
+                let y_brf = self.gradients.load_brf_y(x, buf_size);
+                let y_tlb = self.gradients.load_tlb_y(x, buf_size);
+                let y_trb = self.gradients.load_trb_y(x, buf_size);
+                let y_blb = self.gradients.load_blb_y(x, buf_size);
+                let y_brb = self.gradients.load_brb_y(x, buf_size);
 
-                let z_tlf = self.gradients.tlf[2].load_simd_aligned(x);
-                let z_trf = self.gradients.trf[2].load_simd_aligned(x);
-                let z_blf = self.gradients.blf[2].load_simd_aligned(x);
-                let z_brf = self.gradients.brf[2].load_simd_aligned(x);
-                let z_tlb = self.gradients.tlb[2].load_simd_aligned(x);
-                let z_trb = self.gradients.trb[2].load_simd_aligned(x);
-                let z_blb = self.gradients.blb[2].load_simd_aligned(x);
-                let z_brb = self.gradients.brb[2].load_simd_aligned(x);
+                let z_tlf = self.gradients.load_tlf_z(x, buf_size);
+                let z_trf = self.gradients.load_trf_z(x, buf_size);
+                let z_blf = self.gradients.load_blf_z(x, buf_size);
+                let z_brf = self.gradients.load_brf_z(x, buf_size);
+                let z_tlb = self.gradients.load_tlb_z(x, buf_size);
+                let z_trb = self.gradients.load_trb_z(x, buf_size);
+                let z_blb = self.gradients.load_blb_z(x, buf_size);
+                let z_brb = self.gradients.load_brb_z(x, buf_size);
 
                 let calc_prod_sum = |z_inc: ArchSimd<f32>, y_inc: ArchSimd<f32>, z, y, x| {
                     z_inc.mul_add(z, y_inc.mul_add(y, x))
@@ -515,28 +649,20 @@ impl<'a> DottedTrilerpExecuter<'a> {
                     .mul_add(sum_prod_brb - sum_prod_blb, sum_prod_blb)
                     .mul_sub(self.weight, bf_base);
 
-                buffers.z_tf_offset.write_simd_aligned(x, z_tf_offset);
-                buffers.z_bf_offset.write_simd_aligned(x, z_bf_offset);
-                buffers
-                    .z_top_offset_dif
-                    .write_simd_aligned(x, z_tb_offset - z_tf_offset);
-                buffers
-                    .z_bottom_offset_dif
-                    .write_simd_aligned(x, z_bb_offset - z_bf_offset);
+                buffers.write_z_tf_offset(x, buf_size, z_tf_offset);
+                buffers.write_z_bf_offset(x, buf_size, z_bf_offset);
+                buffers.write_z_top_offset_dif(x, buf_size, z_tb_offset - z_tf_offset);
+                buffers.write_z_bottom_offset_dif(x, buf_size, z_bb_offset - z_bf_offset);
 
-                buffers.y_tf_offset.write_simd_aligned(x, y_tf_offset);
-                buffers.y_bf_offset.write_simd_aligned(x, y_bf_offset);
-                buffers
-                    .y_top_offset_dif
-                    .write_simd_aligned(x, y_hi_offset_dif);
-                buffers
-                    .y_bottom_offset_dif
-                    .write_simd_aligned(x, y_lo_offset_dif);
+                buffers.write_y_tf_offset(x, buf_size, y_tf_offset);
+                buffers.write_y_bf_offset(x, buf_size, y_bf_offset);
+                buffers.write_y_top_offset_dif(x, buf_size, y_hi_offset_dif);
+                buffers.write_y_bottom_offset_dif(x, buf_size, y_lo_offset_dif);
 
-                buffers.tf_base.write_simd_aligned(x, tf_base);
-                buffers.bf_base.write_simd_aligned(x, bf_base);
-                buffers.top_base_dif.write_simd_aligned(x, hi_base_dif);
-                buffers.bottom_base_dif.write_simd_aligned(x, lo_base_dif);
+                buffers.write_tf_base(x, buf_size, tf_base);
+                buffers.write_bf_base(x, buf_size, bf_base);
+                buffers.write_top_base_dif(x, buf_size, hi_base_dif);
+                buffers.write_bottom_base_dif(x, buf_size, lo_base_dif);
             }
         }
     }
@@ -544,6 +670,7 @@ impl<'a> DottedTrilerpExecuter<'a> {
     #[inline(always)]
     fn intialize_factors<const IS_TAIL: bool>(
         &mut self,
+        buf_size: usize,
         buffers: &DottedTrilerpBuffers,
         x: usize,
         z_vec: ArchSimd<f32>,
@@ -561,20 +688,20 @@ impl<'a> DottedTrilerpExecuter<'a> {
             unsafe {
                 let index = x + LANES * block;
 
-                let z_tf_offset = buffers.z_tf_offset.load_simd_aligned(index);
-                let z_bf_offset = buffers.z_bf_offset.load_simd_aligned(index);
-                let z_top_offset_dif = buffers.z_top_offset_dif.load_simd_aligned(index);
-                let z_bottom_offset_dif = buffers.z_bottom_offset_dif.load_simd_aligned(index);
+                let z_tf_offset = buffers.load_z_tf_offset(index, buf_size);
+                let z_bf_offset = buffers.load_z_bf_offset(index, buf_size);
+                let z_top_offset_dif = buffers.load_z_top_offset_dif(index, buf_size);
+                let z_bottom_offset_dif = buffers.load_z_bottom_offset_dif(index, buf_size);
 
-                let y_tf_offset = buffers.y_tf_offset.load_simd_aligned(index);
-                let y_bf_offset = buffers.y_bf_offset.load_simd_aligned(index);
-                let y_top_offset_dif = buffers.y_top_offset_dif.load_simd_aligned(index);
-                let y_bottom_offset_dif = buffers.y_bottom_offset_dif.load_simd_aligned(index);
+                let y_tf_offset = buffers.load_y_tf_offset(index, buf_size);
+                let y_bf_offset = buffers.load_y_bf_offset(index, buf_size);
+                let y_top_offset_dif = buffers.load_y_top_offset_dif(index, buf_size);
+                let y_bottom_offset_dif = buffers.load_y_bottom_offset_dif(index, buf_size);
 
-                let tf_base_vec = buffers.tf_base.load_simd_aligned(index);
-                let bf_base_vec = buffers.bf_base.load_simd_aligned(index);
-                let top_base_dif_vec = buffers.top_base_dif.load_simd_aligned(index);
-                let bottom_base_dif_vec = buffers.bottom_base_dif.load_simd_aligned(index);
+                let tf_base_vec = buffers.load_tf_base(index, buf_size);
+                let bf_base_vec = buffers.load_bf_base(index, buf_size);
+                let top_base_dif_vec = buffers.load_top_base_dif(index, buf_size);
+                let bottom_base_dif_vec = buffers.load_bottom_base_dif(index, buf_size);
 
                 let z_top_offset = z_lerp.mul_add(z_top_offset_dif, z_tf_offset);
                 let z_bottom_offset = z_lerp.mul_add(z_bottom_offset_dif, z_bf_offset);

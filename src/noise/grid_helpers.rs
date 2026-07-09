@@ -2,18 +2,16 @@ use std::array::from_fn;
 use std::mem::MaybeUninit;
 
 use crate::api::grid::interface::GridNoiseParams;
-use crate::math::vec::{ArithmeticVec, BasicVec};
-use crate::simd::arch_simd::{ArchFamily, ArchSimd, SIMD_WIDTH};
-use crate::simd::simd_array::SimdArray;
-use crate::simd::simd_traits::*;
+use crate::simd::arch_simd::{ArchSimd, NUM_SIMD_REG, SIMD_WIDTH};
+use crate::simd::traits::SimdElement;
 
 const STACK_SIZE: usize = 8192;
-pub struct ArenaCache {
+pub struct ArenaBuffer {
     heap: Vec<f32>,
     stack: [MaybeUninit<f32>; STACK_SIZE],
 }
 
-impl ArenaCache {
+impl ArenaBuffer {
     #[inline(always)]
     pub fn with_capacity(capacity: usize) -> Self {
         let capacity = capacity + ArchSimd::<f32>::LANES; // Add LANES for alignment padding.
@@ -47,7 +45,7 @@ pub struct Arena<'a> {
 
 impl<'a> Arena<'a> {
     #[inline(always)]
-    pub fn with_cache(cache: &'a mut ArenaCache) -> Self {
+    pub fn with_cache(cache: &'a mut ArenaBuffer) -> Self {
         let slice = cache.as_mut_slice();
         Self { slice }
     }
@@ -75,6 +73,71 @@ impl<'a> Arena<'a> {
     }
 }
 
+pub const NUM_BLOCKS: usize = NUM_SIMD_REG / 8;
+pub const LANES: usize = ArchSimd::<f32>::LANES;
+pub const BLOCK_LANES: usize = NUM_BLOCKS * LANES;
+
+pub struct InterpolationConfig {
+    pub has_block_head: bool,
+    pub has_block_tail: bool,
+    pub block_tail_size: usize,
+    pub block_tail_start: usize,
+}
+
+impl InterpolationConfig {
+    pub fn new(x_dim: usize) -> Self {
+        Self {
+            has_block_head: x_dim >= BLOCK_LANES,
+            has_block_tail: !x_dim.is_multiple_of(BLOCK_LANES),
+            block_tail_size: (x_dim % BLOCK_LANES).div_ceil(LANES),
+            block_tail_start: (x_dim / BLOCK_LANES) * BLOCK_LANES,
+        }
+    }
+}
+
+
+pub trait MaybeUninitSliceSimdExt<T: SimdElement> {
+    /// # Safety
+    /// - The range `index..index + ArchSimd::<T>::LANES` must be in bounds.
+    /// - Data in range `index..index + ArchSimd::<T>::LANES` must be initialized.
+    unsafe fn load_simd(&self, index: usize) -> ArchSimd<T>;
+
+    /// # Safety
+    /// - The range `index..index + ArchSimd::<T>::LANES` must be in bounds.
+    /// - Data in range `index..index + ArchSimd::<T>::LANES` must be initialized.
+    /// - `index` must be aligned according to `SIMD_WIDTH`.
+    unsafe fn load_simd_aligned(&self, index: usize) -> ArchSimd<T>;
+
+    /// # Safety
+    /// - The range `index..index + ArchSimd::<T>::LANES` must be in bounds.
+    unsafe fn write_simd(&mut self, index: usize, simd: ArchSimd<T>);
+
+    /// # Safety
+    /// - The range `index..index + ArchSimd::<T>::LANES` must be in bounds.
+    /// - `index` must be aligned according to `SIMD_WIDTH`.
+    unsafe fn write_simd_aligned(&mut self, index: usize, simd: ArchSimd<T>);
+}
+
+impl<T: SimdElement> MaybeUninitSliceSimdExt<T> for [MaybeUninit<T>] {
+    unsafe fn load_simd(&self, index: usize) -> ArchSimd<T> {
+        unsafe { ArchSimd::from_slice_unchecked(self.get_unchecked(index..).assume_init_ref()) }
+    }
+
+    unsafe fn load_simd_aligned(&self, index: usize) -> ArchSimd<T> {
+        unsafe {
+            ArchSimd::from_aligned_slice_unchecked(self.get_unchecked(index..).assume_init_ref())
+        }
+    }
+
+    unsafe fn write_simd(&mut self, index: usize, simd: ArchSimd<T>) {
+        unsafe { simd.copy_to_slice_unchecked(self.get_unchecked_mut(index..).assume_init_mut()) }
+    }
+
+    unsafe fn write_simd_aligned(&mut self, index: usize, simd: ArchSimd<T>) {
+        unsafe { simd.copy_to_aligned_slice_unchecked(self.get_unchecked_mut(index..).assume_init_mut()) }
+    }
+}
+
 #[inline(always)]
 pub(super) fn validate_grid_size<const D: usize>(grid_size: [usize; D], slice_len: usize) {
     let num_samples = grid_size.iter().product();
@@ -87,17 +150,8 @@ pub(super) fn validate_grid_size<const D: usize>(grid_size: [usize; D], slice_le
 
 #[inline(always)]
 pub(super) fn pad_grid_size<const D: usize>(grid_size: [usize; D]) -> [usize; D] {
-    // from_fn(|i| {
-    //     let rem = grid_size[i] % ArchSimd::<f32>::LANES;
-    //     if rem == 0 {
-    //         grid_size[i]
-    //     } else {
-    //         ArchSimd::<f32>::LANES - rem + grid_size[i]
-    //     }
-    // })
-
     const LANES: usize = ArchSimd::<f32>::LANES;
-    from_fn(|i| LANES - grid_size[i] % LANES + grid_size[i])
+    from_fn(|i| LANES - grid_size[i] % LANES + grid_size[i] + LANES)
 }
 
 // SAFETY: caller/invariant of this type guarantees these slices are
@@ -106,155 +160,6 @@ pub(super) fn pad_grid_size<const D: usize>(grid_size: [usize; D]) -> [usize; D]
 pub unsafe fn assume_init_slice<T>(s: &[MaybeUninit<T>]) -> &[T] {
     unsafe { std::slice::from_raw_parts(s.as_ptr().cast(), s.len()) }
 }
-
-#[inline(always)]
-pub(super) fn grid_fill_indices<const M: usize>(
-    grid_indices: &mut SimdArray<u32, M>,
-    distances: &SimdArray<f32, M>,
-    num_loops: &mut usize,
-) {
-    const LANES: usize = ArchSimd::<f32>::LANES;
-
-    // Handle scalar case first.
-    if M < LANES {
-        let mut grid_index = 0;
-        for i in 1..M {
-            if distances[i - 1] > distances[i] {
-                grid_indices[grid_index] = i as u32;
-                *num_loops += 1;
-                grid_index += 1;
-            }
-        }
-        grid_indices[grid_index] = M as u32;
-        *num_loops += 1;
-        return;
-    }
-
-    let tail_start = M - ((M - 1) % LANES);
-    let tail_size = M - tail_start;
-    let has_tail = tail_size > 0;
-    let tail_idx = M - LANES;
-    let tail_offset = tail_start - tail_idx;
-    let tail_bitmask = ((1 << tail_size) - 1) << (LANES - tail_size);
-
-    let mut write_idx = 0usize;
-    let indices_ptr = grid_indices.as_mut_ptr();
-
-    let mut cur_index: usize = 1;
-    while cur_index < M {
-        let base_index = cur_index;
-        let mut bits = 0u64;
-        let mut bit_index = 0u32;
-
-        unsafe {
-            // Full chunk case.
-            while cur_index < tail_start && bit_index < 64 {
-                let cur = distances.load_simd_unchecked(cur_index);
-                let prev = distances.load_simd_unchecked(cur_index - 1);
-                let mask_bits = prev.simd_gt(cur).to_bits();
-                bits |= mask_bits << bit_index;
-                cur_index += LANES;
-                bit_index += LANES as u32;
-            }
-
-            // Tail chunk case.
-            if has_tail && bit_index < 64 && cur_index == tail_start {
-                let cur = distances.load_simd_unchecked(tail_idx);
-                let prev = distances.load_simd_unchecked(tail_idx - 1);
-                let mask_bits = prev.simd_gt(cur).to_bits() & tail_bitmask;
-                bits |= (mask_bits << bit_index) >> tail_offset;
-                cur_index += LANES;
-            }
-        }
-
-        // Convert bitmask into index values.
-        while bits != 0 {
-            let index = bits.trailing_zeros();
-            unsafe { indices_ptr.add(write_idx).write(base_index as u32 + index) };
-            write_idx += 1;
-            bits &= bits - 1;
-        }
-    }
-
-    // Write sentinel.
-    unsafe { indices_ptr.add(write_idx).write(M as u32) };
-    *num_loops = write_idx + 1;
-}
-
-// #[inline(always)]
-// pub(super) fn grid_fill_indices_slice(
-//     grid_indices: &mut [u32],
-//     distances: &[f32],
-//     num_loops: &mut usize,
-// ) {
-//     const LANES: usize = ArchSimd::<f32>::LANES;
-//     let len = grid_indices.len();
-//
-//     // Handle scalar case first.
-//     // if len < LANES {
-//     //     let mut grid_index = 0;
-//     //     for i in 1..len {
-//     //         if distances[i - 1] > distances[i] {
-//     //             grid_indices[grid_index] = i as u32;
-//     //             *num_loops += 1;
-//     //             grid_index += 1;
-//     //         }
-//     //     }
-//     //     grid_indices[grid_index] = len as u32;
-//     //     *num_loops += 1;
-//     //     return;
-//     // }
-//
-//     let tail_start = len - ((len - 1) % LANES);
-//     let tail_size = len - tail_start;
-//     let has_tail = tail_size > 0;
-//     let tail_idx = len - LANES;
-//     let tail_offset = tail_start - tail_idx;
-//     let tail_bitmask = ((1 << tail_size) - 1) << (LANES - tail_size);
-//
-//     let mut write_idx = 0usize;
-//     let indices_ptr = grid_indices.as_mut_ptr();
-//
-//     let mut cur_index: usize = 1;
-//     while cur_index < len {
-//         let base_index = cur_index;
-//         let mut bits = 0u64;
-//         let mut bit_index = 0u32;
-//
-//         unsafe {
-//             // Full chunk case.
-//             while cur_index < tail_start && bit_index < 64 {
-//                 let cur = ArchSimd::from_slice_unchecked(distances.get_unchecked(cur_index..));
-//                 let prev = ArchSimd::from_slice_unchecked(distances.get_unchecked(cur_index - 1..));
-//                 let mask_bits = prev.simd_gt(cur).to_bits();
-//                 bits |= mask_bits << bit_index;
-//                 cur_index += LANES;
-//                 bit_index += LANES as u32;
-//             }
-//
-//             // Tail chunk case.
-//             if has_tail && bit_index < 64 && cur_index == tail_start {
-//                 let cur = ArchSimd::from_slice_unchecked(distances.get_unchecked(tail_idx..));
-//                 let prev = ArchSimd::from_slice_unchecked(distances.get_unchecked(tail_idx - 1..));
-//                 let mask_bits = prev.simd_gt(cur).to_bits() & tail_bitmask;
-//                 bits |= (mask_bits << bit_index) >> tail_offset;
-//                 cur_index += LANES;
-//             }
-//         }
-//
-//         // Convert bitmask into index values.
-//         while bits != 0 {
-//             let index = bits.trailing_zeros();
-//             unsafe { indices_ptr.add(write_idx).write(base_index as u32 + index) };
-//             write_idx += 1;
-//             bits &= bits - 1;
-//         }
-//     }
-//
-//     // Write sentinel.
-//     unsafe { indices_ptr.add(write_idx).write(len as u32) };
-//     *num_loops = write_idx + 1;
-// }
 
 #[inline(always)]
 pub(super) fn grid_fill_indices_slice<const D: usize>(
@@ -279,7 +184,7 @@ pub(super) fn grid_fill_indices_slice<const D: usize>(
                         ArchSimd::from_slice_unchecked(
                             distances[i].get_unchecked(cur_index..).assume_init_ref(),
                         ),
-                        ArchSimd::from_slice_unchecked(
+                        ArchSimd::from_aligned_slice_unchecked(
                             distances[i]
                                 .get_unchecked(cur_index - 1..)
                                 .assume_init_ref(),
@@ -312,7 +217,7 @@ pub(super) fn grid_fill_indices_slice<const D: usize>(
                     ArchSimd::from_slice_unchecked(
                         distances[i].get_unchecked(cur_index..).assume_init_ref(),
                     ),
-                    ArchSimd::from_slice_unchecked(
+                    ArchSimd::from_aligned_slice_unchecked(
                         distances[i]
                             .get_unchecked(cur_index - 1..)
                             .assume_init_ref(),
@@ -344,69 +249,6 @@ pub(super) fn grid_fill_indices_slice<const D: usize>(
         };
         write_idx + 1
     })
-}
-
-/// Takes a list of value array pairs and broadcasts that value in
-/// each array a specified amount of elements starting at a specified
-/// index.
-///
-/// # Parameters
-/// * `arrays` - an array of mutable [f32] slices
-/// * 'values' - an array of values to set into each corresponding array
-/// * `arrray_len` - the length of each [f32] slice
-/// * 'index' - the index to start setting values at in all arrays
-/// * 'amount' - the amount of elements to fill with the specified value
-#[inline(always)]
-pub fn multiset_slice<'a, const M: usize>(
-    arrays: &mut [&mut &'a mut [MaybeUninit<f32>]; M],
-    values: &[f32; M],
-    mut index: usize,
-    mut amount: isize,
-) {
-    let vecs: [ArchSimd<f32>; M] = std::array::from_fn(|i| ArchSimd::splat(values[i]));
-
-    // if array_len < ArchSimd::<f32>::LANES {
-    //     for i in 0..M {
-    //         for n in 0..amount {
-    //             unsafe {
-    //                 *arrays[i].get_unchecked_mut(n as usize + index) = values[i];
-    //             }
-    //         }
-    //     }
-    //     return;
-    // }
-
-    while amount > 0 {
-        // Full register store case.
-        // if index < array_len.saturating_sub(ArchSimd::<f32>::LANES) {
-        for i in 0..M {
-            unsafe {
-                let slice = arrays.get_unchecked_mut(i).get_unchecked_mut(index..);
-                vecs.get_unchecked(i)
-                    .copy_to_slice_unchecked(slice.assume_init_mut());
-            }
-        }
-        // } else {
-        // // Tail store case.
-        // let iota = ArchSimd::<i32>::iota(array_len as i32 - ArchSimd::<f32>::LANES as i32);
-        // let indices = ArchSimd::splat(index as i32);
-        // let mask = iota.simd_ge(indices);
-        // let tail_index = array_len.saturating_sub(ArchSimd::<f32>::LANES);
-        //
-        // for i in 0..M {
-        //     unsafe {
-        //         arrays.get_unchecked_mut(i).masked_store_simd(
-        //             tail_index,
-        //             *vecs.get_unchecked(i),
-        //             mask.raw_cast(),
-        //         );
-        //     }
-        // }
-        // }
-
-        amount -= ArchSimd::<f32>::LANES as isize;
-        index += ArchSimd::<f32>::LANES;
-    }
 }
 
 #[inline(always)]

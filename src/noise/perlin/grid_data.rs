@@ -7,6 +7,7 @@ use crate::{
 const LANES: usize = ArchSimd::<f32>::LANES;
 
 pub(crate) struct PerlinGridData<'a, const D: usize> {
+    pub padded_size: [usize; D],
     pub grid_start: [i32; D],
     pub increment: [f32; D],
     pub num_loops: [usize; D],
@@ -42,10 +43,10 @@ impl<'a, const D: usize> PerlinGridData<'a, D> {
                 let cur_lerp = fract_dist.quintic_lerp();
 
                 unsafe {
-                    fract_dist.copy_to_slice_unchecked(
+                    fract_dist.copy_to_aligned_slice_unchecked(
                         distances[axis].get_unchecked_mut(i..).assume_init_mut(),
                     );
-                    cur_lerp.copy_to_slice_unchecked(
+                    cur_lerp.copy_to_aligned_slice_unchecked(
                         fade_factors[axis].get_unchecked_mut(i..).assume_init_mut(),
                     );
                 }
@@ -61,6 +62,7 @@ impl<'a, const D: usize> PerlinGridData<'a, D> {
         let octave_tiling = configure_tiling(params);
 
         Self {
+            padded_size: *padded_size,
             grid_start,
             increment,
             num_loops,
