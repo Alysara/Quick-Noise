@@ -4,7 +4,7 @@ use crate::simd::simd_array::SimdArray;
 // use crate::value::grid_2d::ValueGridNoise2D;
 // use crate::value::grid_3d::ValueGridNoise3D;
 
-#[derive(Default, Copy, Clone)]
+#[derive(Default, Copy, Clone, PartialEq, Debug)]
 pub struct Value {}
 
 // impl GridNoiseImpl for Value {

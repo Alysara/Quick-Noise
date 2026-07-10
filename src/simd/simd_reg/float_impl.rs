@@ -114,6 +114,14 @@ impl<T: SimdFloat, F: SimdFamily> Simd<T, F> {
         t * t * t * t.mul_add(t.mul_sub(six, fifteen), ten)
     }
 
+    #[inline(always)]
+    pub fn cubic_lerp(self) -> Self {
+        let neg_two = Self::splat(NumCast::from(-2.0).unwrap());
+        let three = Self::splat(NumCast::from(3.0).unwrap());
+        let t = self;
+        t * t * t.mul_add(neg_two, three)
+    }
+
     pub fn sqrt(self) -> Self {
         Self::new(match T::TYPE {
             SimdType::F64 => self.data.sqrt_f64(),

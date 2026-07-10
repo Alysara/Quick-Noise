@@ -73,24 +73,22 @@ impl<'a> Arena<'a> {
     }
 }
 
-pub const NUM_BLOCKS: usize = NUM_SIMD_REG / 8;
-pub const LANES: usize = ArchSimd::<f32>::LANES;
-pub const BLOCK_LANES: usize = NUM_BLOCKS * LANES;
-
-pub struct InterpolationConfig {
+pub struct InterpolationConfig<const NUM_BLOCKS: usize> {
     pub has_block_head: bool,
     pub has_block_tail: bool,
     pub block_tail_size: usize,
     pub block_tail_start: usize,
 }
 
-impl InterpolationConfig {
+impl<const NUM_BLOCKS: usize> InterpolationConfig<NUM_BLOCKS> {
+    pub const LANES: usize = ArchSimd::<f32>::LANES;
+    pub const BLOCK_LANES: usize = NUM_BLOCKS * Self::LANES;
     pub fn new(x_dim: usize) -> Self {
         Self {
-            has_block_head: x_dim >= BLOCK_LANES,
-            has_block_tail: !x_dim.is_multiple_of(BLOCK_LANES),
-            block_tail_size: (x_dim % BLOCK_LANES).div_ceil(LANES),
-            block_tail_start: (x_dim / BLOCK_LANES) * BLOCK_LANES,
+            has_block_head: x_dim >= Self::BLOCK_LANES,
+            has_block_tail: !x_dim.is_multiple_of(Self::BLOCK_LANES),
+            block_tail_size: (x_dim % Self::BLOCK_LANES).div_ceil(Self::LANES),
+            block_tail_start: (x_dim / Self::BLOCK_LANES) * Self::BLOCK_LANES,
         }
     }
 }

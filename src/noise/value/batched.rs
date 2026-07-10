@@ -61,10 +61,10 @@ impl BatchNoise for Value {
         let x2_shuf = x2.permute_8(shuffle_indices) ^ prime;
         let y2_shuf = y2.permute_8(shuffle_indices) ^ prime;
 
-        let hash_tl = x1_shuf * y1_shuf * x1_shuf;
-        let hash_tr = x1_shuf * y2_shuf * x1_shuf;
-        let hash_bl = x2_shuf * y1_shuf * x2_shuf;
-        let hash_br = x2_shuf * y2_shuf * x2_shuf;
+        let hash_tl = x1_shuf * y1_shuf * y1_shuf;
+        let hash_tr = x1_shuf * y2_shuf * y2_shuf;
+        let hash_bl = x2_shuf * y1_shuf * y1_shuf;
+        let hash_br = x2_shuf * y2_shuf * y2_shuf;
 
         // Values: 12
         let val_tl = ((hash_tl & hash_mask) | exp_bits).raw_cast::<f32>() - three;

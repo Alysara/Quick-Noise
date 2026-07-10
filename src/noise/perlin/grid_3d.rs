@@ -3,20 +3,23 @@ use std::fmt;
 use std::mem::MaybeUninit;
 use std::ops::Range;
 
-use paste::paste;
-
 use crate::api::grid::interface::GridNoiseParams;
+use crate::grid_data::{GridData, Lerp};
 use crate::grid_helpers::{
-    Arena, ArenaBuffer, BLOCK_LANES, InterpolationConfig, LANES, MaybeUninitSliceSimdExt, NUM_BLOCKS, assume_init_slice, pad_grid_size, validate_grid_size
+    Arena, ArenaBuffer, InterpolationConfig, MaybeUninitSliceSimdExt, assume_init_slice,
+    pad_grid_size, validate_grid_size,
 };
 use crate::noise::perlin::constants::*;
-use crate::perlin::grid_data::PerlinGridData;
 use crate::simd::arch_simd::{ArchSimd, NUM_SIMD_REG};
 use crate::{GridNoiseImpl, Perlin};
 
 // ————————————————————————————————————————————————————————————————
 // ————— 3D Perlin Grid ———————————————————————————————————————————
 // ————————————————————————————————————————————————————————————————
+
+pub const NUM_BLOCKS: usize = NUM_SIMD_REG / 8;
+pub const LANES: usize = ArchSimd::<f32>::LANES;
+pub const BLOCK_LANES: usize = NUM_BLOCKS * LANES;
 
 pub struct PerlinGradients3D<'a> {
     pub tlf: [&'a mut [MaybeUninit<f32>]; 3],
@@ -72,6 +75,7 @@ impl<'a> fmt::Debug for PerlinGradients3D<'a> {
     }
 }
 
+const LERP: u8 = Lerp::Quintic as u8;
 impl GridNoiseImpl<3> for Perlin {
     fn sample<const INIT: bool>(params: GridNoiseParams<3>, dst: &mut [f32]) {
         // Validate and pad grid size.
@@ -88,7 +92,7 @@ impl GridNoiseImpl<3> for Perlin {
         // Allocation setup.
 
         let bilerp_config = InterpolationConfig::new(params.grid_size[0]);
-        let grid_data = PerlinGridData::new(&params, &mut data_arena, &padded_size);
+        let grid_data = GridData::new::<LERP>(&params, &mut data_arena, &padded_size);
         let mut trilerp_buffers = DottedTrilerpBuffers::new(&mut trilerp_arena, padded_size[0]);
         let mut gradients = PerlinGradients3D::new(&mut arena, padded_size[0]);
 
@@ -135,7 +139,7 @@ impl GridNoiseImpl<3> for Perlin {
 #[inline(always)]
 pub(super) fn grid_gradients_3d<'a>(
     params: &GridNoiseParams<3>,
-    grid_data: &PerlinGridData<3>,
+    grid_data: &GridData<3>,
     gradients: &mut PerlinGradients3D<'a>,
     y_it: usize,
     z_it: usize,
@@ -234,7 +238,7 @@ pub(super) fn grid_gradients_3d<'a>(
 
 #[inline(always)]
 pub(super) fn grid_gradients_3d_set_loop<'a, const IS_FRONT: bool>(
-    grid_data: &PerlinGridData<3>,
+    grid_data: &GridData<3>,
     gradients: &mut PerlinGradients3D<'a>,
 ) {
     let (grad_buffer, left, right) = if IS_FRONT {
@@ -327,9 +331,9 @@ impl<'a> DottedTrilerpBuffers<'a> {
 /// Handles interpolation execution state and fills
 /// the dst slice with interpolated values from gradient dot produtcts.
 pub(crate) struct DottedTrilerpExecuter<'a> {
-    config: &'a InterpolationConfig,
+    config: &'a InterpolationConfig<NUM_BLOCKS>,
     params: &'a GridNoiseParams<3>,
-    grid_data: &'a PerlinGridData<'a, 3>,
+    grid_data: &'a GridData<'a, 3>,
     gradients: &'a PerlinGradients3D<'a>,
     y_range: Range<usize>,
     z_range: Range<usize>,
@@ -350,9 +354,9 @@ pub(crate) struct DottedTrilerpExecuter<'a> {
 #[inline(always)]
 pub(super) fn grid_dotted_trilerp<const INIT: bool>(
     buffers: &mut DottedTrilerpBuffers,
-    config: &InterpolationConfig,
+    config: &InterpolationConfig<NUM_BLOCKS>,
     params: &GridNoiseParams<3>,
-    grid_data: &PerlinGridData<3>,
+    grid_data: &GridData<3>,
     gradients: &PerlinGradients3D,
     ranges: (Range<usize>, Range<usize>),
     dst: &mut [f32],

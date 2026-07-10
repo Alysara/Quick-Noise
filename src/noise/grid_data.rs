@@ -1,12 +1,11 @@
+
 use std::{array::from_fn, fmt, mem::MaybeUninit};
 
 use crate::{
     api::grid::interface::GridNoiseParams, grid_helpers::{Arena, assume_init_slice, configure_tiling, grid_fill_indices_slice}, simd::arch_simd::ArchSimd,
 };
 
-const LANES: usize = ArchSimd::<f32>::LANES;
-
-pub(crate) struct PerlinGridData<'a, const D: usize> {
+pub(crate) struct GridData<'a, const D: usize> {
     pub grid_start: [i32; D],
     pub increment: [f32; D],
     pub num_loops: [usize; D],
@@ -16,9 +15,28 @@ pub(crate) struct PerlinGridData<'a, const D: usize> {
     pub grid_indices: [&'a mut [MaybeUninit<u32>]; D],
 }
 
-impl<'a, const D: usize> PerlinGridData<'a, D> {
+#[repr(u8)]
+pub(crate) enum Lerp {
+    Cubic = 0,
+    Quintic = 1,
+}
+
+impl Lerp {
+    pub const fn from_u8(val: u8) -> Self {
+        match val {
+            0 => Self::Cubic,
+            1 => Self::Quintic,
+            _ => unreachable!(),
+        }
+    }
+}
+
+const LANES: usize = ArchSimd::<f32>::LANES;
+impl<'a, const D: usize> GridData<'a, D> {
     #[inline(always)]
-    pub fn new(params: &GridNoiseParams<D>, arena: &mut Arena<'a>, padded_size: &[usize; D]) -> Self {
+    pub fn new<const LERP: u8>(params: &GridNoiseParams<D>, arena: &mut Arena<'a>, padded_size: &[usize; D]) -> Self {
+        let lerp_type = Lerp::from_u8(LERP);
+
         let increment = from_fn(|i| params.frequency[i] * params.magnification);
         let block_pos: [i32; D] = from_fn(|i| params.position[i] * params.grid_size[i] as i32);
 
@@ -39,7 +57,10 @@ impl<'a, const D: usize> PerlinGridData<'a, D> {
         for axis in 0..2 {
             for i in (0..params.grid_size[axis]).step_by(LANES) {
                 let fract_dist = cur_dist[axis].fract();
-                let cur_lerp = fract_dist.quintic_lerp();
+                let cur_lerp = match lerp_type {
+                    Lerp::Cubic => fract_dist.cubic_lerp(),
+                    Lerp::Quintic => fract_dist.cubic_lerp(),
+                };
 
                 unsafe {
                     fract_dist.copy_to_aligned_slice_unchecked(
@@ -72,7 +93,7 @@ impl<'a, const D: usize> PerlinGridData<'a, D> {
     }
 }
 
-impl<'a, const D: usize> fmt::Debug for PerlinGridData<'a, D> {
+impl<'a, const D: usize> fmt::Debug for GridData<'a, D> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         unsafe {
             f.debug_struct("PerlinGridData")

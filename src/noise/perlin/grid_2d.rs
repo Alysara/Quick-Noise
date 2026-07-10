@@ -3,17 +3,22 @@ use std::mem::MaybeUninit;
 use std::ops::Range;
 
 use crate::api::grid::interface::GridNoiseParams;
+use crate::grid_data::{GridData, Lerp};
 use crate::grid_helpers::{
-    Arena, ArenaBuffer, BLOCK_LANES, InterpolationConfig, LANES, NUM_BLOCKS, assume_init_slice, pad_grid_size, validate_grid_size
+    Arena, ArenaBuffer, InterpolationConfig, MaybeUninitSliceSimdExt, assume_init_slice,
+    pad_grid_size, validate_grid_size,
 };
 use crate::noise::perlin::constants::*;
-use crate::perlin::grid_data::PerlinGridData;
 use crate::simd::arch_simd::{ArchSimd, NUM_SIMD_REG};
 use crate::{GridNoiseImpl, Perlin};
 
 // ————————————————————————————————————————————————————————————————
 // ————— 2D Perlin Grid ———————————————————————————————————————————
 // ————————————————————————————————————————————————————————————————
+
+pub const NUM_BLOCKS: usize = NUM_SIMD_REG / 8;
+pub const LANES: usize = ArchSimd::<f32>::LANES;
+pub const BLOCK_LANES: usize = NUM_BLOCKS * LANES;
 
 pub struct PerlinGradients2D<'a> {
     pub tl: [&'a mut [MaybeUninit<f32>]; 2],
@@ -43,7 +48,7 @@ impl<'a> PerlinGradients2D<'a> {
 impl<'a> fmt::Debug for PerlinGradients2D<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         unsafe {
-            f.debug_struct("PerlinGridData")
+            f.debug_struct("GridData")
                 .field("tl.x", &assume_init_slice(self.tl[0]))
                 .field("tr.x", &assume_init_slice(self.tr[0]))
                 .field("bl.x", &assume_init_slice(self.bl[0]))
@@ -57,6 +62,7 @@ impl<'a> fmt::Debug for PerlinGradients2D<'a> {
     }
 }
 
+const LERP: u8 = Lerp::Quintic as u8;
 impl GridNoiseImpl<2> for Perlin {
     fn sample<const INIT: bool>(params: GridNoiseParams<2>, dst: &mut [f32]) {
         validate_grid_size(params.grid_size, dst.len());
@@ -70,10 +76,11 @@ impl GridNoiseImpl<2> for Perlin {
         let bilerp_config = InterpolationConfig::new(params.grid_size[0]);
 
         let mut sub_arena = arena.allocate_arena(padded_size[0] * 3 + padded_size[1] * 3);
-        let mut grid_data = PerlinGridData::new(&params, &mut sub_arena, &padded_size);
+
+        let mut grid_data = GridData::new::<LERP>(&params, &mut sub_arena, &padded_size);
 
         // Allocate scratch buffer for gradients.
-        let grad_scratch = arena.allocate(padded_size[0] + LANES);
+        let grad_scratch = arena.allocate(padded_size[0]);
 
         // Initialize gradient vectors.
         let mut gradients = PerlinGradients2D::new(&mut arena, padded_size[0]);
@@ -125,7 +132,7 @@ impl GridNoiseImpl<2> for Perlin {
 #[inline(always)]
 pub(super) fn grid_gradients_2d<'a>(
     params: &GridNoiseParams<2>,
-    grid_data: &mut PerlinGridData<2>,
+    grid_data: &mut GridData<2>,
     grad_buffer: &mut [MaybeUninit<u32>],
     left: &mut [&'a mut [MaybeUninit<f32>]; 2],
     right: &mut [&'a mut [MaybeUninit<f32>]; 2],
@@ -158,10 +165,7 @@ pub(super) fn grid_gradients_2d<'a>(
 
             let x_shuf = x_seeded.permute_8(shuffle_indices) ^ prime;
             let indices: ArchSimd<u32> = (y_shuf * x_shuf) >> 29;
-            unsafe {
-                indices
-                    .copy_to_slice_unchecked(grad_buffer.get_unchecked_mut(i..).assume_init_mut())
-            };
+            unsafe { grad_buffer.write_simd_aligned(i, indices) };
             x_vec += x_vec_stride;
         }
     } else {
@@ -175,11 +179,7 @@ pub(super) fn grid_gradients_2d<'a>(
         for i in (0..end_index).step_by(LANES) {
             let x_shuf = x_vec.permute_8(shuffle_indices) ^ prime;
             let indices: ArchSimd<u32> = (y_shuf * x_shuf) >> 29;
-            unsafe {
-                indices.copy_to_aligned_slice_unchecked(
-                    grad_buffer.get_unchecked_mut(i..).assume_init_mut(),
-                )
-            };
+            unsafe { grad_buffer.write_simd_aligned(i, indices) };
             x_vec += x_vec_stride;
         }
     }
@@ -202,10 +202,10 @@ pub(super) fn grid_gradients_2d<'a>(
 
             let mut index = x_cur_index as usize;
             while amount > 0 {
-                ly.copy_to_slice_unchecked(left[1].get_unchecked_mut(index..).assume_init_mut());
-                lx.copy_to_slice_unchecked(left[0].get_unchecked_mut(index..).assume_init_mut());
-                ry.copy_to_slice_unchecked(right[1].get_unchecked_mut(index..).assume_init_mut());
-                rx.copy_to_slice_unchecked(right[0].get_unchecked_mut(index..).assume_init_mut());
+                left[1].write_simd(index, ly);
+                left[0].write_simd(index, lx);
+                right[1].write_simd(index, ry);
+                right[0].write_simd(index, rx);
 
                 amount -= LANES as isize;
                 index += LANES;
@@ -218,23 +218,12 @@ pub(super) fn grid_gradients_2d<'a>(
     // Compute x dot products (Better to do here since these dot products get reused and operate per element).
     for i in (0..params.grid_size[0]).step_by(LANES) {
         unsafe {
-            let cur_dist = ArchSimd::from_aligned_slice_unchecked(
-                grid_data.distances[0].get_unchecked(i..).assume_init_ref(),
-            );
-            let cur_left = ArchSimd::from_aligned_slice_unchecked(
-                left[0].get_unchecked(i..).assume_init_ref(),
-            );
-            let cur_right = ArchSimd::from_aligned_slice_unchecked(
-                right[0].get_unchecked(i..).assume_init_ref(),
-            );
+            let cur_dist = grid_data.distances[0].load_simd_aligned(i);
+            let cur_left = left[0].load_simd_aligned(i);
+            let cur_right = right[0].load_simd_aligned(i);
 
-            let new_left = cur_dist * cur_left;
-            let new_right = cur_right.mul_sub(cur_dist, cur_right);
-
-            new_left
-                .copy_to_aligned_slice_unchecked(left[0].get_unchecked_mut(i..).assume_init_mut());
-            new_right
-                .copy_to_aligned_slice_unchecked(right[0].get_unchecked_mut(i..).assume_init_mut());
+            left[0].write_simd_aligned(i, cur_left * cur_dist);
+            right[0].write_simd_aligned(i, cur_right.mul_sub(cur_dist, cur_right));
         }
     }
 }
@@ -242,9 +231,9 @@ pub(super) fn grid_gradients_2d<'a>(
 /// Handles interpolation execution state and fills
 /// the dst slice with interpolated values from gradient dot produtcts.
 pub(crate) struct DottedBilerpExecuter<'a> {
-    config: &'a InterpolationConfig,
+    config: &'a InterpolationConfig<NUM_BLOCKS>,
     params: &'a GridNoiseParams<2>,
-    grid_data: &'a PerlinGridData<'a, 2>,
+    grid_data: &'a GridData<'a, 2>,
     gradients: &'a PerlinGradients2D<'a>,
     y_range: Range<usize>,
     top: [ArchSimd<f32>; NUM_BLOCKS],
@@ -260,9 +249,9 @@ pub(crate) struct DottedBilerpExecuter<'a> {
 /// Fills the dst slice with interpolated dot products from gradients.
 #[inline(always)]
 pub(super) fn grid_dotted_bilerp<const INIT: bool>(
-    config: &InterpolationConfig,
+    config: &InterpolationConfig<NUM_BLOCKS>,
     params: &GridNoiseParams<2>,
-    grid_data: &PerlinGridData<2>,
+    grid_data: &GridData<2>,
     gradients: &PerlinGradients2D,
     y_range: Range<usize>,
     dst: &mut [f32],
@@ -341,26 +330,17 @@ impl<'a> DottedBilerpExecuter<'a> {
         // These blocked loops will get entirely unrolled by the compiler.
         for block in 0..num_blocks {
             // Load gradients into registers.
-
-            #[inline(always)]
-            unsafe fn load(slice: &[MaybeUninit<f32>], index: usize) -> ArchSimd<f32> {
-                unsafe {
-                    let slice = slice.get_unchecked(index..).assume_init_ref();
-                    ArchSimd::from_aligned_slice_unchecked(slice)
-                }
-            }
-
             let index = x + LANES * block;
 
-            let x_lerp = unsafe { load(self.grid_data.fade_factors[0], index) };
-            let x_tl = unsafe { load(self.gradients.tl[0], index) };
-            let x_tr = unsafe { load(self.gradients.tr[0], index) };
-            let x_bl = unsafe { load(self.gradients.bl[0], index) };
-            let x_br = unsafe { load(self.gradients.br[0], index) };
-            let y_tl = unsafe { load(self.gradients.tl[1], index) };
-            let y_tr = unsafe { load(self.gradients.tr[1], index) };
-            let y_bl = unsafe { load(self.gradients.bl[1], index) };
-            let y_br = unsafe { load(self.gradients.br[1], index) };
+            let x_lerp = unsafe { self.grid_data.fade_factors[0].load_simd_aligned(index) };
+            let x_tl = unsafe { self.gradients.tl[0].load_simd_aligned(index) };
+            let x_tr = unsafe { self.gradients.tr[0].load_simd_aligned(index) };
+            let x_bl = unsafe { self.gradients.bl[0].load_simd_aligned(index) };
+            let x_br = unsafe { self.gradients.br[0].load_simd_aligned(index) };
+            let y_tl = unsafe { self.gradients.tl[1].load_simd_aligned(index) };
+            let y_tr = unsafe { self.gradients.tr[1].load_simd_aligned(index) };
+            let y_bl = unsafe { self.gradients.bl[1].load_simd_aligned(index) };
+            let y_br = unsafe { self.gradients.br[1].load_simd_aligned(index) };
 
             // Compute base dot products.
             let prod_sum_tl = y_tl.mul_add(self.y_upper_increment, x_tl);

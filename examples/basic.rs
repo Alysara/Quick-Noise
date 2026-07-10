@@ -33,24 +33,24 @@ fn main() {
         .position(0, 0)
         .seed(GRID_SEED);
 
-    let grid_3d = GridNoise::<3>::new(255, 255, 255)
+    let grid_3d = GridNoise::<3>::new(32, 32, 32)
         .seed(GRID_SEED);
 
-    // let mut buffer = SimdArray::<f32, 1024>::new(0.0);
-    //
-    // let time = Instant::now();
-    // const NUM_RUNS: usize = 100_000_000;
-    // let freq = 1. / 64.;
-    // for _ in 0..NUM_RUNS {
-    //     grid_2d.fbm::<Perlin>().frequency(freq).fill(&mut buffer);
-    //     black_box(&buffer);
-    // }
-    // let total = time.elapsed();
-    // println!(
-    //     "Total: {:?}, Average Completion: {:?}",
-    //     total,
-    //     total / NUM_RUNS as u32
-    // );
+    let mut buffer = SimdArray::<f32, 32768>::new(0.0);
+
+    let time = Instant::now();
+    const NUM_RUNS: usize = 5_000_000;
+    let freq = 1. / 64.;
+    for _ in 0..NUM_RUNS {
+        grid_3d.fbm::<Value>().frequency(freq).fill(&mut buffer);
+        black_box(&buffer);
+    }
+    let total = time.elapsed();
+    println!(
+        "Total: {:?}, Average Completion: {:?}",
+        total,
+        total / NUM_RUNS as u32
+    );
 
     // grid_2d
     //     .fbm::<Perlin>()
@@ -61,6 +61,14 @@ fn main() {
     //     .to_grayscale_image(32, 32, "noise_images/perlin_grid_2d.png");
 
     // grid_2d_big
+    //     .fbm::<Value>()
+    //     .octaves(6)
+    //     .frequency(1. / 128.0)
+    //     .seed(FBM_SEED)
+    //     .into_iter()
+    //     .to_grayscale_image(2047, 2047, "noise_images/value_grid_2d.png");
+
+    // grid_2d_big
     //     .fbm::<Perlin>()
     //     .octaves(1)
     //     .frequency(1. / 128.0)
@@ -68,9 +76,15 @@ fn main() {
     //     .into_iter()
     //     .to_grayscale_image(2047, 2047, "noise_images/perlin_grid_2d.png");
 
-    grid_3d.fbm::<Perlin>()
-        .octaves(6)
-        .frequency(1.0 / 32.0)
-        .into_iter()
-        .to_grayscale_image(255, 255, "noise_images/perlin_grid_3d.png");
+    // grid_3d.fbm::<Perlin>()
+    //     .octaves(6)
+    //     .frequency(1.0 / 32.0)
+    //     .into_iter()
+    //     .to_grayscale_image(255, 255, "noise_images/perlin_grid_3d.png");
+
+    // grid_3d.fbm::<Value>()
+    //     .octaves(1)
+    //     .frequency(1.0 / 8.0)
+    //     .into_iter()
+    //     .to_grayscale_image(255, 255, "noise_images/value_grid_3d.png");
 }

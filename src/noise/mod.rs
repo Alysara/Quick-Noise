@@ -9,7 +9,6 @@ pub mod perlin {
     // mod grid_2d;
     mod grid_3d;
     mod grid_2d;
-    mod grid_data;
 
     // Public exports.
     pub use core::Perlin;
@@ -29,6 +28,8 @@ pub mod simplex {
 pub mod value {
     // mod batched;
     mod core;
+    mod grid_2d;
+    mod grid_3d;
     // mod grid_2d;
     // mod grid_3d;
     pub use core::Value;
@@ -40,5 +41,6 @@ pub mod cellular {
     pub use core::Cellular;
 }
 
+pub(crate) mod grid_data;
 pub(crate) mod grid_helpers;
 pub(crate) mod interpolation;
