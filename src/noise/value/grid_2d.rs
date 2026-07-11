@@ -6,10 +6,10 @@ use crate::api::grid::interface::GridNoiseParams;
 use crate::grid_data::{GridData, Lerp};
 use crate::grid_helpers::{
     Arena, ArenaBuffer, InterpolationConfig, MaybeUninitSliceSimdExt, assume_init_slice,
-    pad_grid_size, validate_grid_size,
+    maybe_tail_load, maybe_tail_store, pad_grid_size, validate_grid_size, validate_state_size,
 };
 use crate::simd::arch_simd::{ArchSimd, NUM_SIMD_REG};
-use crate::{GridNoiseImpl, Value};
+use crate::{Fractal, FractalState, GridNoiseImpl, Value};
 
 // ————————————————————————————————————————————————————————————————
 // ————— 2D Value Grid ———————————————————————————————————————————
@@ -60,8 +60,14 @@ impl<'a> fmt::Debug for ValueGradients2D<'a> {
 const LERP: u8 = Lerp::Cubic as u8;
 impl GridNoiseImpl<2> for Value {
     #[inline(always)]
-    fn sample<const INIT: bool>(params: GridNoiseParams<2>, dst: &mut [f32]) {
+    fn sample<F: Fractal, const INIT: bool, const FINAL: bool>(
+        params: GridNoiseParams<2>,
+        fractal_config: F::Config,
+        state: &mut [f32],
+        dst: &mut [f32],
+    ) {
         validate_grid_size(params.grid_size, dst.len());
+        validate_state_size::<F, _>(params.grid_size, state.len());
         let padded_size = pad_grid_size(params.grid_size);
 
         let required_cache = padded_size[1] * 3 + padded_size[0] * 8;
@@ -107,13 +113,13 @@ impl GridNoiseImpl<2> for Value {
             );
 
             let y_range = y_cur_index..y_next_index;
-            grid_bilerp::<INIT>(
+            grid_bilerp::<F, INIT, FINAL>(
                 &bilerp_config,
-                &params,
+                &fractal_config,
                 &grid_data,
                 &gradients,
                 y_range,
-                dst,
+                (state, dst),
             );
 
             // Reuse the top and bottom gradients.
@@ -212,58 +218,54 @@ pub(super) fn grid_gradients_2d<'a>(
 
 /// Handles interpolation execution state and fills
 /// the dst slice with interpolated values from gradient dot produtcts.
-pub(crate) struct BilerpExecuter<'a> {
+pub(crate) struct BilerpExecuter<'a, F: Fractal, const INIT: bool, const FINAL: bool> {
     config: &'a InterpolationConfig<NUM_BLOCKS>,
-    params: &'a GridNoiseParams<2>,
+    fractal_config: &'a F::Config,
     grid_data: &'a GridData<'a, 2>,
     gradients: &'a ValueGradients2D<'a>,
     y_range: Range<usize>,
     top: [ArchSimd<f32>; NUM_BLOCKS],
     dif: [ArchSimd<f32>; NUM_BLOCKS],
     weight: ArchSimd<f32>,
-    y_increment: ArchSimd<f32>,
 }
 
 /// Fills the dst slice with interpolated dot products from gradients.
 #[inline(always)]
-pub(super) fn grid_bilerp<const INIT: bool>(
+pub(super) fn grid_bilerp<F: Fractal, const INIT: bool, const FINAL: bool>(
     config: &InterpolationConfig<NUM_BLOCKS>,
-    params: &GridNoiseParams<2>,
+    fractal_config: &F::Config,
     grid_data: &GridData<2>,
     gradients: &ValueGradients2D,
     y_range: Range<usize>,
-    dst: &mut [f32],
+    output: (&mut [f32], &mut [f32]),
 ) {
-    let mut executer = BilerpExecuter {
+    let mut executer = BilerpExecuter::<F, INIT, FINAL> {
         config,
-        params,
+        fractal_config,
         grid_data,
         gradients,
         y_range,
         top: Default::default(),
         dif: Default::default(),
-        weight: ArchSimd::splat(params.weight),
-        y_increment: ArchSimd::splat(grid_data.increment[1]),
+        weight: ArchSimd::splat(grid_data.weight),
     };
 
+    let (state, dst) = output;
     if config.has_block_head {
-        executer.interpolate::<INIT, false>(dst);
+        executer.interpolate::<false>(state, dst);
     }
 
     if config.has_block_tail {
-        executer.interpolate::<INIT, true>(dst);
+        executer.interpolate::<true>(state, dst);
         std::hint::cold_path();
     }
-
-    // let elapsed = time.elapsed();
-    // println!("Bilerp completed in {:?}", elapsed);
 }
 
-impl<'a> BilerpExecuter<'a> {
+impl<'a, F: Fractal, const INIT: bool, const FINAL: bool> BilerpExecuter<'a, F, INIT, FINAL> {
     #[inline(always)]
-    pub fn interpolate<const INIT: bool, const IS_TAIL: bool>(&mut self, dst: &mut [f32]) {
+    pub fn interpolate<const IS_TAIL: bool>(&mut self, state: &mut [f32], dst: &mut [f32]) {
         let range = if IS_TAIL {
-            self.config.block_tail_start..self.params.grid_size[0]
+            self.config.block_tail_start..self.grid_data.grid_size[0]
         } else {
             0..self.config.block_tail_start
         };
@@ -274,13 +276,13 @@ impl<'a> BilerpExecuter<'a> {
             let mut y = self.y_range.start;
             while y < self.y_range.end {
                 if y + 4 > self.y_range.end {
-                    self.process_factors::<INIT, IS_TAIL>(x, y, dst);
+                    self.process_factors::<IS_TAIL>(x, y, state, dst);
                     y += 1;
                 } else {
-                    self.process_factors::<INIT, IS_TAIL>(x, y, dst);
-                    self.process_factors::<INIT, IS_TAIL>(x, y + 1, dst);
-                    self.process_factors::<INIT, IS_TAIL>(x, y + 2, dst);
-                    self.process_factors::<INIT, IS_TAIL>(x, y + 3, dst);
+                    self.process_factors::<IS_TAIL>(x, y, state, dst);
+                    self.process_factors::<IS_TAIL>(x, y + 1, state, dst);
+                    self.process_factors::<IS_TAIL>(x, y + 2, state, dst);
+                    self.process_factors::<IS_TAIL>(x, y + 3, state, dst);
                     y += 4;
                 }
             }
@@ -314,10 +316,11 @@ impl<'a> BilerpExecuter<'a> {
     }
 
     #[inline(always)]
-    fn process_factors<const INIT: bool, const IS_TAIL: bool>(
+    fn process_factors<const IS_TAIL: bool>(
         &mut self,
         x: usize,
         y: usize,
+        state: &mut [f32],
         dst: &mut [f32],
     ) {
         let y_lerp = ArchSimd::splat(unsafe {
@@ -332,31 +335,41 @@ impl<'a> BilerpExecuter<'a> {
             0..NUM_BLOCKS
         };
 
+        let index = y * self.grid_data.grid_size[0] + x;
+        let tail_end = index + self.config.tail_size;
         for block in range {
-            let x_index = x + block * LANES;
-            let index = x_index + y * self.params.grid_size[0];
+            let index = index + block * LANES;
             let output = y_lerp.mul_add(self.dif[block], self.top[block]);
-            // println!("index: {index}, output: {:?}", output);
 
-            let val = match (INIT, IS_TAIL) {
-                (true, _) => output,
-                (false, true) => unsafe {
-                    output + ArchSimd::from_slice(dst.get_unchecked(index..))
-                },
-                (false, false) => unsafe {
-                    output + ArchSimd::from_slice_unchecked(dst.get_unchecked(index..))
-                },
-            };
-
-            let slice = unsafe { dst.get_unchecked_mut(index..) };
-            if IS_TAIL {
-                val.copy_to_slice(slice);
+            let (cur_state, mut result) = if INIT {
+                F::initialize(self.fractal_config, output)
             } else {
-                unsafe { val.copy_to_slice_unchecked(slice) };
+                let mut cur_state = F::State::default();
+                for i in 0..F::State::STATE_SIZE {
+                    let offset = i * self.grid_data.total_size;
+                    let index = index + offset;
+                    let tail_end = tail_end + offset;
+                    cur_state[i] = unsafe { maybe_tail_load::<IS_TAIL>(index..tail_end, state) };
+                }
+                let cur_result = unsafe { maybe_tail_load::<IS_TAIL>(index..tail_end, dst) };
+                F::sample(self.fractal_config, cur_state, cur_result, output)
             };
 
-            // self.dif[block] += self.d_dif[block];
-            // self.top[block] += self.d_top[block];
+            // Save changes to state.
+            if !FINAL {
+                for i in 0..F::State::STATE_SIZE {
+                    let offset = i * self.grid_data.total_size;
+                    let index = index + offset;
+                    let tail_end = tail_end + offset;
+                    unsafe { maybe_tail_store::<IS_TAIL>(index..tail_end, cur_state[i], state) };
+                }
+            }
+
+            if FINAL {
+                result = F::finalize(self.fractal_config, cur_state, result);
+            }
+
+            unsafe { maybe_tail_store::<IS_TAIL>(index..tail_end, result, dst) };
         }
     }
 }

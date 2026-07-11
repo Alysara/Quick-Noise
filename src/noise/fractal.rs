@@ -25,11 +25,15 @@ pub trait Fractal: Default + Copy + Clone + PartialEq {
 
     /// The type used for expressing State. The type `[ArchSimd<f32>; N]` can be used,
     /// where N is the number of variables tracked across samples. N does not include
-    /// the running result total. The type alias `FractalArray<N>` can also be used. 
+    /// the running result total. The type alias `FractalArray<N>` can also be used.
     ///
     /// Each additional variable tracked across samples has a signifcant performance
     /// penalty when computing grid noise. The impact is minimal for batch noise.
     type State: FractalState;
+
+    /// The config struct that is passed through noise calls to the Fractal's usage.
+    /// This is used for storing new parameters specific to a custom Fractal type.
+    type Config: Copy + Default;
 
     /// Determines how new noise samples are combined with previous samples.
     ///
@@ -37,6 +41,7 @@ pub trait Fractal: Default + Copy + Clone + PartialEq {
     /// - `current`: Existing noise value from previous samples
     /// - `output`: New sample output from the current noise pass
     fn sample(
+        config: &Self::Config,
         state: Self::State,
         cur_result: ArchSimd<f32>,
         new_sample: ArchSimd<f32>,
@@ -51,10 +56,12 @@ pub trait Fractal: Default + Copy + Clone + PartialEq {
     /// # Parameters
     /// - `current`: Existing noise value from previous samples
     /// - `output`: New sample output from the current noise pass
-    fn initialize(new_sample: ArchSimd<f32>) -> (Self::State, ArchSimd<f32>) {
-        let state = Self::State::default();
-        let prev = ArchSimd::splat(0.0);
-        Self::sample(state, prev, new_sample)
+    #[inline(always)]
+    fn initialize(
+        config: &Self::Config,
+        new_sample: ArchSimd<f32>,
+    ) -> (Self::State, ArchSimd<f32>) {
+        Self::sample(config, Default::default(), Default::default(), new_sample)
     }
 
     /// Determines how the final noise sample is processed after
@@ -63,7 +70,8 @@ pub trait Fractal: Default + Copy + Clone + PartialEq {
     ///
     /// # Parameters
     /// - `last`: The final noise sample after prior fractal processing
-    fn finalize(_state: Self::State, last: ArchSimd<f32>) -> ArchSimd<f32> {
+    #[inline(always)]
+    fn finalize(_config: &Self::Config, _state: Self::State, last: ArchSimd<f32>) -> ArchSimd<f32> {
         last
     }
 }
@@ -73,8 +81,11 @@ pub struct Fbm {}
 impl Fractal for Fbm {
     const WEIGHT_DECAY: bool = true;
     type State = FractalArray<0>;
+    type Config = ();
 
+    #[inline(always)]
     fn sample(
+        _config: &(),
         state: Self::State,
         cur_result: ArchSimd<f32>,
         new_sample: ArchSimd<f32>,
@@ -82,11 +93,13 @@ impl Fractal for Fbm {
         (state, cur_result + new_sample)
     }
 
-    fn initialize(new_sample: ArchSimd<f32>) -> (Self::State, ArchSimd<f32>) {
+    #[inline(always)]
+    fn initialize(_config: &(), new_sample: ArchSimd<f32>) -> (Self::State, ArchSimd<f32>) {
         (Self::State::default(), new_sample)
     }
 
-    fn finalize(_state: Self::State, last: ArchSimd<f32>) -> ArchSimd<f32> {
+    #[inline(always)]
+    fn finalize(_config: &(), _state: Self::State, last: ArchSimd<f32>) -> ArchSimd<f32> {
         last
     }
 }
@@ -96,8 +109,11 @@ pub struct Billow {}
 impl Fractal for Billow {
     const WEIGHT_DECAY: bool = true;
     type State = FractalArray<0>;
+    type Config = ();
 
+    #[inline(always)]
     fn sample(
+        _config: &(),
         state: Self::State,
         cur_result: ArchSimd<f32>,
         new_sample: ArchSimd<f32>,
@@ -105,13 +121,20 @@ impl Fractal for Billow {
         (state, cur_result + new_sample.abs())
     }
 
-    fn initialize(new_sample: ArchSimd<f32>) -> (Self::State, ArchSimd<f32>) {
+    #[inline(always)]
+    fn initialize(_config: &(), new_sample: ArchSimd<f32>) -> (Self::State, ArchSimd<f32>) {
         (Self::State::default(), new_sample.abs())
     }
 
-    fn finalize(_state: Self::State, last: ArchSimd<f32>) -> ArchSimd<f32> {
+    #[inline(always)]
+    fn finalize(_config: &(), _state: Self::State, last: ArchSimd<f32>) -> ArchSimd<f32> {
         last
     }
+}
+
+#[derive(Default, Copy, Debug, Clone)]
+pub struct RidgedConfig {
+    pub gain: f32,
 }
 
 #[derive(Default, Copy, Clone, PartialEq, Debug)]
@@ -119,19 +142,20 @@ pub struct Ridged {}
 impl Fractal for Ridged {
     const WEIGHT_DECAY: bool = false; // gain/weight cascade replaces simple persistence decay
     type State = FractalArray<1>; // state[0] = weight carried to next octave
+    type Config = RidgedConfig;
 
+    #[inline(always)]
     fn sample(
+        config: &RidgedConfig,
         state: Self::State,
         cur_result: ArchSimd<f32>,
         new_sample: ArchSimd<f32>,
     ) -> (Self::State, ArchSimd<f32>) {
         let one = ArchSimd::splat(1.0);
-        let gain = ArchSimd::splat(2.0);
+        let gain = ArchSimd::splat(config.gain);
         let zero = ArchSimd::splat(0.0);
 
         let weight = state[0];
-
-        // println!("state: {:?}", state);
 
         let signal = one - new_sample.abs();
         let signal = signal * signal * weight;
@@ -143,7 +167,8 @@ impl Fractal for Ridged {
         (next_state, cur_result + signal)
     }
 
-    fn initialize(new_sample: ArchSimd<f32>) -> (Self::State, ArchSimd<f32>) {
+    #[inline(always)]
+    fn initialize(_config: &RidgedConfig, new_sample: ArchSimd<f32>) -> (Self::State, ArchSimd<f32>) {
         let one = ArchSimd::splat(1.0);
 
         let signal = one - new_sample.abs();
@@ -155,7 +180,8 @@ impl Fractal for Ridged {
         (state, signal)
     }
 
-    fn finalize(_state: Self::State, last: ArchSimd<f32>) -> ArchSimd<f32> {
+    #[inline(always)]
+    fn finalize(_config: &RidgedConfig, _state: Self::State, last: ArchSimd<f32>) -> ArchSimd<f32> {
         last
     }
 }

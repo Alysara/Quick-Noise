@@ -1,5 +1,6 @@
 use std::array::from_fn;
 use std::mem::MaybeUninit;
+use std::ops::Range;
 
 use crate::api::grid::interface::GridNoiseParams;
 use crate::fractal::{Fractal, FractalState};
@@ -77,6 +78,7 @@ impl<'a> Arena<'a> {
 pub struct InterpolationConfig<const NUM_BLOCKS: usize> {
     pub has_block_head: bool,
     pub has_block_tail: bool,
+    pub tail_size: usize,
     pub block_tail_size: usize,
     pub block_tail_start: usize,
 }
@@ -88,8 +90,38 @@ impl<const NUM_BLOCKS: usize> InterpolationConfig<NUM_BLOCKS> {
         Self {
             has_block_head: x_dim >= Self::BLOCK_LANES,
             has_block_tail: !x_dim.is_multiple_of(Self::BLOCK_LANES),
+            tail_size: x_dim % Self::BLOCK_LANES,
             block_tail_size: (x_dim % Self::BLOCK_LANES).div_ceil(Self::LANES),
             block_tail_start: (x_dim / Self::BLOCK_LANES) * Self::BLOCK_LANES,
+        }
+    }
+}
+
+#[inline(always)]
+pub unsafe fn maybe_tail_load<const IS_TAIL: bool>(
+    range: Range<usize>,
+    slice: &[f32],
+) -> ArchSimd<f32> {
+    unsafe {
+        if IS_TAIL {
+            ArchSimd::from_slice(slice.get_unchecked(range))
+        } else {
+            ArchSimd::from_slice_unchecked(slice.get_unchecked(range.start..))
+        }
+    }
+}
+
+#[inline(always)]
+pub unsafe fn maybe_tail_store<const IS_TAIL: bool>(
+    range: Range<usize>,
+    simd: ArchSimd<f32>,
+    slice: &mut [f32],
+) {
+    unsafe {
+        if IS_TAIL {
+            simd.copy_to_slice(slice.get_unchecked_mut(range));
+        } else {
+            simd.copy_to_slice_unchecked(slice.get_unchecked_mut(range.start..));
         }
     }
 }

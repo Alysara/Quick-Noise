@@ -7,7 +7,7 @@ pub mod perlin {
     // mod interpolation;
     mod batch;
     mod grid_2d;
-    // mod grid_3d;
+    mod grid_3d;
     // mod grid_2d;
 
     // Public exports.
@@ -28,8 +28,8 @@ pub mod simplex {
 pub mod value {
     mod batch;
     mod core;
-    // mod grid_2d;
-    // mod grid_3d;
+    mod grid_2d;
+    mod grid_3d;
     // mod grid_2d;
     // mod grid_3d;
     pub use core::Value;

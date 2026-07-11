@@ -1,4 +1,7 @@
 // use crate::api::batch::custom::CustomBatchBuilder;
+use crate::api::batch::fbm::BatchBuilder;
+use crate::api::defaults::ZeroIter;
+use crate::api::methods::Octave;
 use crate::simd::arch_simd::ArchSimd;
 
 pub trait DimTuple<const D: usize> {

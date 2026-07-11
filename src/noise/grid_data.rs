@@ -7,6 +7,8 @@ use crate::{
 
 pub(crate) struct GridData<'a, const D: usize> {
     pub total_size: usize,
+    pub weight: f32,
+    pub grid_size: [usize; D],
     pub grid_start: [i32; D],
     pub increment: [f32; D],
     pub num_loops: [usize; D],
@@ -85,6 +87,8 @@ impl<'a, const D: usize> GridData<'a, D> {
 
         Self {
             total_size,
+            weight: params.weight,
+            grid_size: params.grid_size,
             grid_start,
             increment,
             num_loops,

@@ -27,13 +27,13 @@ fn main() {
 
     const GRID_SEED: i64 = 124384833;
     const FBM_SEED: i64 = 91191912;
-    let grid_2d = GridBuilder::<2>::new(32, 32).position(0, 0).seed(GRID_SEED);
+    let grid_2d = GridBuilder::<2>::new(32, 32).position(123, 73).seed(GRID_SEED);
 
     let grid_2d_big = GridBuilder::<2>::new(2047, 2047)
         .position(0, 0)
         .seed(GRID_SEED);
 
-    let grid_3d = GridBuilder::<3>::new(255, 255, 255).seed(GRID_SEED);
+    let grid_3d = GridBuilder::<3>::new(255, 255, 255).position(-1, 0, 0).seed(GRID_SEED);
 
     let mut buffer = SimdArray::<f32, 32768>::new(0.0);
 
@@ -60,12 +60,16 @@ fn main() {
     //     .to_grayscale_image(32, 32, "noise_images/perlin_grid_2d.png");
 
     grid_2d_big
-        .fbm::<Ridged, Perlin>()
-        .octaves(2)
-        .frequency(1. / 512.0)
+        .fbm::<Ridged, Value>()
+        .octaves(4)
+        .frequency(1. / 16.0)
         .seed(FBM_SEED)
+        // .amplitude(0.3)
+        .seed(12)
+        // .gain(0.8)
         .into_iter()
-        // .map(|x| x * ArchSimd::splat(25.0) - ArchSimd::splat(1.0))
+        // .map(|x| ArchSimd::splat(0.5) * x - ArchSimd::splat(1.0))
+        .map(|x| ArchSimd::splat(1.0) * x - ArchSimd::splat(1.0))
         .to_grayscale_image(2047, 2047, "noise_images/perlin_grid_2d.png");
 
     // grid_2d_big

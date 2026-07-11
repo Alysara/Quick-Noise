@@ -20,6 +20,7 @@ pub struct GridNoiseParams<const D: usize> {
 pub trait GridNoiseImpl<const D: usize>: Default + Copy + Clone + PartialEq {
     fn sample<T: Fractal, const INIT: bool, const FINAL: bool>(
         params: GridNoiseParams<D>,
+        fractal_config: T::Config,
         state: &mut [f32],
         dst: &mut [f32],
     );

@@ -260,8 +260,8 @@ impl<T: SimdElement, F: SimdFamily> Default for Simd<T, F> {
 
 impl<T: SimdElement, F: SimdFamily> Simd<T, F> {
     #[inline(always)]
-    pub fn clamp(self, min: Self, max: Self) -> Self {
-        self.min(min).max(max)
+    pub fn clamp(self, lower_bound: Self, upper_bound: Self) -> Self {
+        self.min(upper_bound).max(lower_bound)
     }
 
     #[inline(always)]

@@ -7,11 +7,11 @@ use crate::api::grid::interface::GridNoiseParams;
 use crate::grid_data::{GridData, Lerp};
 use crate::grid_helpers::{
     Arena, ArenaBuffer, InterpolationConfig, MaybeUninitSliceSimdExt, assume_init_slice,
-    pad_grid_size, validate_grid_size,
+    maybe_tail_load, maybe_tail_store, pad_grid_size, validate_grid_size, validate_state_size,
 };
 use crate::noise::perlin::constants::*;
 use crate::simd::arch_simd::{ArchSimd, NUM_SIMD_REG};
-use crate::{GridNoiseImpl, Perlin};
+use crate::{Fractal, FractalState, GridNoiseImpl, Perlin};
 
 // ————————————————————————————————————————————————————————————————
 // ————— 3D Perlin Grid ———————————————————————————————————————————
@@ -77,9 +77,15 @@ impl<'a> fmt::Debug for PerlinGradients3D<'a> {
 
 const LERP: u8 = Lerp::Quintic as u8;
 impl GridNoiseImpl<3> for Perlin {
-    fn sample<const INIT: bool>(params: GridNoiseParams<3>, dst: &mut [f32]) {
+    fn sample<F: Fractal, const INIT: bool, const FINAL: bool>(
+        params: GridNoiseParams<3>,
+        fractal_config: F::Config,
+        state: &mut [f32],
+        dst: &mut [f32],
+    ) {
         // Validate and pad grid size.
         validate_grid_size(params.grid_size, dst.len());
+        validate_state_size::<F, _>(params.grid_size, state.len());
         let padded_size = pad_grid_size(params.grid_size);
 
         // Arena setup.
@@ -116,14 +122,14 @@ impl GridNoiseImpl<3> for Perlin {
                 // Set bottom gradients.
                 grid_gradients_3d(&params, &grid_data, &mut gradients, y_it, z_it);
 
-                grid_dotted_trilerp::<INIT>(
+                grid_dotted_trilerp::<F, INIT, FINAL>(
                     &mut trilerp_buffers,
                     &bilerp_config,
-                    &params,
+                    &fractal_config,
                     &grid_data,
                     &gradients,
                     (y_range, z_range.clone()),
-                    dst,
+                    (state, dst),
                 );
 
                 // Reuse the top and bottom gradients.
@@ -330,9 +336,9 @@ impl<'a> DottedTrilerpBuffers<'a> {
 
 /// Handles interpolation execution state and fills
 /// the dst slice with interpolated values from gradient dot produtcts.
-pub(crate) struct DottedTrilerpExecuter<'a> {
+pub(crate) struct DottedTrilerpExecuter<'a, F: Fractal, const INIT: bool, const FINAL: bool> {
     config: &'a InterpolationConfig<NUM_BLOCKS>,
-    params: &'a GridNoiseParams<3>,
+    fractal_config: &'a F::Config,
     grid_data: &'a GridData<'a, 3>,
     gradients: &'a PerlinGradients3D<'a>,
     y_range: Range<usize>,
@@ -352,14 +358,14 @@ pub(crate) struct DottedTrilerpExecuter<'a> {
 
 /// Fills the dst slice with interpolated dot products from gradients.
 #[inline(always)]
-pub(super) fn grid_dotted_trilerp<const INIT: bool>(
+pub(super) fn grid_dotted_trilerp<F: Fractal, const INIT: bool, const FINAL: bool>(
     buffers: &mut DottedTrilerpBuffers,
     config: &InterpolationConfig<NUM_BLOCKS>,
-    params: &GridNoiseParams<3>,
+    fractal_config: &F::Config,
     grid_data: &GridData<3>,
     gradients: &PerlinGradients3D,
     ranges: (Range<usize>, Range<usize>),
-    dst: &mut [f32],
+    output: (&mut [f32], &mut [f32]),
 ) {
     let y_frac_start = unsafe {
         grid_data.distances[1]
@@ -372,9 +378,9 @@ pub(super) fn grid_dotted_trilerp<const INIT: bool>(
             .assume_init()
     };
 
-    let mut executer = DottedTrilerpExecuter {
+    let mut executer = DottedTrilerpExecuter::<F, INIT, FINAL> {
         config,
-        params,
+        fractal_config,
         grid_data,
         gradients,
         y_range: ranges.0,
@@ -383,43 +389,47 @@ pub(super) fn grid_dotted_trilerp<const INIT: bool>(
         dif: Default::default(),
         d_top: Default::default(),
         d_dif: Default::default(),
-        weight: ArchSimd::splat(params.weight),
-        y_inc_weighted: ArchSimd::splat(grid_data.increment[1] * params.weight),
+        weight: ArchSimd::splat(grid_data.weight),
+        y_inc_weighted: ArchSimd::splat(grid_data.increment[1] * grid_data.weight),
         y_inc_hi: ArchSimd::splat(y_frac_start),
         y_inc_lo: ArchSimd::splat(y_frac_start - 1.0),
-        z_inc_weighted: ArchSimd::splat(grid_data.increment[2] * params.weight),
+        z_inc_weighted: ArchSimd::splat(grid_data.increment[2] * grid_data.weight),
         z_inc_hi: ArchSimd::splat(z_frac_start),
         z_inc_lo: ArchSimd::splat(z_frac_start - 1.0),
     };
 
     executer.initialize_trilerp_buffers(buffers);
 
+    let (state, dst) = output;
     if config.has_block_head {
-        executer.interpolate::<INIT, false>(buffers, dst);
+        executer.interpolate::<false>(buffers, state, dst);
     }
 
     if config.has_block_tail {
-        executer.interpolate::<INIT, true>(buffers, dst);
+        executer.interpolate::<true>(buffers, state, dst);
         std::hint::cold_path();
     }
 }
 
-impl<'a> DottedTrilerpExecuter<'a> {
+impl<'a, F: Fractal, const INIT: bool, const FINAL: bool>
+    DottedTrilerpExecuter<'a, F, INIT, FINAL>
+{
     #[inline(always)]
-    pub fn interpolate<const INIT: bool, const IS_TAIL: bool>(
+    pub fn interpolate<const IS_TAIL: bool>(
         &mut self,
         buffers: &DottedTrilerpBuffers,
+        state: &mut [f32],
         dst: &mut [f32],
     ) {
         let range = if IS_TAIL {
-            self.config.block_tail_start..self.params.grid_size[0]
+            self.config.block_tail_start..self.grid_data.grid_size[0]
         } else {
             0..self.config.block_tail_start
         };
 
         let mut z_cur = ArchSimd::splat(0.0);
-        let z_hop = self.params.grid_size[0] * self.params.grid_size[1];
-        let y_hop = self.params.grid_size[0];
+        let z_hop = self.grid_data.grid_size[0] * self.grid_data.grid_size[1];
+        let y_hop = self.grid_data.grid_size[0];
         for z in self.z_range.start..self.z_range.end {
             let z_lerp = unsafe { self.grid_data.fade_factors[2].get_unchecked(z) };
             let z_lerp = unsafe { z_lerp.assume_init() };
@@ -433,13 +443,13 @@ impl<'a> DottedTrilerpExecuter<'a> {
                 while y < self.y_range.end {
                     let index = index + y * y_hop;
                     if y + 4 > self.y_range.end {
-                        self.process_factors::<INIT, IS_TAIL>(index, y, dst);
+                        self.process_factors::<IS_TAIL>(index, y, state, dst);
                         y += 1;
                     } else {
-                        self.process_factors::<INIT, IS_TAIL>(index, y, dst);
-                        self.process_factors::<INIT, IS_TAIL>(index + y_hop, y + 1, dst);
-                        self.process_factors::<INIT, IS_TAIL>(index + 2 * y_hop, y + 2, dst);
-                        self.process_factors::<INIT, IS_TAIL>(index + 3 * y_hop, y + 3, dst);
+                        self.process_factors::<IS_TAIL>(index, y, state, dst);
+                        self.process_factors::<IS_TAIL>(index + y_hop, y + 1, state, dst);
+                        self.process_factors::<IS_TAIL>(index + 2 * y_hop, y + 2, state, dst);
+                        self.process_factors::<IS_TAIL>(index + 3 * y_hop, y + 3, state, dst);
                         y += 4;
                     }
                 }
@@ -450,7 +460,7 @@ impl<'a> DottedTrilerpExecuter<'a> {
 
     #[inline(always)]
     fn initialize_trilerp_buffers(&mut self, buffers: &mut DottedTrilerpBuffers) {
-        for x in (0..self.params.grid_size[0]).step_by(LANES) {
+        for x in (0..self.grid_data.grid_size[0]).step_by(LANES) {
             unsafe {
                 let x_lerp = self.grid_data.fade_factors[0].load_simd_aligned(x);
 
@@ -599,10 +609,11 @@ impl<'a> DottedTrilerpExecuter<'a> {
     }
 
     #[inline(always)]
-    fn process_factors<const INIT: bool, const IS_TAIL: bool>(
+    fn process_factors<const IS_TAIL: bool>(
         &mut self,
         index: usize,
         y: usize,
+        state: &mut [f32],
         dst: &mut [f32],
     ) {
         let y_lerp = ArchSimd::splat(unsafe {
@@ -617,26 +628,39 @@ impl<'a> DottedTrilerpExecuter<'a> {
             0..NUM_BLOCKS
         };
 
+        let tail_end = index + self.config.tail_size;
         for block in range {
             let index = index + block * LANES;
             let output = y_lerp.mul_add(self.dif[block], self.top[block]);
 
-            let val = match (INIT, IS_TAIL) {
-                (true, _) => output,
-                (false, true) => unsafe {
-                    output + ArchSimd::from_slice(dst.get_unchecked(index..))
-                },
-                (false, false) => unsafe {
-                    output + ArchSimd::from_slice_unchecked(dst.get_unchecked(index..))
-                },
+            let (cur_state, mut result) = if INIT {
+                F::initialize(self.fractal_config, output)
+            } else {
+                let mut cur_state = F::State::default();
+                for i in 0..F::State::STATE_SIZE {
+                    let index = index + i * self.grid_data.total_size;
+                    cur_state[i] = unsafe { maybe_tail_load::<IS_TAIL>(index..tail_end, state) };
+                }
+                let cur_result = unsafe { maybe_tail_load::<IS_TAIL>(index..tail_end, dst) };
+                F::sample(self.fractal_config, cur_state, cur_result, output)
             };
 
-            let slice = unsafe { dst.get_unchecked_mut(index..) };
-            if IS_TAIL {
-                val.copy_to_slice(slice);
-            } else {
-                unsafe { val.copy_to_slice_unchecked(slice) };
-            };
+
+            // Save changes to state.
+            if !FINAL {
+                for i in 0..F::State::STATE_SIZE {
+                    let offset = i * self.grid_data.total_size;
+                    let index = index + offset;
+                    let tail_end = tail_end + offset;
+                    unsafe { maybe_tail_store::<IS_TAIL>(index..tail_end, cur_state[i], state) };
+                }
+            }
+
+            if FINAL {
+                result = F::finalize(self.fractal_config, cur_state, result);
+            }
+
+            unsafe { maybe_tail_store::<IS_TAIL>(index..tail_end, result, dst) };
 
             self.dif[block] += self.d_dif[block];
             self.top[block] += self.d_top[block];
