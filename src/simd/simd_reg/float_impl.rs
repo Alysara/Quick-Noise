@@ -134,10 +134,10 @@ impl<T: SimdFloat, F: SimdFamily> Simd<T, F> {
         Self::new(match T::TYPE {
             SimdType::F64 => Simd::<u64, F>::splat(T::SIGN_MASK as u64)
                 .data
-                .and_not(self.data),
+                .and(self.data),
             SimdType::F32 => Simd::<u32, F>::splat(T::SIGN_MASK as u32)
                 .data
-                .and_not(self.data),
+                .and(self.data),
             _ => unreachable!(),
         })
     }

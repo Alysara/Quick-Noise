@@ -2,7 +2,8 @@ use std::array::from_fn;
 use std::mem::MaybeUninit;
 
 use crate::api::grid::interface::GridNoiseParams;
-use crate::simd::arch_simd::{ArchSimd, NUM_SIMD_REG, SIMD_WIDTH};
+use crate::fractal::{Fractal, FractalState};
+use crate::simd::arch_simd::{ArchSimd, SIMD_WIDTH};
 use crate::simd::traits::SimdElement;
 
 const STACK_SIZE: usize = 8192;
@@ -93,7 +94,6 @@ impl<const NUM_BLOCKS: usize> InterpolationConfig<NUM_BLOCKS> {
     }
 }
 
-
 pub trait MaybeUninitSliceSimdExt<T: SimdElement> {
     /// # Safety
     /// - The range `index..index + ArchSimd::<T>::LANES` must be in bounds.
@@ -132,7 +132,9 @@ impl<T: SimdElement> MaybeUninitSliceSimdExt<T> for [MaybeUninit<T>] {
     }
 
     unsafe fn write_simd_aligned(&mut self, index: usize, simd: ArchSimd<T>) {
-        unsafe { simd.copy_to_aligned_slice_unchecked(self.get_unchecked_mut(index..).assume_init_mut()) }
+        unsafe {
+            simd.copy_to_aligned_slice_unchecked(self.get_unchecked_mut(index..).assume_init_mut())
+        }
     }
 }
 
@@ -144,6 +146,23 @@ pub(super) fn validate_grid_size<const D: usize>(grid_size: [usize; D], slice_le
         "Uniform grid with dimensions {:?} has a size of {num_samples}, which is more than the given slice length of {slice_len}",
         grid_size
     );
+}
+
+#[inline(always)]
+pub(super) fn validate_state_size<T: Fractal, const D: usize>(
+    grid_size: [usize; D],
+    slice_len: usize,
+) {
+    if T::State::STATE_SIZE > 0 {
+        let total_size: usize = grid_size.iter().product();
+        let required_size = total_size * T::State::STATE_SIZE;
+        assert!(
+            slice_len >= required_size,
+            "Uniform grid with dimensions {:?} with {} state variables requires a state size of{required_size}, which is more than the given slice length of {slice_len}",
+            required_size,
+            T::State::STATE_SIZE,
+        );
+    }
 }
 
 #[inline(always)]

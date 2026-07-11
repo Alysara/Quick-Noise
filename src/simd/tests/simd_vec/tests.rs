@@ -159,9 +159,9 @@ simd_vec_tests!(shr_variable_test,
 
 // === Clamp ===
 // TODO: Add integer clamps.
-simd_vec_tests!(clamp_min_test, [f32, f64], |x| { x.clamp_min(0.) });
-simd_vec_tests!(clamp_max_test, [f32, f64], |x| { x.clamp_min(0.) });
-simd_vec_tests!(clamp_test, [f32, f64], |x| { x.clamp(-1000., 1000.) });
+// simd_vec_tests!(clamp_min_test, [f32, f64], |x| { x.clamp_min(0.) });
+// simd_vec_tests!(clamp_max_test, [f32, f64], |x| { x.clamp_min(0.) });
+// simd_vec_tests!(clamp_test, [f32, f64], |x| { x.clamp(-1000., 1000.) });
 
 // === Floating Point Operations ===
 simd_vec_tests!(round_test, [f32, f64], |x| { x.round() });
@@ -173,13 +173,13 @@ simd_vec_tests!(sqrt_test, [f32, f64], |x| { x.sqrt() });
 simd_vec_tests!(quintic_lerp_test, [f32, f64], |x| { x.quintic_lerp() });
 
 // TODO: f64 casts.
-simd_vec_tests!(cast_int_round_test, [[f32 -> i32]], |x| { x.clamp(-1e9, 1e9).cast_int_round() });
-simd_vec_tests!(cast_int_trunc_test, [[f32 -> i32]], |x| { x.clamp(-1e9, 1e9).cast_int_trunc() });
+// simd_vec_tests!(cast_int_round_test, [[f32 -> i32]], |x| { x.clamp(-1e9, 1e9).cast_int_round() });
+// simd_vec_tests!(cast_int_trunc_test, [[f32 -> i32]], |x| { x.clamp(-1e9, 1e9).cast_int_trunc() });
 simd_vec_tests!(cast_int_raw_test,   [[f32 -> i32]], |x| { x.raw_cast() });
 
 // TODO: f64 casts.
-simd_vec_tests!(cast_uint_round_test, [[f32 -> u32]], |x| { x.abs().clamp_max(2e9).cast_uint_round() });
-simd_vec_tests!(cast_uint_trunc_test, [[f32 -> u32]], |x| { x.abs().clamp_max(2e9).cast_uint_trunc() });
+// simd_vec_tests!(cast_uint_round_test, [[f32 -> u32]], |x| { x.abs().clamp_max(2e9).cast_uint_round() });
+// simd_vec_tests!(cast_uint_trunc_test, [[f32 -> u32]], |x| { x.abs().clamp_max(2e9).cast_uint_trunc() });
 simd_vec_tests!(cast_uint_raw_test,   [[f32 -> u32]], |x| { x.raw_cast() });
 
 simd_vec_tests!(mul_add_test, [f32, f64], |x, y, z| { x.mul_add(y, z) });

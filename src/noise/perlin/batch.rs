@@ -1,22 +1,10 @@
-use crate::api::batch::interface::BatchNoise;
-// use crate::math::random::Random;
-// use crate::math::vec::{Vec2, Vec3};
-use crate::noise::perlin::constants::*;
+use crate::api::batch::interface::BatchNoiseImpl;
 use crate::perlin::Perlin;
+use crate::perlin::constants::{X_GRADIENTS_2D, Y_GRADIENTS_2D};
 use crate::simd::arch_simd::ArchSimd;
-use crate::simd::simd_traits::*;
-// use crate::simd::simd_vec::core::Simd;
-// use crate::simd::architectures::families::Avx2Family;
 
-impl BatchNoise for Perlin {
-    #[inline(always)]
-    fn batch_2d(
-        seed: u32,
-        x_input: ArchSimd<f32>,
-        y_input: ArchSimd<f32>,
-        x_freq: ArchSimd<f32>,
-        y_freq: ArchSimd<f32>,
-    ) -> ArchSimd<f32> {
+impl BatchNoiseImpl<2> for Perlin {
+    fn sample_batch(seed: u32, input: [ArchSimd<f32>; 2], freq: [ArchSimd<f32>; 2]) -> ArchSimd<f32> {
         // Constants.
         let six: ArchSimd<f32> = ArchSimd::splat(6.0);
         let ten: ArchSimd<f32> = ArchSimd::splat(10.0);
@@ -35,8 +23,8 @@ impl BatchNoise for Perlin {
         let prime = ArchSimd::splat(0x85ebca6b_u32);
 
         // Scale: 2
-        let x_scaled = x_input * x_freq;
-        let y_scaled = y_input * y_freq;
+        let x_scaled = input[0] * freq[0];
+        let y_scaled = input[1] * freq[1];
 
         // Gridpoints and distances: 8
         let x_scaled_floored = x_scaled.floor();
@@ -96,21 +84,12 @@ impl BatchNoise for Perlin {
         let prod_br = x_grads_br.mul_add(x_dist_hi, y_grads_br * y_dist_hi);
         let bottom_lerp = y_lerp.mul_add(prod_br - prod_bl, prod_bl);
 
-        let result = x_lerp.mul_add(bottom_lerp - top_lerp, top_lerp);
-
-        result
+        x_lerp.mul_add(bottom_lerp - top_lerp, top_lerp)
     }
+}
 
-    #[inline(always)]
-    fn batch_3d(
-        seed: u32,
-        x_input: ArchSimd<f32>,
-        y_input: ArchSimd<f32>,
-        z_input: ArchSimd<f32>,
-        x_freq: ArchSimd<f32>,
-        y_freq: ArchSimd<f32>,
-        z_freq: ArchSimd<f32>,
-    ) -> ArchSimd<f32> {
+impl BatchNoiseImpl<3> for Perlin {
+    fn sample_batch(seed: u32, input: [ArchSimd<f32>; 3], freq: [ArchSimd<f32>; 3]) -> ArchSimd<f32> {
         // Constants.
         let six: ArchSimd<f32> = ArchSimd::splat(6.0);
         let ten: ArchSimd<f32> = ArchSimd::splat(10.0);
@@ -144,9 +123,9 @@ impl BatchNoise for Perlin {
         let prime = ArchSimd::splat(0x85ebca6b_u32);
 
         // Scale: 3
-        let x_scaled = x_input * x_freq;
-        let y_scaled = y_input * y_freq;
-        let z_scaled = z_input * z_freq;
+        let x_scaled = input[0] * freq[0];
+        let y_scaled = input[1] * freq[1];
+        let z_scaled = input[2] * freq[2];
 
         // Gridpoints and distances: 12
         let x_scaled_floored = x_scaled.floor();
@@ -273,8 +252,6 @@ impl BatchNoise for Perlin {
         let lerp_front = y_lerp.mul_add(lerp_bf - lerp_tf, lerp_tf);
         let lerp_back = y_lerp.mul_add(lerp_bb - lerp_tb, lerp_tb);
 
-        let result = x_lerp.mul_add(lerp_back - lerp_front, lerp_front);
-
-        result
+        x_lerp.mul_add(lerp_back - lerp_front, lerp_front)
     }
 }

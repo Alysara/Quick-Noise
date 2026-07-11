@@ -328,10 +328,10 @@ pub trait SimdFloat: SimdElement + HasSigned + HasUnsigned + SimdMulType {
 }
 
 impl SimdFloat for f64 {
-    const SIGN_MASK: usize = 0x8000000000000000;
+    const SIGN_MASK: usize = 0x7FFFFFFFFFFFFFFF;
 }
 impl SimdFloat for f32 {
-    const SIGN_MASK: usize = 0x80000000;
+    const SIGN_MASK: usize = 0x7FFFFFFF;
 }
 
 pub trait SimdWideType: SimdElement {}

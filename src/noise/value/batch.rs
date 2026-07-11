@@ -1,17 +1,9 @@
-use crate::api::batch::interface::BatchNoise;
+use crate::api::batch::interface::BatchNoiseImpl;
 use crate::simd::arch_simd::ArchSimd;
-use crate::simd::simd_traits::*;
 use crate::value::Value;
 
-impl BatchNoise for Value {
-    #[inline(always)]
-    fn batch_2d(
-        seed: u32,
-        x_input: ArchSimd<f32>,
-        y_input: ArchSimd<f32>,
-        x_freq: ArchSimd<f32>,
-        y_freq: ArchSimd<f32>,
-    ) -> ArchSimd<f32> {
+impl BatchNoiseImpl<2> for Value {
+    fn sample_batch(seed: u32, input: [ArchSimd<f32>; 2], freq: [ArchSimd<f32>; 2]) -> ArchSimd<f32> {
         // Constants.
         let neg_two: ArchSimd<f32> = ArchSimd::splat(-2.0);
         let three: ArchSimd<f32> = ArchSimd::splat(3.0);
@@ -27,12 +19,12 @@ impl BatchNoise for Value {
         ];
 
         let shuffle_indices = ArchSimd::<u8>::from_slice(&BYTE_SHUFFLE[..]);
-        let channel_seed = ArchSimd::splat(seed as u32);
-        let prime = ArchSimd::splat(0x85ebca6b_u32 as u32);
+        let channel_seed = ArchSimd::splat(seed);
+        let prime = ArchSimd::splat(0x85ebca6b);
 
         // Scale: 4
-        let x_scaled = x_input * x_freq;
-        let y_scaled = y_input * y_freq;
+        let x_scaled = input[0] * freq[0];
+        let y_scaled = input[1] * freq[1];
 
         // Gridpoints and distances: 6
         let x_scaled_floored = x_scaled.floor();
@@ -75,21 +67,13 @@ impl BatchNoise for Value {
         // Interpolation: 6
         let top_lerp = y_lerp.mul_add(val_tr - val_tl, val_tl);
         let bottom_lerp = y_lerp.mul_add(val_br - val_bl, val_bl);
-        let result = x_lerp.mul_add(bottom_lerp - top_lerp, top_lerp);
 
-        result
+        x_lerp.mul_add(bottom_lerp - top_lerp, top_lerp)
     }
+}
 
-    #[inline(always)]
-    fn batch_3d(
-        seed: u32,
-        x_input: ArchSimd<f32>,
-        y_input: ArchSimd<f32>,
-        z_input: ArchSimd<f32>,
-        x_freq: ArchSimd<f32>,
-        y_freq: ArchSimd<f32>,
-        z_freq: ArchSimd<f32>,
-    ) -> ArchSimd<f32> {
+impl BatchNoiseImpl<3> for Value {
+    fn sample_batch(seed: u32, input: [ArchSimd<f32>; 3], freq: [ArchSimd<f32>; 3]) -> ArchSimd<f32> {
         // Constants.
         let neg_two: ArchSimd<f32> = ArchSimd::splat(-2.0);
         let three: ArchSimd<f32> = ArchSimd::splat(3.0);
@@ -105,13 +89,13 @@ impl BatchNoise for Value {
         ];
 
         let shuffle_indices = ArchSimd::<u8>::from_slice(&BYTE_SHUFFLE[..]);
-        let channel_seed = ArchSimd::splat(seed as u32);
-        let prime = ArchSimd::splat(0x85ebca6b_u32 as u32);
+        let channel_seed = ArchSimd::splat(seed);
+        let prime = ArchSimd::splat(0x85ebca6b);
 
         // Scale: 3
-        let x_scaled = x_input * x_freq;
-        let y_scaled = y_input * y_freq;
-        let z_scaled = z_input * z_freq;
+        let x_scaled = input[0] * freq[0];
+        let y_scaled = input[1] * freq[1];
+        let z_scaled = input[2] * freq[2];
 
         // Gridpoints and distances: 9
         let x_scaled_floored = x_scaled.floor();
@@ -177,8 +161,6 @@ impl BatchNoise for Value {
         let lerp_front = y_lerp.mul_add(lerp_bf - lerp_tf, lerp_tf);
         let lerp_back = y_lerp.mul_add(lerp_bb - lerp_tb, lerp_tb);
 
-        let result = x_lerp.mul_add(lerp_back - lerp_front, lerp_front);
-
-        result
+        x_lerp.mul_add(lerp_back - lerp_front, lerp_front)
     }
 }

@@ -8,7 +8,6 @@ use crate::math::random::Random;
 use crate::math::vec::{ArithmeticVec, BasicVec, Vec2, Vec3, VecHorz};
 use crate::simd::arch_simd::ArchSimd;
 use crate::simd::simd_array::SimdArray;
-use crate::{EmptyIter, GridNoise, ZeroIter};
 //
 // pub enum NoiseDim {
 //     Dim2,

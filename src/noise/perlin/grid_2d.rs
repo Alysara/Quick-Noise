@@ -3,10 +3,11 @@ use std::mem::MaybeUninit;
 use std::ops::Range;
 
 use crate::api::grid::interface::GridNoiseParams;
+use crate::fractal::{Fractal, FractalState};
 use crate::grid_data::{GridData, Lerp};
 use crate::grid_helpers::{
     Arena, ArenaBuffer, InterpolationConfig, MaybeUninitSliceSimdExt, assume_init_slice,
-    pad_grid_size, validate_grid_size,
+    pad_grid_size, validate_grid_size, validate_state_size,
 };
 use crate::noise::perlin::constants::*;
 use crate::simd::arch_simd::{ArchSimd, NUM_SIMD_REG};
@@ -64,8 +65,13 @@ impl<'a> fmt::Debug for PerlinGradients2D<'a> {
 
 const LERP: u8 = Lerp::Quintic as u8;
 impl GridNoiseImpl<2> for Perlin {
-    fn sample<const INIT: bool>(params: GridNoiseParams<2>, dst: &mut [f32]) {
+    fn sample<T: Fractal, const INIT: bool, const FINAL: bool>(
+        params: GridNoiseParams<2>,
+        state: &mut [f32],
+        dst: &mut [f32],
+    ) {
         validate_grid_size(params.grid_size, dst.len());
+        validate_state_size::<T, _>(params.grid_size, state.len());
         let padded_size = pad_grid_size(params.grid_size);
 
         let required_cache = padded_size[1] * 3 + padded_size[0] * 12;
@@ -112,12 +118,13 @@ impl GridNoiseImpl<2> for Perlin {
             );
 
             let y_range = y_cur_index..y_next_index;
-            grid_dotted_bilerp::<INIT>(
+            grid_dotted_bilerp::<T, INIT, FINAL>(
                 &bilerp_config,
                 &params,
                 &grid_data,
                 &gradients,
                 y_range,
+                state,
                 dst,
             );
 
@@ -248,12 +255,13 @@ pub(crate) struct DottedBilerpExecuter<'a> {
 
 /// Fills the dst slice with interpolated dot products from gradients.
 #[inline(always)]
-pub(super) fn grid_dotted_bilerp<const INIT: bool>(
+pub(super) fn grid_dotted_bilerp<T: Fractal, const INIT: bool, const FINAL: bool>(
     config: &InterpolationConfig<NUM_BLOCKS>,
     params: &GridNoiseParams<2>,
     grid_data: &GridData<2>,
     gradients: &PerlinGradients2D,
     y_range: Range<usize>,
+    state: &mut [f32],
     dst: &mut [f32],
 ) {
     let y_frac_start = unsafe {
@@ -279,11 +287,11 @@ pub(super) fn grid_dotted_bilerp<const INIT: bool>(
     };
 
     if config.has_block_head {
-        executer.interpolate::<INIT, false>(dst);
+        executer.interpolate::<T, INIT, FINAL, false>(state, dst);
     }
 
     if config.has_block_tail {
-        executer.interpolate::<INIT, true>(dst);
+        executer.interpolate::<T, INIT, FINAL, true>(state, dst);
         std::hint::cold_path();
     }
 
@@ -293,7 +301,11 @@ pub(super) fn grid_dotted_bilerp<const INIT: bool>(
 
 impl<'a> DottedBilerpExecuter<'a> {
     #[inline(always)]
-    pub fn interpolate<const INIT: bool, const IS_TAIL: bool>(&mut self, dst: &mut [f32]) {
+    pub fn interpolate<T: Fractal, const INIT: bool, const FINAL: bool, const IS_TAIL: bool>(
+        &mut self,
+        state: &mut [f32],
+        dst: &mut [f32],
+    ) {
         let range = if IS_TAIL {
             self.config.block_tail_start..self.params.grid_size[0]
         } else {
@@ -306,13 +318,13 @@ impl<'a> DottedBilerpExecuter<'a> {
             let mut y = self.y_range.start;
             while y < self.y_range.end {
                 if y + 4 > self.y_range.end {
-                    self.process_factors::<INIT, IS_TAIL>(x, y, dst);
+                    self.process_factors::<T, INIT, FINAL, IS_TAIL>(x, y, state, dst);
                     y += 1;
                 } else {
-                    self.process_factors::<INIT, IS_TAIL>(x, y, dst);
-                    self.process_factors::<INIT, IS_TAIL>(x, y + 1, dst);
-                    self.process_factors::<INIT, IS_TAIL>(x, y + 2, dst);
-                    self.process_factors::<INIT, IS_TAIL>(x, y + 3, dst);
+                    self.process_factors::<T, INIT, FINAL, IS_TAIL>(x, y, state, dst);
+                    self.process_factors::<T, INIT, FINAL, IS_TAIL>(x, y + 1, state, dst);
+                    self.process_factors::<T, INIT, FINAL, IS_TAIL>(x, y + 2, state, dst);
+                    self.process_factors::<T, INIT, FINAL, IS_TAIL>(x, y + 3, state, dst);
                     y += 4;
                 }
             }
@@ -364,10 +376,11 @@ impl<'a> DottedBilerpExecuter<'a> {
     }
 
     #[inline(always)]
-    fn process_factors<const INIT: bool, const IS_TAIL: bool>(
+    fn process_factors<T: Fractal, const INIT: bool, const FINAL: bool, const IS_TAIL: bool>(
         &mut self,
         x: usize,
         y: usize,
+        state: &mut [f32],
         dst: &mut [f32],
     ) {
         let y_lerp = ArchSimd::splat(unsafe {
@@ -388,21 +401,52 @@ impl<'a> DottedBilerpExecuter<'a> {
             let output = y_lerp.mul_add(self.dif[block], self.top[block]);
             // println!("index: {index}, output: {:?}", output);
 
-            let val = match (INIT, IS_TAIL) {
-                (true, _) => output,
+            let (cur_state, mut result) = match (INIT, IS_TAIL) {
+                (true, _) => T::initialize(output),
                 (false, true) => unsafe {
-                    output + ArchSimd::from_slice(dst.get_unchecked(index..))
+                    let mut cur_state = T::State::default();
+                    for i in 0..T::State::STATE_SIZE {
+                        let index = index + i * self.grid_data.total_size;
+                        cur_state[i] = ArchSimd::from_slice(state.get_unchecked(index..));
+                    }
+                    let cur_result = ArchSimd::from_slice(dst.get_unchecked(index..));
+                    T::sample(cur_state, cur_result, output)
                 },
                 (false, false) => unsafe {
-                    output + ArchSimd::from_slice_unchecked(dst.get_unchecked(index..))
+                    let mut cur_state = T::State::default();
+                    for i in 0..T::State::STATE_SIZE {
+                        let index = index + i * self.grid_data.total_size;
+                        cur_state[i] = ArchSimd::from_slice_unchecked(state.get_unchecked(index..));
+                    }
+                    let cur_result = ArchSimd::from_slice_unchecked(dst.get_unchecked(index..));
+                    T::sample(cur_state, cur_result, output)
                 },
             };
 
+            // Save changes to state.
+            unsafe {
+                if !FINAL {
+                    for i in 0..T::State::STATE_SIZE {
+                        let index = index + i * self.grid_data.total_size;
+                        let slice = state.get_unchecked_mut(index..);
+                        if IS_TAIL {
+                            cur_state[i].copy_to_slice(slice);
+                        } else {
+                            cur_state[i].copy_to_slice_unchecked(slice);
+                        }
+                    }
+                }
+            }
+
+            if FINAL {
+                result = T::finalize(cur_state, result);
+            }
+
             let slice = unsafe { dst.get_unchecked_mut(index..) };
             if IS_TAIL {
-                val.copy_to_slice(slice);
+                result.copy_to_slice(slice);
             } else {
-                unsafe { val.copy_to_slice_unchecked(slice) };
+                unsafe { result.copy_to_slice_unchecked(slice) };
             };
 
             self.dif[block] += self.d_dif[block];

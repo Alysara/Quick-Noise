@@ -1,7 +1,7 @@
-use crate::{GridNoise};
+use crate::{GridBuilder};
 use crate::simd::arch_simd::{ArchMask, ArchSimd};
 
-impl GridNoise<2> {
+impl GridBuilder<2> {
     #[inline(always)]
     pub fn x_iter(&self) -> RowIter {
         let start = (self.config.position[0] * self.config.dimensions[0] as i32) as f32;
@@ -15,7 +15,7 @@ impl GridNoise<2> {
     }
 }
 
-impl GridNoise<3> {
+impl GridBuilder<3> {
     #[inline(always)]
     pub fn x_iter(&self) -> SliceIter {
         let dim = self.config.dimensions;

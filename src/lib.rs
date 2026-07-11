@@ -20,14 +20,16 @@ pub mod emit {
 }
 
 mod api;
-// pub use api::batch::interface::{Batch2D, Batch3D, BatchNoise};
+pub use api::batch::interface::BatchNoiseImpl;
+pub use api::batch::fbm::BatchBuilder;
 pub use api::defaults::*;
-pub use api::grid::interface::{GridNoise, GridNoiseImpl};
-pub use api::methods::{Octave};
+pub use api::grid::interface::{GridBuilder, GridNoiseImpl};
+pub use api::methods::Octave;
 pub use noise::cellular::Cellular;
 pub use noise::perlin::Perlin;
 pub use noise::simplex::Simplex;
 pub use noise::value::Value;
+pub use noise::fractal::{Fractal, FractalState, FractalArray, Fbm, Billow, Ridged};
 
 mod noise;
 pub use noise::*;

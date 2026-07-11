@@ -4,15 +4,14 @@ use crate::api::configs::*;
 use crate::api::grid::interface::{GridNoiseImpl, GridNoiseParams};
 use crate::api::parameters::*;
 use crate::api::seed::gen_octave_seed;
+use crate::fractal::{Fractal, FractalState};
+use crate::grid_helpers::{Arena, ArenaBuffer};
 use crate::math::random::Random;
-use crate::math::vec::{BasicVec, Vec2, Vec3, VecHorz};
-use crate::simd::SimdSliceIterExt;
 use crate::simd::arch_simd::ArchSimd;
-use crate::simd::simd_array::SimdArray;
 use crate::simd::simd_reg::iters::IntoSimdIterator;
 
 #[inline(always)]
-pub fn fbm_noise<const D: usize, T: GridNoiseImpl<D>, const INIT: bool>(
+pub fn fbm_noise<const D: usize, F: Fractal, T: GridNoiseImpl<D>, const INIT: bool>(
     grid_config: &GridConfig<D>,
     general_config: &GeneralConfig,
     fbm_config: &FbmConfig<D>,
@@ -31,16 +30,14 @@ pub fn fbm_noise<const D: usize, T: GridNoiseImpl<D>, const INIT: bool>(
     let base_seed = Random::static_mix_u64_pair(grid_config.grid_seed, general_config.seed);
 
     // FBM algorithm:
-    let mut frequency = std::array::from_fn(|i| fbm_config.scaling[i] * fbm_config.frequency);
-    let mut weight = if general_config.normalization {
+    let frequency = std::array::from_fn(|i| fbm_config.scaling[i] * fbm_config.frequency);
+    let weight = if general_config.normalization && F::WEIGHT_DECAY {
         fbm_config.normalize_amplitude(general_config.amplitude)
     } else {
         general_config.amplitude
     };
 
     // First octave:
-    let first_seed = gen_octave_seed(frequency, base_seed);
-
     let mut params = GridNoiseParams {
         seed: gen_octave_seed(frequency, base_seed),
         grid_size: grid_config.dimensions,
@@ -51,34 +48,56 @@ pub fn fbm_noise<const D: usize, T: GridNoiseImpl<D>, const INIT: bool>(
         weight,
     };
 
-    T::sample::<INIT>(params, result);
+    let total_size: usize = grid_config.dimensions.iter().product();
+    let needed_state_size = total_size * F::State::STATE_SIZE;
+    let mut state_cache = ArenaBuffer::with_capacity(needed_state_size);
+    let mut arena = Arena::with_cache(&mut state_cache);
+    let state = arena.allocate(needed_state_size);
+    let state = unsafe { state.assume_init_mut() };
+
+    if octaves == 1 {
+        T::sample::<F, INIT, true>(params, state, result);
+        return;
+    } else {
+        T::sample::<F, INIT, false>(params, state, result);
+    }
 
     // Subsequent octaves:
-    for _ in 1..octaves {
-        params.weight *= fbm_config.persistence;
+    for _ in 1..(octaves - 1) {
+        if F::WEIGHT_DECAY {
+            params.weight *= fbm_config.persistence;
+        }
+
         params.frequency = std::array::from_fn(|i| params.frequency[i] * fbm_config.lacunarity);
         params.seed = gen_octave_seed(params.frequency, base_seed);
 
-        T::sample::<false>(params, result);
+        T::sample::<F, false, false>(params, state, result);
     }
+
+    params.weight *= fbm_config.persistence;
+    params.frequency = std::array::from_fn(|i| params.frequency[i] * fbm_config.lacunarity);
+    params.seed = gen_octave_seed(params.frequency, base_seed);
+
+    T::sample::<F, false, true>(params, state, result);
 }
 
 /// A struct for creating FBM noise set on a uniform grid.
 /// The most performant way to generate Perlin noise.
 #[derive(Default, Copy, Clone)]
-pub struct FbmGridBuilder<const D: usize, T: GridNoiseImpl<D>> {
+pub struct FbmGridBuilder<const D: usize, F: Fractal, T: GridNoiseImpl<D>> {
     grid_config: GridConfig<D>,
     general_config: GeneralConfig,
     fbm_config: FbmConfig<D>,
+    _fractal_type: PhantomData<F>,
     _noise_type: PhantomData<T>,
 }
 
-params_general_builder!(FbmGridBuilder, [const D: usize, T: GridNoiseImpl<D>], [D, T]);
-params_fbm_builder!(FbmGridBuilder, [const D: usize, T: GridNoiseImpl<D>], [D, T]);
-params_fbm_scaling_2d!(FbmGridBuilder, [T: GridNoiseImpl<2>], [2, T]);
-params_fbm_scaling_3d!(FbmGridBuilder, [T: GridNoiseImpl<3>], [3, T]);
+params_general_builder!(FbmGridBuilder, [const D: usize, F: Fractal, T: GridNoiseImpl<D>], [D, F, T]);
+params_fbm_builder!(FbmGridBuilder, [const D: usize, F: Fractal, T: GridNoiseImpl<D>], [D, F, T]);
+params_fbm_scaling_2d!(FbmGridBuilder, [F: Fractal, T: GridNoiseImpl<2>], [2, F, T]);
+params_fbm_scaling_3d!(FbmGridBuilder, [F: Fractal, T: GridNoiseImpl<3>], [3, F, T]);
 
-impl<const D: usize, T: GridNoiseImpl<D>> FbmGridBuilder<D, T> {
+impl<const D: usize, F: Fractal, T: GridNoiseImpl<D>> FbmGridBuilder<D, F, T> {
     #[inline(always)]
     pub(crate) fn from_config(grid_config: GridConfig<D>) -> Self {
         let mut config = Self::default();
@@ -89,7 +108,7 @@ impl<const D: usize, T: GridNoiseImpl<D>> FbmGridBuilder<D, T> {
     declare_build!(self, {
         let size = self.grid_config.dimensions.iter().fold(1, |p, x| p * x);
         let mut result = vec![0.0; size];
-        fbm_noise::<D, T, true>(
+        fbm_noise::<D, F, T, true>(
             &self.grid_config,
             &self.general_config,
             &self.fbm_config,
@@ -99,7 +118,7 @@ impl<const D: usize, T: GridNoiseImpl<D>> FbmGridBuilder<D, T> {
     });
 
     declare_fill!(self, result, {
-        fbm_noise::<D, T, true>(
+        fbm_noise::<D, F, T, true>(
             &self.grid_config,
             &self.general_config,
             &self.fbm_config,
@@ -108,7 +127,7 @@ impl<const D: usize, T: GridNoiseImpl<D>> FbmGridBuilder<D, T> {
     });
 
     declare_fill_onto!(self, result, {
-        fbm_noise::<D, T, false>(
+        fbm_noise::<D, F, T, false>(
             &self.grid_config,
             &self.general_config,
             &self.fbm_config,

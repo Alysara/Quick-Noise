@@ -5,10 +5,10 @@ pub mod perlin {
     // mod single_octave;
     // mod set_gradients;
     // mod interpolation;
-    // mod batched;
-    // mod grid_2d;
-    mod grid_3d;
+    mod batch;
     mod grid_2d;
+    // mod grid_3d;
+    // mod grid_2d;
 
     // Public exports.
     pub use core::Perlin;
@@ -19,24 +19,24 @@ pub mod perlin {
 }
 
 pub mod simplex {
-    // mod batched;
+    mod batch;
     mod core;
     // mod grid_2d;
     pub use core::Simplex;
 }
 
 pub mod value {
-    // mod batched;
+    mod batch;
     mod core;
-    mod grid_2d;
-    mod grid_3d;
+    // mod grid_2d;
+    // mod grid_3d;
     // mod grid_2d;
     // mod grid_3d;
     pub use core::Value;
 }
 
 pub mod cellular {
-    // mod batched;
+    mod batch;
     mod core;
     pub use core::Cellular;
 }
@@ -44,3 +44,4 @@ pub mod cellular {
 pub(crate) mod grid_data;
 pub(crate) mod grid_helpers;
 pub(crate) mod interpolation;
+pub mod fractal;

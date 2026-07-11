@@ -2,11 +2,8 @@ use crate::api::configs::GridConfig;
 // use crate::api::grid::custom::CustomGridBuilder;
 use crate::api::grid::fbm::FbmGridBuilder;
 // use crate::api::grid::warp::FbmGridWarpBuilder;
-use crate::api::methods::Octave;
-use crate::api::parameters::*;
+use crate::fractal::Fractal;
 use crate::math::random::Random;
-use crate::math::vec::{Vec2, Vec3};
-use crate::simd::arch_simd::ArchSimd;
 // use crate::{BatchNoise, ZeroIter};
 
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -21,7 +18,11 @@ pub struct GridNoiseParams<const D: usize> {
 }
 
 pub trait GridNoiseImpl<const D: usize>: Default + Copy + Clone + PartialEq {
-    fn sample<const INIT: bool>(params: GridNoiseParams<D>, dst: &mut [f32]);
+    fn sample<T: Fractal, const INIT: bool, const FINAL: bool>(
+        params: GridNoiseParams<D>,
+        state: &mut [f32],
+        dst: &mut [f32],
+    );
 }
 
 // ————————————————————————————————————————————————————————————————
@@ -44,11 +45,11 @@ pub trait GridNoiseImpl<const D: usize>: Default + Copy + Clone + PartialEq {
 /// ```
 
 #[derive(Default)]
-pub struct GridNoise<const D: usize> {
+pub struct GridBuilder<const D: usize> {
     pub(crate) config: GridConfig<D>,
 }
 
-impl<const D: usize> GridNoise<D> {
+impl<const D: usize> GridBuilder<D> {
     /// Determines the psuedo-random values used in noise generation called
     /// on this grid. Different seeds produce different noise.
     pub fn seed(mut self, seed: i64) -> Self {
@@ -57,7 +58,7 @@ impl<const D: usize> GridNoise<D> {
     }
 }
 
-impl GridNoise<2> {
+impl GridBuilder<2> {
     /// Creates an anchor for a grid region that can be used for call noise.
     ///
     /// # Parameters
@@ -93,7 +94,7 @@ impl GridNoise<2> {
     }
 }
 
-impl GridNoise<3> {
+impl GridBuilder<3> {
     /// Creates an anchor for a grid region that can be used for call noise.
     ///
     /// # Parameters
@@ -133,7 +134,7 @@ impl GridNoise<3> {
     }
 }
 
-impl<const D: usize> GridNoise<D> {
+impl<const D: usize> GridBuilder<D> {
     // pub fn new -> Self {
     //     assert_eq!(
     //         N,
@@ -150,7 +151,7 @@ impl<const D: usize> GridNoise<D> {
         Self { config }
     }
 
-    pub fn fbm<T: GridNoiseImpl<D>>(&self) -> FbmGridBuilder<D, T> {
+    pub fn fbm<F: Fractal, T: GridNoiseImpl<D>>(&self) -> FbmGridBuilder<D, F, T> {
         FbmGridBuilder::from_config(self.config)
     }
 

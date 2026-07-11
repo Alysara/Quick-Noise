@@ -6,6 +6,7 @@ use crate::{
 };
 
 pub(crate) struct GridData<'a, const D: usize> {
+    pub total_size: usize,
     pub grid_start: [i32; D],
     pub increment: [f32; D],
     pub num_loops: [usize; D],
@@ -37,6 +38,7 @@ impl<'a, const D: usize> GridData<'a, D> {
     pub fn new<const LERP: u8>(params: &GridNoiseParams<D>, arena: &mut Arena<'a>, padded_size: &[usize; D]) -> Self {
         let lerp_type = Lerp::from_u8(LERP);
 
+        let total_size = params.grid_size.iter().product();
         let increment = from_fn(|i| params.frequency[i] * params.magnification);
         let block_pos: [i32; D] = from_fn(|i| params.position[i] * params.grid_size[i] as i32);
 
@@ -54,12 +56,12 @@ impl<'a, const D: usize> GridData<'a, D> {
             from_fn(|i| ArchSimd::iota(frac_start[i]) * ArchSimd::splat(increment[i]));
         let chunk_increment: [_; D] = from_fn(|i| ArchSimd::splat(increment[i] * LANES as f32));
 
-        for axis in 0..2 {
+        for axis in 0..D {
             for i in (0..params.grid_size[axis]).step_by(LANES) {
                 let fract_dist = cur_dist[axis].fract();
                 let cur_lerp = match lerp_type {
                     Lerp::Cubic => fract_dist.cubic_lerp(),
-                    Lerp::Quintic => fract_dist.cubic_lerp(),
+                    Lerp::Quintic => fract_dist.quintic_lerp(),
                 };
 
                 unsafe {
@@ -82,6 +84,7 @@ impl<'a, const D: usize> GridData<'a, D> {
         let octave_tiling = configure_tiling(params);
 
         Self {
+            total_size,
             grid_start,
             increment,
             num_loops,
