@@ -1,8 +1,8 @@
-use crate::api::batch::interface::BatchNoiseImpl;
+use crate::api::batch::interface::BatchNoise;
 use crate::simd::arch_simd::ArchSimd;
 use crate::value::Value;
 
-impl BatchNoiseImpl<2> for Value {
+impl BatchNoise<2> for Value {
     fn sample_batch(seed: u32, input: [ArchSimd<f32>; 2], freq: [ArchSimd<f32>; 2]) -> ArchSimd<f32> {
         // Constants.
         let neg_two: ArchSimd<f32> = ArchSimd::splat(-2.0);
@@ -72,7 +72,7 @@ impl BatchNoiseImpl<2> for Value {
     }
 }
 
-impl BatchNoiseImpl<3> for Value {
+impl BatchNoise<3> for Value {
     fn sample_batch(seed: u32, input: [ArchSimd<f32>; 3], freq: [ArchSimd<f32>; 3]) -> ArchSimd<f32> {
         // Constants.
         let neg_two: ArchSimd<f32> = ArchSimd::splat(-2.0);

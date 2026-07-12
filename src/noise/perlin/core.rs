@@ -1,7 +1,7 @@
 use std::mem::MaybeUninit;
 use std::time::Instant;
 
-use crate::api::grid::interface::{GridNoiseImpl, GridNoiseParams};
+use crate::api::grid::interface::{GridNoise, GridNoiseParams};
 use crate::math::vec::{Vec2, Vec3};
 use crate::simd::simd_array::SimdArray;
 

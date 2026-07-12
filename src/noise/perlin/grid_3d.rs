@@ -11,7 +11,7 @@ use crate::grid_helpers::{
 };
 use crate::noise::perlin::constants::*;
 use crate::simd::arch_simd::{ArchSimd, NUM_SIMD_REG};
-use crate::{Fractal, FractalState, GridNoiseImpl, Perlin};
+use crate::{Fractal, FractalState, GridNoise, Perlin};
 
 // ————————————————————————————————————————————————————————————————
 // ————— 3D Perlin Grid ———————————————————————————————————————————
@@ -76,7 +76,7 @@ impl<'a> fmt::Debug for PerlinGradients3D<'a> {
 }
 
 const LERP: u8 = Lerp::Quintic as u8;
-impl GridNoiseImpl<3> for Perlin {
+impl GridNoise<3> for Perlin {
     fn sample<F: Fractal, const INIT: bool, const FINAL: bool>(
         params: GridNoiseParams<3>,
         fractal_config: F::Config,

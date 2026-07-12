@@ -8,24 +8,19 @@ const DEFAULT_OCTAVE_3D: Octave3D = Octave3D::splat(0.03125, 1.0);
 const DEFAULT_OCTAVES_2D: &[Octave2D] = &[DEFAULT_OCTAVE_2D];
 const DEFAULT_OCTAVES_3D: &[Octave3D] = &[DEFAULT_OCTAVE_3D];
 
-impl Default for GeneralConfig {
+impl<const D: usize> Default for NoiseConfig<D> {
     fn default() -> Self {
         Self {
             seed: 0xD5E7B3C94F8A1E6B,
-            amplitude: 1.0,
-            magnification: 1.0,
-            normalization: true,
-        }
-    }
-}
-
-impl<const D: usize> Default for FbmConfig<D> {
-    fn default() -> Self {
-        Self {
             octaves: 1,
+            amplitude: 1.0,
             frequency: 0.03125,
             lacunarity: 2.0,
             persistence: 0.5,
+            normalization: true,
+            initialization: true,
+            finalization: true,
+            magnification: 1.0,
             scaling: [1.0; D],
         }
     }
@@ -34,7 +29,7 @@ impl<const D: usize> Default for FbmConfig<D> {
 impl<const D: usize> Default for GridConfig<D> {
     fn default() -> Self {
         Self {
-            dimensions: [32; D],
+            grid_size: [32; D],
             grid_seed: 0xc4ceb9fe1a85ec53,
             position: [0; D],
             tiling: [None; D],

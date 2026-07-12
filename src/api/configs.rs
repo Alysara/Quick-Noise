@@ -2,23 +2,21 @@ use crate::api::methods::Octave;
 use crate::simd::arch_simd::ArchSimd;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub(crate) struct GeneralConfig {
-    pub(crate) seed: u64,
-    pub(crate) amplitude: f32,
-    pub(crate) magnification: f32,
-    pub(crate) normalization: bool,
+pub struct NoiseConfig<const D: usize> {
+    pub seed: u64,
+    pub octaves: usize,
+    pub frequency: f32,
+    pub amplitude: f32,
+    pub lacunarity: f32,
+    pub persistence: f32,
+    pub normalization: bool,
+    pub initialization: bool,
+    pub finalization: bool,
+    pub magnification: f32,
+    pub scaling: [f32; D],
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub(crate) struct FbmConfig<const D: usize> {
-    pub(crate) octaves: usize,
-    pub(crate) frequency: f32,
-    pub(crate) lacunarity: f32,
-    pub(crate) persistence: f32,
-    pub(crate) scaling: [f32; D],
-}
-
-impl<const D: usize> FbmConfig<D> {
+impl<const D: usize> NoiseConfig<D> {
     pub(crate) fn num_grid_octaves(&self) -> usize {
         let max_scaling = self.scaling.iter().fold(0.0, |max, x| x.max(max));
 
@@ -99,7 +97,7 @@ impl<'a, const D: usize> CustomBuilderConfig<'a, D> {
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub(crate) struct GridConfig<const D: usize> {
     pub(crate) grid_seed: u64,
-    pub(crate) dimensions: [usize; D],
+    pub(crate) grid_size: [usize; D],
     pub(crate) position: [i32; D],
     pub(crate) tiling: [Option<u32>; D],
 }

@@ -48,7 +48,7 @@ macro_rules! declare_fill_onto {
 }
 pub(crate) use declare_fill_onto;
 
-macro_rules! params_grided_seed_builder {
+macro_rules! params_grid_seed_builder {
     ($name:ident, [ $($full_generics:tt)* ], [ $($short_generics:tt)* ]) => {
         impl< $($full_generics)* > $name< $($short_generics)* > {
             /// Determines the psuedo-random values used in noise generation.
@@ -57,76 +57,31 @@ macro_rules! params_grided_seed_builder {
             pub fn seed_with_grid(mut self, grid_seed: i64, noise_seed: i64) -> Self {
                 let grid_seed = Random::static_mix_u64(grid_seed as u64);
                 let noise_seed = Random::static_mix_u64(noise_seed as u64 ^ 0xD5E7B3C94F8A1E6B);
-                self.general_config.seed = Random::static_mix_u64_pair(grid_seed, noise_seed);
+                self.noise_config.seed = Random::static_mix_u64_pair(grid_seed, noise_seed);
                 self
             }
         }
     };
 }
-pub(crate) use params_grided_seed_builder;
+pub(crate) use params_grid_seed_builder;
 
-macro_rules! params_general_builder {
+macro_rules! params_noise_builder {
     ($name:ident, [ $($full_generics:tt)* ], [ $($short_generics:tt)* ]) => {
         impl< $($full_generics)* > $name< $($short_generics)* > {
             /// Determines the psuedo-random values used in noise generation.
             /// Different seeds produce different noise.
             pub fn seed(mut self, seed: i64) -> Self {
-                self.general_config.seed = Random::static_mix_u64(seed as u64 ^ 0xD5E7B3C94F8A1E6B);
+                self.noise_config.seed = Random::static_mix_u64(seed as u64 ^ 0xD5E7B3C94F8A1E6B);
                 self
             }
 
-            /// Controls the range of the noise output. All output is normalized
-            /// to be in the range of `[-amplitude, amplitude]`, except for cellular,
-            /// which is in the range [0, amplitude].
-            ///
-            /// # Default
-            /// `1.0`
-            ///
-            /// # Note
-            /// As the number of octaves increases, the average noise value trends
-            /// closer to zero due to more noise layers averaging eachother out.
-            pub fn amplitude(mut self, amplitude: f32) -> Self {
-                self.general_config.amplitude = amplitude;
-                self
-            }
-
-            /// Controls the magnification of the noise output. For most use cases,
-            /// this value can be ignored. Useful for LODs or multi-quality noise
-            /// generation.
-            ///
-            /// # Default
-            /// `1.0`
-            pub fn magnification(mut self, magnification: f32) -> Self {
-                self.general_config.magnification = magnification;
-                self
-            }
-
-            /// Controls whether or not normalization is performed. This ensures the noise
-            /// output is clamped according to the amplitude. When set to false, output
-            /// can be above the specified amplitude. For batched noise, normalization
-            /// can be expensive.
-            ///
-            /// # Default
-            /// `true`
-            pub fn normalization(mut self, normalization: bool) -> Self {
-                self.general_config.normalization = normalization;
-                self
-            }
-        }
-    };
-}
-pub(crate) use params_general_builder;
-
-macro_rules! params_fbm_builder {
-    ($name:ident, [ $($full_generics:tt)* ], [ $($short_generics:tt)* ]) => {
-        impl< $($full_generics)* > $name< $($short_generics)* > {
             /// Determines the number of perlin noise passes layered ontop of one another.
             /// More octaves generally leads to more natural-appearing noise.
             ///
             /// # Default
             /// `1`
             pub fn octaves(mut self, octaves: usize) -> Self {
-                self.fbm_config.octaves = octaves;
+                self.noise_config.octaves = octaves;
                 self
             }
 
@@ -141,7 +96,7 @@ macro_rules! params_fbm_builder {
             /// Frequencies higher than 0.5 are not properly supported by the uniform grid
             /// algorithm. For accurate noise at super-high frequencies, use perlin_batch().
             pub fn frequency(mut self, frequency: f32) -> Self {
-                self.fbm_config.frequency = frequency;
+                self.noise_config.frequency = frequency;
                 self
             }
 
@@ -152,7 +107,7 @@ macro_rules! params_fbm_builder {
             /// # Default
             /// `2.0`
             pub fn lacunarity(mut self, lacunarity: f32) -> Self {
-                self.fbm_config.lacunarity = lacunarity;
+                self.noise_config.lacunarity = lacunarity;
                 self
             }
 
@@ -163,16 +118,71 @@ macro_rules! params_fbm_builder {
             /// # Default
             /// `0.5`
             pub fn persistence(mut self, persistence: f32) -> Self {
-                self.fbm_config.persistence = persistence;
+                self.noise_config.persistence = persistence;
                 self
             }
+
+            /// Controls the range of the noise output. All output is normalized
+            /// to be in the range of `[-amplitude, amplitude]`, except for cellular,
+            /// which is in the range [0, amplitude].
+            ///
+            /// # Default
+            /// `1.0`
+            ///
+            /// # Note
+            /// As the number of octaves increases, the average noise value trends
+            /// closer to zero due to more noise layers averaging eachother out.
+            pub fn amplitude(mut self, amplitude: f32) -> Self {
+                self.noise_config.amplitude = amplitude;
+                self
+            }
+
+            /// Controls the magnification of the noise output. For most use cases,
+            /// this value can be ignored. Useful for LODs or multi-quality noise
+            /// generation.
+            ///
+            /// # Default
+            /// `1.0`
+            pub fn magnification(mut self, magnification: f32) -> Self {
+                self.noise_config.magnification = magnification;
+                self
+            }
+
+            /// Controls whether or not normalization is performed. This ensures the noise
+            /// output is clamped according to the amplitude. When set to false, output
+            /// can be above the specified amplitude. For batched noise, normalization
+            /// can be expensive.
+            ///
+            /// # Default
+            /// `true`
+            pub fn normalization(mut self, normalization: bool) -> Self {
+                self.noise_config.normalization = normalization;
+                self
+            }
+
+            /// Determines whether or not to overwrite the values in the given slice.
+            /// When set to true, the current values are treated as previous octave samples.
+            ///
+            /// # Default
+            /// `true`
+            pub fn initialization(mut self, initialization: bool) -> Self {
+                self.noise_config.initialization = initialization;
+                self
+            }
+
+            /// Determines whether or not to finalize the values after the final octave.
+            /// This finalization uses what is defined by the [Fractal] type.
+            pub fn finalization(mut self, finalization: bool) -> Self {
+                self.noise_config.finalization = finalization;
+                self
+            }
+
         }
     };
 }
-pub(crate) use params_fbm_builder;
+pub(crate) use params_noise_builder;
 
-
-macro_rules! params_fbm_scaling_2d {
+macro_rules! params_noise_scaling_2d {
     ($name:ident, [ $($full_generics:tt)* ], [ $($short_generics:tt)* ]) => {
         /// Controls how much each axis of the grid is 'stretched' in the noise
         /// sample space. Creates visible stretching in the noise output.
@@ -183,15 +193,15 @@ macro_rules! params_fbm_scaling_2d {
         ///  - `1.0`: y_scaling
         impl< $($full_generics)* > $name< $($short_generics)* > {
             pub fn scaling(mut self, x_scaling: f32, y_scaling: f32) -> Self {
-                self.fbm_config.scaling = [x_scaling, y_scaling];
+                self.noise_config.scaling = [x_scaling, y_scaling];
                 self
             }
         }
     };
 }
-pub(crate) use params_fbm_scaling_2d;
+pub(crate) use params_noise_scaling_2d;
 
-macro_rules! params_fbm_scaling_3d {
+macro_rules! params_noise_scaling_3d {
     ($name:ident, [ $($full_generics:tt)* ], [ $($short_generics:tt)* ]) => {
         impl< $($full_generics)* > $name< $($short_generics)* > {
             /// Controls how much each axis of the grid is 'stretched' in the noise
@@ -203,13 +213,13 @@ macro_rules! params_fbm_scaling_3d {
             ///  - `1.0`: y_scaling
             ///  - `1.0`: z_scaling
             pub fn scaling(mut self, x_scaling: f32, y_scaling: f32, z_scaling: f32) -> Self {
-                self.fbm_config.scaling = [x_scaling, y_scaling, z_scaling];
+                self.noise_config.scaling = [x_scaling, y_scaling, z_scaling];
                 self
             }
         }
     };
 }
-pub(crate) use params_fbm_scaling_3d;
+pub(crate) use params_noise_scaling_3d;
 
 macro_rules! params_grid_2d {
     ($name:ident, [ $($full_generics:tt)* ], [ $($short_generics:tt)* ]) => {
@@ -222,14 +232,27 @@ macro_rules! params_grid_2d {
             }
 
             /// Determines the position values provided to noise calls. This value represents
-            /// the position of this grid region in grid units determiend by its dimension.
-            /// A 32x32 grid at position { 1, 2 } covers samples in the range { [32-64), [64-96) }.
+            /// the position of this grid region in grid units determiend by its grid_size.
+            /// A 32x32 grid at position `{ 1, 2 }` covers samples in the range `{ 32..64, 64..96 }`.
             /// 
             /// # Default:
             /// `0`: x
             /// `0`: y
-            pub fn position(mut self, x: i32, y: i32) -> Self {
-                self.config.position = [x, y];
+            pub fn grid_position(mut self, x: i32, y: i32) -> Self {
+                self.config.position = [x * self.config.grid_size[0], y * self.config.grid_size[0]];
+                self
+            }
+
+            /// Determines the position values provided to noise calls. This value represents
+            /// the position of first sample in each dimension. A 32x32 given the sample position
+            /// `{ 32, 16 }` covers samples in the range `{ 32..64, 16..48 }`.
+            /// 
+            /// # Default:
+            /// `0`: x
+            /// `0`: y
+            /// `0`: z
+            pub fn sample_position(mut self, x: i32, y: i32, z: i32) -> Self {
+                self.config.position = [x, y, z];
                 self
             }
 
@@ -260,15 +283,32 @@ macro_rules! params_grid_3d {
             }
 
             /// Determines the position values provided to noise calls. This value represents
-            /// the position of this grid region in grid units determiend by its dimension.
-            /// A 32x32x32 grid at position { 1, 2, 3 } covers samples in the range
-            /// { [32-64), [64-96), [96-128) }.
+            /// the position of this grid region in grid units determiend by its grid_size.
+            /// A 32x32x32 grid at position `{ 1, 2, 3 }` covers samples in the range
+            /// `{ 32..64, 64..96, 96..128 }`.
             /// 
             /// # Default:
             /// `0`: x
             /// `0`: y
             /// `0`: z
-            pub fn position(mut self, x: i32, y: i32, z: i32) -> Self {
+            pub fn grid_position(mut self, x: i32, y: i32, z: i32) -> Self {
+                self.config.position = [
+                    x * self.config.grid_size[0],
+                    y * self.config.grid_size[1],
+                    z * self.config.grid_size[2]
+                ];
+                self
+            }
+
+            /// Determines the position values provided to noise calls. This value represents
+            /// the position of first sample in each dimension. A 32x32x32 given the sample position
+            /// `{ 32, 16, 0 }` covers samples in the range `{ 32..64, 16..48, 0..32 }`.
+            /// 
+            /// # Default:
+            /// `0`: x
+            /// `0`: y
+            /// `0`: z
+            pub fn sample_position(mut self, x: i32, y: i32, z: i32) -> Self {
                 self.config.position = [x, y, z];
                 self
             }
@@ -289,107 +329,6 @@ macro_rules! params_grid_3d {
 }
 pub(crate) use params_grid_3d;
 
-macro_rules! params_batch_2d {
-    ($name:ident, [ $($full_generics:tt)* ], [ $($short_generics:tt)* ], [ $($base_short_generics:tt)* ], $body:tt) => {
-        params_batch_2d!(
-            $name,
-            [ $($full_generics)* ],
-            [ $($short_generics)* ],
-            [ $($base_short_generics)* ],
-            self, x_iter, y_iter,
-            $body
-        );
-    };
-    ($name:ident, [ $($full_generics:tt)* ], [ $($short_generics:tt)* ], [ $($base_short_generics:tt)* ], $self:ident, $x_iter:ident, $y_iter:ident, $body:tt) => {
-        impl< $($full_generics)* > $name< $($short_generics)* >
-        where
-            XIter: Iterator<Item = ArchSimd<f32>>,
-            YIter: Iterator<Item = ArchSimd<f32>>,
-        {
-            /// Determines the iterators of Simd vectors to use as inputs in the
-            /// noise function. This parameter is necessary for noise output
-            /// to generate.
-            pub fn input_iters<NewXIter, NewYIter>(
-                $self,
-                $x_iter: NewXIter,
-                $y_iter: NewYIter,
-            ) -> $name< $($base_short_generics)* NewXIter, NewYIter>
-            where
-                NewXIter: Iterator<Item = ArchSimd<f32>>,
-                NewYIter: Iterator<Item = ArchSimd<f32>>,
-            {
-                $body
-            }
-        }
-    };
-}
-pub(crate) use params_batch_2d;
-
-macro_rules! params_batch_3d {
-    ($name:ident, [ $($full_generics:tt)* ], [ $($short_generics:tt)* ], [ $($base_short_generics:tt)* ], $body:tt) => {
-        params_batch_3d!(
-            $name,
-            [ $($full_generics)* ],
-            [ $($short_generics)* ],
-            [ $($base_short_generics)* ],
-            self, x_iter, y_iter, z_iter,
-            $body
-        );
-    };
-    ($name:ident, [ $($full_generics:tt)* ], [ $($short_generics:tt)* ], [ $($base_short_generics:tt)* ], $self:ident, $x_iter:ident, $y_iter:ident, $z_iter:ident, $body:tt) => {
-        impl< $($full_generics)* > $name< $($short_generics)* >
-        where
-            XIter: Iterator<Item = ArchSimd<f32>>,
-            YIter: Iterator<Item = ArchSimd<f32>>,
-            ZIter: Iterator<Item = ArchSimd<f32>>,
-        {
-            /// Determines the iterators of Simd vectors to use as inputs in the
-            /// noise function. This parameter is necessary for noise output
-            /// to generate.
-            pub fn input_iters<NewXIter, NewYIter, NewZIter>(
-                $self,
-                $x_iter: NewXIter,
-                $y_iter: NewYIter,
-                $z_iter: NewZIter,
-            ) -> $name< $($base_short_generics)* NewXIter, NewYIter, NewZIter>
-            where
-                NewXIter: Iterator<Item = ArchSimd<f32>>,
-                NewYIter: Iterator<Item = ArchSimd<f32>>,
-                NewZIter: Iterator<Item = ArchSimd<f32>>,
-            {
-                $body
-            }
-        }
-    };
-}
-pub(crate) use params_batch_3d;
-
-macro_rules! params_custom_builder_2d {
-    ($name:ident, [ $($full_generics:tt)* ], [ $($short_generics:tt)* ], $self:ident, $octave_list:ident, $body:tt) => {
-        impl<'a, $($full_generics)*> $name<'a, $($short_generics)*> {
-            /// Configures the specific settings for each octave. Takes a slice of Octave2D's
-            /// and uses those settings when noise is executed.
-            pub fn octave_list<'b>($self, $octave_list: &'b [Octave2D]) -> $name<'b, $($short_generics)*> {
-                $body
-            }
-        }
-    };
-}
-pub(crate) use params_custom_builder_2d;
-
-macro_rules! params_custom_builder_3d {
-    ($name:ident, [ $($full_generics:tt)* ], [ $($short_generics:tt)* ], $self:ident, $octave_list:ident, $body:tt) => {
-        impl<'a, $($full_generics)*> $name<'a, $($short_generics)*> {
-            /// Configures the specific settings for each octave. Takes a slice of Octave3D's
-            /// and uses those settings when noise is executed.
-            pub fn octave_list<'b>($self, $octave_list: &'b [Octave3D]) -> $name<'b, $($short_generics)*> {
-                $body
-            }
-        }
-    };
-}
-pub(crate) use params_custom_builder_3d;
-
 macro_rules! params_warp_builder {
     ($name:ident, [ $($full_generics:tt)* ], [ $($short_generics:tt)* ]) => {
         impl< $($full_generics)* > $name< $($short_generics)* > {
@@ -399,7 +338,7 @@ macro_rules! params_warp_builder {
             /// # Default
             /// `100.0`
             pub fn strength(mut self, strength: f32) -> Self {
-                self.warp_config.strength = strength;
+                self.strength = strength;
                 self
             }
         }

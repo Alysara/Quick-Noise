@@ -8,7 +8,7 @@ use crate::grid_helpers::{
     Arena, ArenaBuffer, InterpolationConfig, MaybeUninitSliceSimdExt, maybe_tail_load, maybe_tail_store, pad_grid_size, validate_grid_size, validate_state_size
 };
 use crate::simd::arch_simd::{ArchSimd, NUM_SIMD_REG};
-use crate::{Fractal, FractalState, GridNoiseImpl, Value};
+use crate::{Fractal, FractalState, GridNoise, Value};
 
 // ————————————————————————————————————————————————————————————————
 // ————— 3D Value Grid ———————————————————————————————————————————
@@ -56,7 +56,7 @@ impl<'a> ValueGradients3D<'a> {
 }
 
 const LERP: u8 = Lerp::Quintic as u8;
-impl GridNoiseImpl<3> for Value {
+impl GridNoise<3> for Value {
     fn sample<F: Fractal, const INIT: bool, const FINAL: bool>(
         params: GridNoiseParams<3>,
         fractal_config: F::Config,

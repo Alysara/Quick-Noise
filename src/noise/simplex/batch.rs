@@ -1,6 +1,6 @@
 use std::f32::consts::SQRT_2;
 
-use crate::api::batch::interface::BatchNoiseImpl;
+use crate::api::batch::interface::BatchNoise;
 use crate::simd::arch_simd::ArchSimd;
 use crate::simplex::Simplex;
 
@@ -41,7 +41,7 @@ pub const Y_GRADIENTS_2D: [f32; 8] = [C, B, A, B, C, -B, -A, -B];
 //    -1.0000000000000000,
 // ];
 
-impl BatchNoiseImpl<2> for Simplex {
+impl BatchNoise<2> for Simplex {
     fn sample_batch(
         seed: u32,
         input: [ArchSimd<f32>; 2],
@@ -146,7 +146,7 @@ impl BatchNoiseImpl<2> for Simplex {
     }
 }
 
-impl BatchNoiseImpl<3> for Simplex {
+impl BatchNoise<3> for Simplex {
     fn sample_batch(
         seed: u32,
         input: [ArchSimd<f32>; 3],

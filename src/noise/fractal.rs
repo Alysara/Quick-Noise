@@ -132,9 +132,15 @@ impl Fractal for Billow {
     }
 }
 
-#[derive(Default, Copy, Debug, Clone)]
+#[derive(Copy, Debug, Clone)]
 pub struct RidgedConfig {
     pub gain: f32,
+}
+
+impl Default for RidgedConfig {
+    fn default() -> Self {
+        Self { gain: 2.0 }
+    }
 }
 
 #[derive(Default, Copy, Clone, PartialEq, Debug)]
@@ -168,7 +174,10 @@ impl Fractal for Ridged {
     }
 
     #[inline(always)]
-    fn initialize(_config: &RidgedConfig, new_sample: ArchSimd<f32>) -> (Self::State, ArchSimd<f32>) {
+    fn initialize(
+        _config: &RidgedConfig,
+        new_sample: ArchSimd<f32>,
+    ) -> (Self::State, ArchSimd<f32>) {
         let one = ArchSimd::splat(1.0);
 
         let signal = one - new_sample.abs();

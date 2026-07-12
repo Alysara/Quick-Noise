@@ -9,7 +9,7 @@ use crate::grid_helpers::{
     maybe_tail_load, maybe_tail_store, pad_grid_size, validate_grid_size, validate_state_size,
 };
 use crate::simd::arch_simd::{ArchSimd, NUM_SIMD_REG};
-use crate::{Fractal, FractalState, GridNoiseImpl, Value};
+use crate::{Fractal, FractalState, GridNoise, Value};
 
 // ————————————————————————————————————————————————————————————————
 // ————— 2D Value Grid ———————————————————————————————————————————
@@ -58,7 +58,7 @@ impl<'a> fmt::Debug for ValueGradients2D<'a> {
 }
 
 const LERP: u8 = Lerp::Cubic as u8;
-impl GridNoiseImpl<2> for Value {
+impl GridNoise<2> for Value {
     #[inline(always)]
     fn sample<F: Fractal, const INIT: bool, const FINAL: bool>(
         params: GridNoiseParams<2>,

@@ -1,6 +1,6 @@
 use crate::api::configs::GridConfig;
 // use crate::api::grid::custom::CustomGridBuilder;
-use crate::api::grid::fbm::FbmGridBuilder;
+use crate::api::grid::fbm::GridNoiseBuilder;
 // use crate::api::grid::warp::FbmGridWarpBuilder;
 use crate::fractal::Fractal;
 use crate::math::random::Random;
@@ -17,7 +17,7 @@ pub struct GridNoiseParams<const D: usize> {
     pub tiling: [Option<u32>; D],
 }
 
-pub trait GridNoiseImpl<const D: usize>: Default + Copy + Clone + PartialEq {
+pub trait GridNoise<const D: usize>: Default + Copy + Clone + PartialEq {
     fn sample<T: Fractal, const INIT: bool, const FINAL: bool>(
         params: GridNoiseParams<D>,
         fractal_config: T::Config,
@@ -67,18 +67,33 @@ impl GridBuilder<2> {
     /// -`y`: Length of the grid region along the y-axis
     pub fn new(x: usize, y: usize) -> Self {
         let mut config = GridConfig::default();
-        config.dimensions = [x, y];
+        config.grid_size = [x, y];
         Self { config }
     }
 
     /// Determines the position values provided to noise calls. This value represents
-    /// the position of this grid region in grid units determiend by its dimension.
-    /// A 32x32 grid at position { 1, 2 } covers samples in the range { [32-64), [64-96) }.
+    /// the position of this grid region in grid units determiend by its grid_size.
+    /// A 32x32 grid at position `{ 1, 2 }` covers samples in the range `{ 32..64, 64..96 }`.
     ///
     /// # Default:
     /// `0`: x
     /// `0`: y
-    pub fn position(mut self, x: i32, y: i32) -> Self {
+    pub fn grid_position(mut self, x: i32, y: i32) -> Self {
+        self.config.position = [
+            x * self.config.grid_size[0] as i32,
+            y * self.config.grid_size[0] as i32,
+        ];
+        self
+    }
+
+    /// Determines the position values provided to noise calls. This value represents
+    /// the position of first sample in each dimension. A 32x32 given the sample position
+    /// `{ 32, 16 }` covers samples in the range `{ 32..64, 16..48 }`.
+    ///
+    /// # Default:
+    /// `0`: x
+    /// `0`: y
+    pub fn sample_position(mut self, x: i32, y: i32) -> Self {
         self.config.position = [x, y];
         self
     }
@@ -104,20 +119,37 @@ impl GridBuilder<3> {
     /// -`z`: Length of the grid region along the z-axis
     pub fn new(x: usize, y: usize, z: usize) -> Self {
         let mut config = GridConfig::default();
-        config.dimensions = [x, y, z];
+        config.grid_size = [x, y, z];
         Self { config }
     }
 
     /// Determines the position values provided to noise calls. This value represents
-    /// the position of this grid region in grid units determiend by its dimension.
-    /// A 32x32x32 grid at position { 1, 2, 3 } covers samples in the range
-    /// { [32-64), [64-96), [96-128) }.
+    /// the position of this grid region in grid units determiend by its grid_size.
+    /// A 32x32x32 grid at position `{ 1, 2, 3 }` covers samples in the range
+    /// `{ 32..64, 64..96, 96..128 }`.
     ///
     /// # Default:
     /// `0`: x
     /// `0`: y
     /// `0`: z
-    pub fn position(mut self, x: i32, y: i32, z: i32) -> Self {
+    pub fn grid_position(mut self, x: i32, y: i32, z: i32) -> Self {
+        self.config.position = [
+            x * self.config.grid_size[0] as i32,
+            y * self.config.grid_size[1] as i32,
+            z * self.config.grid_size[2] as i32,
+        ];
+        self
+    }
+
+    /// Determines the position values provided to noise calls. This value represents
+    /// the position of first sample in each dimension. A 32x32x32 given the sample position
+    /// `{ 32, 16, 0 }` covers samples in the range `{ 32..64, 16..48, 0..32 }`.
+    ///
+    /// # Default:
+    /// `0`: x
+    /// `0`: y
+    /// `0`: z
+    pub fn sample_position(mut self, x: i32, y: i32, z: i32) -> Self {
         self.config.position = [x, y, z];
         self
     }
@@ -152,8 +184,8 @@ impl<const D: usize> GridBuilder<D> {
         Self { config }
     }
 
-    pub fn fbm<F: Fractal, T: GridNoiseImpl<D>>(&self) -> FbmGridBuilder<D, F, T> {
-        FbmGridBuilder::from_config(self.config)
+    pub fn fbm<F: Fractal, T: GridNoise<D>>(&self) -> GridNoiseBuilder<D, F, T> {
+        GridNoiseBuilder::from_config(self.config)
     }
 
     // pub fn custom<'a, T: GridNoiseImpl>(

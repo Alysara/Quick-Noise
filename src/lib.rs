@@ -20,10 +20,11 @@ pub mod emit {
 }
 
 mod api;
-pub use api::batch::interface::BatchNoiseImpl;
-pub use api::batch::fbm::BatchBuilder;
+pub use api::batch::interface::BatchNoise;
+pub use api::batch::fbm::BatchNoiseBuilder;
 pub use api::defaults::*;
-pub use api::grid::interface::{GridBuilder, GridNoiseImpl};
+pub use api::grid::interface::{GridBuilder, GridNoise};
+pub use api::grid::fbm::GridNoiseBuilder;
 pub use api::methods::Octave;
 pub use noise::cellular::Cellular;
 pub use noise::perlin::Perlin;

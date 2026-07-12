@@ -4,36 +4,36 @@ use crate::simd::arch_simd::{ArchMask, ArchSimd};
 impl GridBuilder<2> {
     #[inline(always)]
     pub fn x_iter(&self) -> RowIter {
-        let start = (self.config.position[0] * self.config.dimensions[0] as i32) as f32;
-        RowIter::new(self.config.dimensions[0], self.config.dimensions[1], start)
+        let start = self.config.position[0] as f32;
+        RowIter::new(self.config.grid_size[0], self.config.grid_size[1], start)
     }
 
     #[inline(always)]
     pub fn y_iter(&self) -> SliceIter {
-        let start = (self.config.position[1] * self.config.dimensions[1] as i32) as f32;
-        SliceIter::new(self.config.dimensions[0], self.config.dimensions[1], 1, start)
+        let start = self.config.position[1] as f32;
+        SliceIter::new(self.config.grid_size[0], self.config.grid_size[1], 1, start)
     }
 }
 
 impl GridBuilder<3> {
     #[inline(always)]
     pub fn x_iter(&self) -> SliceIter {
-        let dim = self.config.dimensions;
-        let start = (self.config.position[0] * dim[0] as i32) as f32;
+        let dim = self.config.grid_size;
+        let start = self.config.position[0] as f32;
         SliceIter::new(dim[2] * dim[1], dim[0], 1, start)
     }
 
     #[inline(always)]
     pub fn y_iter(&self) -> SliceIter {
-        let dim = self.config.dimensions;
-        let start = (self.config.position[1] * dim[1] as i32) as f32;
+        let dim = self.config.grid_size;
+        let start = self.config.position[1] as f32;
         SliceIter::new(dim[2], dim[1], dim[0], start)
     }
 
     #[inline(always)]
     pub fn z_iter(&self) -> RowIter {
-        let dim = self.config.dimensions;
-        let start = (self.config.position[2] * dim[2] as i32) as f32;
+        let dim = self.config.grid_size;
+        let start = self.config.position[2] as f32;
         RowIter::new(dim[0], dim[1] * dim[2], start)
     }
 }

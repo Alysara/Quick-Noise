@@ -1,8 +1,8 @@
-use crate::api::batch::interface::BatchNoiseImpl;
+use crate::api::batch::interface::BatchNoise;
 use crate::cellular::Cellular;
 use crate::simd::arch_simd::ArchSimd;
 
-impl BatchNoiseImpl<2> for Cellular {
+impl BatchNoise<2> for Cellular {
     fn sample_batch(seed: u32, input: [ArchSimd<f32>; 2], freq: [ArchSimd<f32>; 2]) -> ArchSimd<f32> {
         // Constants.
         let three_halves: ArchSimd<f32> = ArchSimd::splat(1.5);
@@ -148,7 +148,7 @@ impl BatchNoiseImpl<2> for Cellular {
     }
 }
 
-impl BatchNoiseImpl<3> for Cellular {
+impl BatchNoise<3> for Cellular {
     fn sample_batch(seed: u32, input: [ArchSimd<f32>; 3], freq: [ArchSimd<f32>; 3]) -> ArchSimd<f32> {
         // Constants.
         let three_halves: ArchSimd<f32> = ArchSimd::splat(1.5);

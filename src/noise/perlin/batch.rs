@@ -1,9 +1,9 @@
-use crate::api::batch::interface::BatchNoiseImpl;
+use crate::api::batch::interface::BatchNoise;
 use crate::perlin::Perlin;
 use crate::perlin::constants::{X_GRADIENTS_2D, Y_GRADIENTS_2D};
 use crate::simd::arch_simd::ArchSimd;
 
-impl BatchNoiseImpl<2> for Perlin {
+impl BatchNoise<2> for Perlin {
     fn sample_batch(seed: u32, input: [ArchSimd<f32>; 2], freq: [ArchSimd<f32>; 2]) -> ArchSimd<f32> {
         // Constants.
         let six: ArchSimd<f32> = ArchSimd::splat(6.0);
@@ -88,7 +88,7 @@ impl BatchNoiseImpl<2> for Perlin {
     }
 }
 
-impl BatchNoiseImpl<3> for Perlin {
+impl BatchNoise<3> for Perlin {
     fn sample_batch(seed: u32, input: [ArchSimd<f32>; 3], freq: [ArchSimd<f32>; 3]) -> ArchSimd<f32> {
         // Constants.
         let six: ArchSimd<f32> = ArchSimd::splat(6.0);
