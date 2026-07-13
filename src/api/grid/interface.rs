@@ -1,10 +1,10 @@
+use std::marker::PhantomData;
+
 use crate::api::configs::GridConfig;
-// use crate::api::grid::custom::CustomGridBuilder;
-use crate::api::grid::fbm::GridNoiseBuilder;
-// use crate::api::grid::warp::FbmGridWarpBuilder;
-use crate::fractal::Fractal;
+use crate::api::grid::builder::GridNoiseBuilder;
+use crate::api::grid::octaves_builder::OctaveGridNoiseBuilder;
 use crate::math::random::Random;
-// use crate::{BatchNoise, ZeroIter};
+use crate::{Combiner, Octave};
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct GridNoiseParams<const D: usize> {
@@ -17,8 +17,8 @@ pub struct GridNoiseParams<const D: usize> {
     pub tiling: [Option<u32>; D],
 }
 
-pub trait GridNoise<const D: usize>: Default + Copy + Clone + PartialEq {
-    fn sample<T: Fractal, const INIT: bool, const FINAL: bool>(
+pub trait GridGenerator<const D: usize>: Default + Copy + Clone + PartialEq {
+    fn sample_grid<T: Combiner, const INIT: bool, const FINAL: bool>(
         params: GridNoiseParams<D>,
         fractal_config: T::Config,
         state: &mut [f32],
@@ -26,48 +26,51 @@ pub trait GridNoise<const D: usize>: Default + Copy + Clone + PartialEq {
     );
 }
 
-// ————————————————————————————————————————————————————————————————
-// ————— 2D Grid ——————————————————————————————————————————————————
-// ————————————————————————————————————————————————————————————————
+pub struct GridNoise<const D: usize, F: Combiner, S: GridGenerator<D>> {
+    _fractal: PhantomData<F>,
+    _sampler: PhantomData<S>,
+}
 
-/// An interface struct for creating 2D noise.
+/// An interface struct for creating grid noise.
 ///
 /// # Type Parameters
 /// * `D: NoiseDimension` - Determines how many dimensions the grid has.
 ///
 /// # Example
 /// ```
-/// use quick_noise::GridNoise;
+/// use quick_noise::Grid;
 ///
 /// // Subject to change.
-/// let grid = GridNoise::<Dim3>::new(32, 32, 32)
-///     .position(0, 0, 0)
+/// let grid = Grid::<2>::new(32, 32)
+///     .grid_position(0, 0)
 ///     .seed(1);
 /// ```
 
 #[derive(Default)]
-pub struct GridBuilder<const D: usize> {
+pub struct Grid<const D: usize> {
     pub(crate) config: GridConfig<D>,
 }
 
-impl<const D: usize> GridBuilder<D> {
+impl<const D: usize> Grid<D> {
     /// Determines the psuedo-random values used in noise generation called
     /// on this grid. Different seeds produce different noise.
     pub fn seed(mut self, seed: i64) -> Self {
-        self.config.grid_seed = Random::static_mix_u64(seed as u64);
+        self.config.grid_seed = Random::mix_u64(seed as u64);
         self
     }
 }
 
-impl GridBuilder<2> {
+impl Grid<2> {
     /// Creates an anchor for a grid region that can be used for call noise.
     ///
     /// # Parameters
     /// -`x`: Length of the grid region along the x-axis
     /// -`y`: Length of the grid region along the y-axis
     pub fn new(x: usize, y: usize) -> Self {
-        let mut config = GridConfig::default();
-        config.grid_size = [x, y];
+        let config = GridConfig {
+            grid_size: [x, y],
+            ..Default::default()
+        };
         Self { config }
     }
 
@@ -110,7 +113,7 @@ impl GridBuilder<2> {
     }
 }
 
-impl GridBuilder<3> {
+impl Grid<3> {
     /// Creates an anchor for a grid region that can be used for call noise.
     ///
     /// # Parameters
@@ -118,8 +121,10 @@ impl GridBuilder<3> {
     /// -`y`: Length of the grid region along the y-axis
     /// -`z`: Length of the grid region along the z-axis
     pub fn new(x: usize, y: usize, z: usize) -> Self {
-        let mut config = GridConfig::default();
-        config.grid_size = [x, y, z];
+        let config = GridConfig {
+            grid_size: [x, y, z],
+            ..Default::default()
+        };
         Self { config }
     }
 
@@ -167,124 +172,19 @@ impl GridBuilder<3> {
     }
 }
 
-impl<const D: usize> GridBuilder<D> {
-    // pub fn new -> Self {
-    //     assert_eq!(
-    //         N,
-    //         X * Y,
-    //         "Grid2D dimensions do not match SimdArray size! {X} * {Y} should be {}, not {N}!",
-    //         X * Y
-    //     );
-    //     Self {
-    //         config: GridConfig::<Dim2>::default(),
-    //     }
-    // }
-
-    pub(crate) fn from_config(config: GridConfig<D>) -> Self {
+impl<const D: usize> Grid<D> {
+    pub fn from_config(config: GridConfig<D>) -> Self {
         Self { config }
     }
 
-    pub fn fbm<F: Fractal, T: GridNoise<D>>(&self) -> GridNoiseBuilder<D, F, T> {
+    pub fn builder<F: Combiner, T: GridGenerator<D>>(&self) -> GridNoiseBuilder<D, F, T> {
         GridNoiseBuilder::from_config(self.config)
     }
 
-    // pub fn custom<'a, T: GridNoiseImpl>(
-    //     &self,
-    //     octave_list: &'a [Octave<Dim2>],
-    // ) -> CustomGridBuilder<'a, T, Dim2, X, Y, 0, N> {
-    //     CustomGridBuilder::new(self.config, octave_list)
-    // }
-
-    // pub fn warp<T: BatchNoise>(
-    //     &self,
-    //     x_iter: impl Iterator<Item = ArchSimd<f32>>,
-    //     y_iter: impl Iterator<Item = ArchSimd<f32>>,
-    // ) -> FbmGridWarpBuilder<
-    //     T,
-    //     Dim2,
-    //     X,
-    //     Y,
-    //     0,
-    //     N,
-    //     impl Iterator<Item = ArchSimd<f32>>,
-    //     impl Iterator<Item = ArchSimd<f32>>,
-    //     impl Iterator<Item = ArchSimd<f32>>,
-    // > {
-    //     FbmGridWarpBuilder::new(self.config, x_iter, y_iter, ZeroIter::<N>::default())
-    // }
+    pub fn builder_with_octaves<'a, F: Combiner, T: GridGenerator<D>>(
+        &self,
+        octave_list: &'a [Octave<D>],
+    ) -> OctaveGridNoiseBuilder<'a, D, F, T> {
+        OctaveGridNoiseBuilder::new(self.config, octave_list)
+    }
 }
-
-// ————————————————————————————————————————————————————————————————
-// ————— 3D Grid ——————————————————————————————————————————————————
-// ————————————————————————————————————————————————————————————————
-
-// /// An interface struct for creating 3D noise.
-// ///
-// /// # Type Parameters
-// /// * `X` - Length of the 3D grid region in the X dimension
-// /// * `Y` - Length of the 3D grid region in the Y dimension
-// /// * `Z` - Length of the 3D grid region in the Z dimension
-// ///
-// /// # Example
-// /// ```
-// /// use quick_noise::Grid2D;
-// ///
-// /// // Subject to change.
-// /// let grid = Grid2D::<32, 32, 1024>::new()
-// ///     .position(0, 0)
-// ///     .seed(1);
-// /// ```
-// #[derive(Default)]
-// pub struct Grid3D<const X: usize, const Y: usize, const Z: usize, const N: usize> {
-//     pub(crate) config: GridConfig<Dim3>,
-// }
-
-// params_grid_3d!(Grid3D, [const X: usize, const Y: usize, const Z: usize, const N: usize], [X, Y, Z, N]);
-
-// impl<const X: usize, const Y: usize, const Z: usize, const N: usize> Grid3D<X, Y, Z, N> {
-//     pub fn new() -> Self {
-//         assert_eq!(
-//             N,
-//             X * Y * Z,
-//             "Grid3D dimensions do not match SimdArray size! {X} * {Y} * {Z} should be {}, not {N}!",
-//             X * Y * Z
-//         );
-//         Self {
-//             config: GridConfig::<Dim3>::default(),
-//         }
-//     }
-
-//     pub(crate) fn from_config(config: GridConfig<Dim3>) -> Self {
-//         Self { config }
-//     }
-
-//     pub fn fbm<T: GridNoiseImpl>(&self) -> FbmGridBuilder<T, Dim3, X, Y, Z, N> {
-//         FbmGridBuilder::new(self.config)
-//     }
-
-//     pub fn custom<'a, T: GridNoiseImpl>(
-//         &self,
-//         octave_list: &'a [Octave<Dim3>],
-//     ) -> CustomGridBuilder<'a, T, Dim3, X, Y, Z, N> {
-//         CustomGridBuilder::new(self.config, octave_list)
-//     }
-
-//     pub fn warp<T: BatchNoise>(
-//         &self,
-//         x_iter: impl Iterator<Item = ArchSimd<f32>>,
-//         y_iter: impl Iterator<Item = ArchSimd<f32>>,
-//         z_iter: impl Iterator<Item = ArchSimd<f32>>,
-//     ) -> FbmGridWarpBuilder<
-//         T,
-//         Dim3,
-//         X,
-//         Y,
-//         Z,
-//         N,
-//         impl Iterator<Item = ArchSimd<f32>>,
-//         impl Iterator<Item = ArchSimd<f32>>,
-//         impl Iterator<Item = ArchSimd<f32>>,
-//     > {
-//         FbmGridWarpBuilder::new(self.config, x_iter, y_iter, z_iter)
-//     }
-// }

@@ -4,7 +4,6 @@ use std::fs;
 use std::path::Path;
 
 use crate::simd::arch_simd::ArchSimd;
-use crate::simd::simd_traits::*;
 
 // TODO: Add error handling here.
 pub trait NoiseImageExt: Iterator<Item = ArchSimd<f32>> + Sized {

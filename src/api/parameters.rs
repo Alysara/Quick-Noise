@@ -55,9 +55,9 @@ macro_rules! params_grid_seed_builder {
             /// Can reproduce the same noise output as grid noise given the
             /// same grid seed + noise seed pair.
             pub fn seed_with_grid(mut self, grid_seed: i64, noise_seed: i64) -> Self {
-                let grid_seed = Random::static_mix_u64(grid_seed as u64);
-                let noise_seed = Random::static_mix_u64(noise_seed as u64 ^ 0xD5E7B3C94F8A1E6B);
-                self.noise_config.seed = Random::static_mix_u64_pair(grid_seed, noise_seed);
+                let grid_seed = Random::mix_u64(grid_seed as u64);
+                let noise_seed = Random::mix_u64(noise_seed as u64 ^ 0xD5E7B3C94F8A1E6B);
+                self.noise_config.seed = Random::mix_u64_pair(grid_seed, noise_seed);
                 self
             }
         }
@@ -71,54 +71,7 @@ macro_rules! params_noise_builder {
             /// Determines the psuedo-random values used in noise generation.
             /// Different seeds produce different noise.
             pub fn seed(mut self, seed: i64) -> Self {
-                self.noise_config.seed = Random::static_mix_u64(seed as u64 ^ 0xD5E7B3C94F8A1E6B);
-                self
-            }
-
-            /// Determines the number of perlin noise passes layered ontop of one another.
-            /// More octaves generally leads to more natural-appearing noise.
-            ///
-            /// # Default
-            /// `1`
-            pub fn octaves(mut self, octaves: usize) -> Self {
-                self.noise_config.octaves = octaves;
-                self
-            }
-
-            /// Controls how 'compressed' the noise is. Lower frequencies are smoother
-            /// and change slower from pixel to pixel, while higher frequencies are sharper and
-            /// change more quickly from pixel to pixel.
-            ///
-            /// # Default
-            /// `0.03125` (1.0 / 32.0)
-            ///
-            /// # Note
-            /// Frequencies higher than 0.5 are not properly supported by the uniform grid
-            /// algorithm. For accurate noise at super-high frequencies, use perlin_batch().
-            pub fn frequency(mut self, frequency: f32) -> Self {
-                self.noise_config.frequency = frequency;
-                self
-            }
-
-            /// Controls how the frequency changes after each subsequenct octave
-            /// (noise layer). The next octave's frequency is the previous octave's
-            /// frequency multiplied by the lacunarity.
-            ///
-            /// # Default
-            /// `2.0`
-            pub fn lacunarity(mut self, lacunarity: f32) -> Self {
-                self.noise_config.lacunarity = lacunarity;
-                self
-            }
-
-            /// Controls how much each subsequenct octave (noise layer) impacts
-            /// the final noise result. The next octave's weight is the previous octave's
-            /// frequency multiplied by the persistence.
-            ///
-            /// # Default
-            /// `0.5`
-            pub fn persistence(mut self, persistence: f32) -> Self {
-                self.noise_config.persistence = persistence;
+                self.noise_config.seed = Random::mix_u64(seed as u64 ^ 0xD5E7B3C94F8A1E6B);
                 self
             }
 
@@ -182,6 +135,60 @@ macro_rules! params_noise_builder {
 }
 pub(crate) use params_noise_builder;
 
+macro_rules! params_lacunarity_builder {
+    ($name:ident, [ $($full_generics:tt)* ], [ $($short_generics:tt)* ]) => {
+        impl< $($full_generics)* > $name< $($short_generics)* > {
+            /// Determines the number of perlin noise passes layered ontop of one another.
+            /// More octaves generally leads to more natural-appearing noise.
+            ///
+            /// # Default
+            /// `1`
+            pub fn octaves(mut self, octaves: usize) -> Self {
+                self.noise_config.octaves = octaves;
+                self
+            }
+
+            /// Controls how 'compressed' the noise is. Lower frequencies are smoother
+            /// and change slower from pixel to pixel, while higher frequencies are sharper and
+            /// change more quickly from pixel to pixel.
+            ///
+            /// # Default
+            /// `0.03125` (1.0 / 32.0)
+            ///
+            /// # Note
+            /// Frequencies higher than 0.5 are not properly supported by the uniform grid
+            /// algorithm. For accurate noise at super-high frequencies, use perlin_batch().
+            pub fn frequency(mut self, frequency: f32) -> Self {
+                self.noise_config.frequency = frequency;
+                self
+            }
+
+            /// Controls how the frequency changes after each subsequenct octave
+            /// (noise layer). The next octave's frequency is the previous octave's
+            /// frequency multiplied by the lacunarity.
+            ///
+            /// # Default
+            /// `2.0`
+            pub fn lacunarity(mut self, lacunarity: f32) -> Self {
+                self.noise_config.lacunarity = lacunarity;
+                self
+            }
+
+            /// Controls how much each subsequenct octave (noise layer) impacts
+            /// the final noise result. The next octave's weight is the previous octave's
+            /// frequency multiplied by the persistence.
+            ///
+            /// # Default
+            /// `0.5`
+            pub fn persistence(mut self, persistence: f32) -> Self {
+                self.noise_config.persistence = persistence;
+                self
+            }
+        }
+    };
+}
+pub(crate) use params_lacunarity_builder;
+
 macro_rules! params_noise_scaling_2d {
     ($name:ident, [ $($full_generics:tt)* ], [ $($short_generics:tt)* ]) => {
         /// Controls how much each axis of the grid is 'stretched' in the noise
@@ -221,127 +228,19 @@ macro_rules! params_noise_scaling_3d {
 }
 pub(crate) use params_noise_scaling_3d;
 
-macro_rules! params_grid_2d {
+macro_rules! params_ridged_builder {
     ($name:ident, [ $($full_generics:tt)* ], [ $($short_generics:tt)* ]) => {
         impl< $($full_generics)* > $name< $($short_generics)* > {
-            /// Determines the psuedo-random values used in noise generation called
-            /// on this grid. Different seeds produce different noise.
-            pub fn seed(mut self, seed: i64) -> Self {
-                self.config.grid_seed = Random::static_mix_u64(seed as u64);
-                self
-            }
-
-            /// Determines the position values provided to noise calls. This value represents
-            /// the position of this grid region in grid units determiend by its grid_size.
-            /// A 32x32 grid at position `{ 1, 2 }` covers samples in the range `{ 32..64, 64..96 }`.
-            /// 
-            /// # Default:
-            /// `0`: x
-            /// `0`: y
-            pub fn grid_position(mut self, x: i32, y: i32) -> Self {
-                self.config.position = [x * self.config.grid_size[0], y * self.config.grid_size[0]];
-                self
-            }
-
-            /// Determines the position values provided to noise calls. This value represents
-            /// the position of first sample in each dimension. A 32x32 given the sample position
-            /// `{ 32, 16 }` covers samples in the range `{ 32..64, 16..48 }`.
-            /// 
-            /// # Default:
-            /// `0`: x
-            /// `0`: y
-            /// `0`: z
-            pub fn sample_position(mut self, x: i32, y: i32, z: i32) -> Self {
-                self.config.position = [x, y, z];
-                self
-            }
-
-            /// Determines the distance the sample space has until it starts repeating noise
-            /// seamlessly. When values are left as None, noise does not repeat.
-            ///
-            /// # Default:
-            /// - `x`: None
-            /// - `y`: None
-            pub fn tiling(mut self, x: Option<u32>, y: Option<u32>) -> Self {
-                self.config.tiling = [x, y];
-                self
-            }
-        }
-    }
-}
-pub(crate) use params_grid_2d;
-
-
-macro_rules! params_grid_3d {
-    ($name:ident, [ $($full_generics:tt)* ], [ $($short_generics:tt)* ]) => {
-        impl< $($full_generics)* > $name< $($short_generics)* > {
-            /// Determines the psuedo-random values used in noise generation called
-            /// on this grid. Different seeds produce different noise.
-            pub fn seed(mut self, seed: i64) -> Self {
-                self.config.grid_seed = Random::static_mix_u64(seed as u64);
-                self
-            }
-
-            /// Determines the position values provided to noise calls. This value represents
-            /// the position of this grid region in grid units determiend by its grid_size.
-            /// A 32x32x32 grid at position `{ 1, 2, 3 }` covers samples in the range
-            /// `{ 32..64, 64..96, 96..128 }`.
-            /// 
-            /// # Default:
-            /// `0`: x
-            /// `0`: y
-            /// `0`: z
-            pub fn grid_position(mut self, x: i32, y: i32, z: i32) -> Self {
-                self.config.position = [
-                    x * self.config.grid_size[0],
-                    y * self.config.grid_size[1],
-                    z * self.config.grid_size[2]
-                ];
-                self
-            }
-
-            /// Determines the position values provided to noise calls. This value represents
-            /// the position of first sample in each dimension. A 32x32x32 given the sample position
-            /// `{ 32, 16, 0 }` covers samples in the range `{ 32..64, 16..48, 0..32 }`.
-            /// 
-            /// # Default:
-            /// `0`: x
-            /// `0`: y
-            /// `0`: z
-            pub fn sample_position(mut self, x: i32, y: i32, z: i32) -> Self {
-                self.config.position = [x, y, z];
-                self
-            }
-
-            /// Determines the distance the sample space has until it starts repeating noise
-            /// seamlessly. When values are left as None, noise does not repeat.
-            ///
-            /// # Default:
-            /// - `x`: None
-            /// - `y`: None
-            /// - `z`: None
-            pub fn tiling(mut self, x: Option<u32>, y: Option<u32>, z: Option<u32>) -> Self {
-                self.config.tiling = [x, y, z];
-                self
-            }
-        }
-    }
-}
-pub(crate) use params_grid_3d;
-
-macro_rules! params_warp_builder {
-    ($name:ident, [ $($full_generics:tt)* ], [ $($short_generics:tt)* ]) => {
-        impl< $($full_generics)* > $name< $($short_generics)* > {
-            /// Determines how strongly the input iters warp the resulting noise.
-            /// Higher values result in a greater amount of warping.
+            /// Controls how much the previous octave's ridge height is allowed to
+            /// contribute.
             ///
             /// # Default
-            /// `100.0`
-            pub fn strength(mut self, strength: f32) -> Self {
-                self.strength = strength;
+            /// `2.0`
+            pub fn gain(mut self, gain: f32) -> Self {
+                self.fractal_config.gain = gain;
                 self
             }
         }
     };
 }
-pub(crate) use params_warp_builder;
+pub(crate) use params_ridged_builder;

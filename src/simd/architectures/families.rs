@@ -1,4 +1,4 @@
-use crate::simd::architectures::arch_impl::SimdFamily;
+use crate::simd::architectures::interface::SimdFamily;
 
 #[cfg(target_arch = "x86_64")]
 use crate::simd::architectures::intrinsics::avx2::Avx2Reg;

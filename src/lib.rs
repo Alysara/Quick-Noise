@@ -1,36 +1,23 @@
-// #![feature(const_cmp, const_trait_impl, generic_const_exprs, associated_type_defaults)]
-// #![feature(portable_simd)]
-// #![feature(trace_macros)]
+//! Blazingly fast SIMD-accelerated procedural noise library, with up to 10x+
+//! performance on uniform grids. Works on stable Rust.
 
+mod api;
+pub mod math;
+mod noise;
 pub mod simd;
-
-pub mod math {
-    pub(crate) mod random;
-    pub(crate) mod vec;
-    pub use vec::{Vec2, Vec3};
-}
-
-pub mod testing {
-    pub mod profiler;
-}
 
 #[cfg(feature = "image")]
 pub mod emit {
     pub mod grayscale;
 }
 
-mod api;
-pub use api::batch::interface::BatchNoise;
-pub use api::batch::fbm::BatchNoiseBuilder;
+pub use api::batch::interface::{BatchGenerator, BatchNoise};
 pub use api::defaults::*;
-pub use api::grid::interface::{GridBuilder, GridNoise};
-pub use api::grid::fbm::GridNoiseBuilder;
-pub use api::methods::Octave;
-pub use noise::cellular::Cellular;
-pub use noise::perlin::Perlin;
-pub use noise::simplex::Simplex;
-pub use noise::value::Value;
-pub use noise::fractal::{Fractal, FractalState, FractalArray, Fbm, Billow, Ridged};
-
-mod noise;
+pub use api::grid::interface::{Grid, GridGenerator};
+pub use api::octave::Octave;
+pub use api::{
+    BatchNoiseBuilder, GridNoiseBuilder, OctaveBatchNoiseBuilder, OctaveGridNoiseBuilder,
+};
+pub use noise::combiners::{Billow, Combiner, CombinerArray, CombinerState, Fbm, Ridged};
+pub use noise::generators::{Cellular, Perlin, Simplex, Value};
 pub use noise::*;

@@ -1,8 +1,11 @@
 pub mod configs;
 pub mod defaults;
 
-pub mod methods;
-pub mod parameters;
-pub mod grid;
 pub mod batch;
+pub mod grid;
+pub mod octave;
+pub mod parameters;
 pub mod seed;
+
+pub use batch::{BatchNoiseBuilder, OctaveBatchNoiseBuilder};
+pub use grid::{GridNoiseBuilder, OctaveGridNoiseBuilder};

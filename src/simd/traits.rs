@@ -1,9 +1,8 @@
 use std::fmt::Debug;
-use std::ops::*;
 
 use num_traits::{NumCast, NumOps};
 
-use crate::simd::architectures::arch_impl::SimdFamily;
+use crate::simd::architectures::interface::SimdFamily;
 use crate::simd::array_trait::Array;
 
 mod private {

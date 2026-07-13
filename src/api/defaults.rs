@@ -1,12 +1,5 @@
 use crate::api::configs::*;
-use crate::perlin::{Octave2D, Octave3D};
 use crate::simd::arch_simd::ArchSimd;
-
-const DEFAULT_OCTAVE_2D: Octave2D = Octave2D::splat(0.03125, 1.0);
-const DEFAULT_OCTAVE_3D: Octave3D = Octave3D::splat(0.03125, 1.0);
-
-const DEFAULT_OCTAVES_2D: &[Octave2D] = &[DEFAULT_OCTAVE_2D];
-const DEFAULT_OCTAVES_3D: &[Octave3D] = &[DEFAULT_OCTAVE_3D];
 
 impl<const D: usize> Default for NoiseConfig<D> {
     fn default() -> Self {
@@ -26,6 +19,20 @@ impl<const D: usize> Default for NoiseConfig<D> {
     }
 }
 
+impl<const D: usize> Default for OctaveNoiseConfig<D> {
+    fn default() -> Self {
+        Self {
+            seed: 0xD5E7B3C94F8A1E6B,
+            amplitude: 1.0,
+            normalization: true,
+            initialization: true,
+            finalization: true,
+            magnification: 1.0,
+            scaling: [1.0; D],
+        }
+    }
+}
+
 impl<const D: usize> Default for GridConfig<D> {
     fn default() -> Self {
         Self {
@@ -34,12 +41,6 @@ impl<const D: usize> Default for GridConfig<D> {
             position: [0; D],
             tiling: [None; D],
         }
-    }
-}
-
-impl Default for WarpBuilderConfig {
-    fn default() -> Self {
-        Self { strength: 100.0 }
     }
 }
 

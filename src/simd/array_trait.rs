@@ -1,6 +1,6 @@
-use std::ops::{Index, IndexMut};
 use std::borrow::{Borrow, BorrowMut};
 use std::fmt::Debug;
+use std::ops::{Index, IndexMut};
 // use std::hash::Hash;
 
 // This is unfortunately needed to avoid generic const expr or excessive bounding issues. TODO: Come up with better solution.
@@ -60,7 +60,7 @@ pub trait Array<T>:
 
     fn binary_search_by_key<'a, B: Ord, F: FnMut(&'a T) -> B>(&'a self, b: &B, f: F) -> Result<usize, usize>
         where T: 'a                                          { self.as_slice().binary_search_by_key(b, f) }
-    fn position(&self, mut f: impl FnMut(&T) -> bool) -> Option<usize> { self.as_slice().iter().position(|x| f(x)) }
+    fn position(&self, f: impl FnMut(&T) -> bool) -> Option<usize> { self.as_slice().iter().position(f) }
 
     // ---- Mutation ----
     fn fill(&mut self, value: T) where T: Clone          { self.as_mut_slice().fill(value) }
@@ -81,7 +81,7 @@ pub trait Array<T>:
     fn sort_unstable_by(&mut self, f: impl FnMut(&T, &T) -> std::cmp::Ordering) { self.as_mut_slice().sort_unstable_by(f) }
     fn sort_unstable_by_key<K: Ord>(&mut self, f: impl FnMut(&T) -> K) { self.as_mut_slice().sort_unstable_by_key(f) }
     fn is_sorted(&self) -> bool where T: PartialOrd      { self.as_slice().is_sorted() }
-    fn is_sorted_by(&self, mut f: impl FnMut(&T, &T) -> bool) -> bool { self.as_slice().is_sorted_by(|a, b| f(a, b)) }
+    fn is_sorted_by(&self, f: impl FnMut(&T, &T) -> bool) -> bool { self.as_slice().is_sorted_by(f) }
     fn is_sorted_by_key<K: PartialOrd>(&self, f: impl FnMut(&T) -> K) -> bool { self.as_slice().is_sorted_by_key(f) }
 
     // ---- Pointers ----
@@ -91,10 +91,20 @@ pub trait Array<T>:
 
 impl<const N: usize, T> Array<T> for [T; N]
 where
-    T: Clone + Debug
+    T: Clone + Debug,
 {
     const LEN: usize = N;
-    #[inline(always)] fn from_fn(f: impl FnMut(usize) -> T) -> Self  { std::array::from_fn(f) }
-    #[inline(always)] fn as_slice(&self) -> &[T]                      { self.as_slice() }
-    #[inline(always)] fn as_mut_slice(&mut self) -> &mut [T]          { self.as_mut_slice() }
+    #[inline(always)]
+    fn from_fn(f: impl FnMut(usize) -> T) -> Self {
+        std::array::from_fn(f)
+    }
+    #[inline(always)]
+    fn as_slice(&self) -> &[T] {
+        self.as_slice()
+    }
+    #[inline(always)]
+    fn as_mut_slice(&mut self) -> &mut [T] {
+        self.as_mut_slice()
+    }
 }
+

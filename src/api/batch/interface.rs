@@ -1,3 +1,6 @@
+use std::marker::PhantomData;
+
+use crate::noise::combiners::Combiner;
 use crate::simd::arch_simd::ArchSimd;
 
 pub trait DimTuple<const D: usize> {
@@ -38,10 +41,15 @@ impl DimTuple<5> for (S, S, S, S, S) {
 pub trait DimIter<const D: usize>: Iterator<Item: DimTuple<D>> {}
 impl<const D: usize, T: DimTuple<D>, I: Iterator<Item = T>> DimIter<D> for I {}
 
-pub trait BatchNoise<const D: usize> {
-    fn sample_batch(
-        seed: u32,
-        input: [ArchSimd<f32>; D],
-        freq: [ArchSimd<f32>; D],
-    ) -> ArchSimd<f32>;
+pub trait BatchGenerator<const D: usize> {
+    fn sample_batch(seed: u32, input: [ArchSimd<f32>; D], freq: [ArchSimd<f32>; D])
+    -> ArchSimd<f32>;
 }
+
+#[derive(Default)]
+pub struct BatchNoise<const D: usize, F: Combiner, S: BatchGenerator<D>> {
+    _fractal: PhantomData<F>,
+    _sampler: PhantomData<S>,
+}
+
+
