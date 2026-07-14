@@ -454,7 +454,7 @@ impl<'a, F: Combiner, const INIT: bool, const FINAL: bool>
             let output = y_lerp.mul_add(self.dif[block], self.top[block]);
 
             let (cur_state, mut result) = if INIT {
-                F::initialize(self.fractal_config, output)
+                F::initialize_sample(self.fractal_config, output)
             } else {
                 let mut cur_state = F::State::default();
                 for i in 0..F::State::STATE_SIZE {
@@ -464,7 +464,7 @@ impl<'a, F: Combiner, const INIT: bool, const FINAL: bool>
                     cur_state[i] = unsafe { maybe_tail_load::<IS_TAIL>(index..tail_end, state) };
                 }
                 let cur_result = unsafe { maybe_tail_load::<IS_TAIL>(index..tail_end, dst) };
-                F::sample(self.fractal_config, cur_state, cur_result, output)
+                F::apply_sample(self.fractal_config, cur_state, cur_result, output)
             };
 
             // Save changes to state.
@@ -478,7 +478,7 @@ impl<'a, F: Combiner, const INIT: bool, const FINAL: bool>
             }
 
             if FINAL {
-                result = F::finalize(self.fractal_config, cur_state, result);
+                result = F::finalize_sample(self.fractal_config, cur_state, result);
             }
 
             unsafe { maybe_tail_store::<IS_TAIL>(index..tail_end, result, dst) };

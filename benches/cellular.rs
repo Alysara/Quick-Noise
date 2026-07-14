@@ -2,7 +2,7 @@ use std::hint::black_box;
 
 use criterion::{Criterion, Throughput, criterion_group, criterion_main};
 
-const GRID_2D: usize = 32;
+const GRID_2D: usize = 1024;
 const GRID_2D_AREA: usize = GRID_2D * GRID_2D;
 const OCTAVES_2D: usize = 3;
 const BASE_FREQ_2D: f64 = 1.0 / 128.0;
@@ -12,34 +12,33 @@ const GRID_3D_VOLUME: usize = GRID_3D * GRID_3D * GRID_3D;
 const OCTAVES_3D: usize = 3;
 const BASE_FREQ_3D: f64 = 1.0 / 128.0;
 
-fn perlin_2d_octaves_benchmark(c: &mut Criterion) {
-    let mut group = c.benchmark_group("perlin_noise_2d_3octaves_1024x1024");
+fn cellular_2d_octaves_benchmark(c: &mut Criterion) {
+    let mut group = c.benchmark_group("cellular_noise_2d_3octaves_1024x1024");
     group.throughput(Throughput::Elements(GRID_2D_AREA as u64));
 
     // --- quick-noise grid ---
-    {
-        use quick_noise::{Fbm, Grid, Perlin};
-        let grid = Grid::<2>::new(GRID_2D, GRID_2D);
-        let mut result = vec![0.0; GRID_2D_AREA];
-        group.bench_function("quick-noise grid", |b| {
-            b.iter(|| {
-                grid.builder::<Fbm, Perlin>()
-                    .octaves(OCTAVES_2D)
-                    .frequency(BASE_FREQ_2D as f32)
-                    .fill(result.as_mut_slice());
-                black_box(&result);
-            });
-        });
-    }
+    // {
+    //     let grid = Grid::<2>::new(GRID_2D, GRID_2D);
+    //     let mut result = vec![0.0; GRID_2D_AREA];
+    //     group.bench_function("quick-noise grid", |b| {
+    //         b.iter(|| {
+    //             grid.builder::<Fbm, Cellular>()
+    //                 .octaves(OCTAVES_2D)
+    //                 .frequency(BASE_FREQ_2D as f32)
+    //                 .fill(result.as_mut_slice());
+    //             black_box(&result);
+    //         });
+    //     });
+    // }
 
     // --- quick-noise batch ---
     {
-        use quick_noise::{BatchNoise, Fbm, Grid, Perlin};
+        use quick_noise::{BatchNoise, Cellular, Fbm, Grid};
         let grid = Grid::<2>::new(GRID_2D, GRID_2D);
         let mut result = vec![0.0; GRID_2D_AREA];
         group.bench_function("quick-noise batch", |b| {
             b.iter(|| {
-                BatchNoise::<2, Fbm, Perlin>::builder(grid.x_iter(), grid.y_iter())
+                BatchNoise::<2, Fbm, Cellular>::builder(grid.x_iter(), grid.y_iter())
                     .octaves(OCTAVES_2D)
                     .frequency(BASE_FREQ_2D as f32)
                     .fill(result.as_mut_slice());
@@ -50,8 +49,8 @@ fn perlin_2d_octaves_benchmark(c: &mut Criterion) {
 
     // ---- noise-rs ----
     {
-        use noise::{Fbm, MultiFractal, NoiseFn, Perlin};
-        let fbm = Fbm::<Perlin>::new(0)
+        use noise::{Fbm, MultiFractal, NoiseFn, Worley};
+        let fbm = Fbm::<Worley>::new(0)
             .set_octaves(OCTAVES_2D)
             .set_frequency(BASE_FREQ_2D)
             .set_lacunarity(2.0)
@@ -73,11 +72,11 @@ fn perlin_2d_octaves_benchmark(c: &mut Criterion) {
     // ---- libnoise ----
     {
         use libnoise::prelude::*;
-        let generator = Source::perlin(0).fbm(OCTAVES_2D as u32, BASE_FREQ_2D, 2.0, 0.5);
+        let generator = Source::worley(0).fbm(OCTAVES_2D as u32, BASE_FREQ_2D, 2.0, 0.5);
 
-        let mut result = vec![0.0f64; GRID_2D_AREA];
         group.bench_function("libnoise", |b| {
             b.iter(|| {
+                let mut result = vec![0.0f64; GRID_2D_AREA];
                 for y in 0..GRID_2D {
                     for x in 0..GRID_2D {
                         result[y * GRID_2D + x] = generator.sample([x as f64, y as f64]);
@@ -128,23 +127,39 @@ fn perlin_2d_octaves_benchmark(c: &mut Criterion) {
 
     // ---- simdnoise ----
     {
-        group.bench_function("simdnoise", |b| {
-            b.iter(|| {
-                let (result, _min, _max) = simdnoise::NoiseBuilder::fbm_2d(GRID_2D, GRID_2D)
-                    .with_freq(BASE_FREQ_2D as f32)
-                    .with_octaves(OCTAVES_2D as u8)
-                    .with_gain(0.5)
-                    .with_lacunarity(2.0)
-                    .generate();
-                black_box(&result);
-            });
-        });
+        let mut result = vec![0.0f32; GRID_2D_AREA];
+
+        let mut amplitude = 1.0f32;
+        let mut frequency = BASE_FREQ_2D as f32;
+
+        for _ in 0..OCTAVES_2D {
+            let (octave, _, _) = simdnoise::NoiseBuilder::cellular_2d(GRID_2D, GRID_2D)
+                .with_freq(frequency)
+                .generate();
+
+            for (dst, src) in result.iter_mut().zip(octave.iter()) {
+                *dst += amplitude * *src;
+            }
+
+            amplitude *= 0.5;
+            frequency *= 2.0;
+        }
     }
 
     // ---- fastnoise2 ----
     {
+        use fastnoise2::generator::DistanceFunction;
+        use fastnoise2::generator::cellular::CellularDistanceReturnType;
         use fastnoise2::generator::prelude::*;
-        let node = perlin().fbm(0.5, 0.0, OCTAVES_2D as i32, 2.0).build();
+        let node = cellular_distance(
+            1.0,
+            DistanceFunction::Euclidean,
+            0,
+            1,
+            CellularDistanceReturnType::Index0,
+        )
+        .fbm(0.5, 0.0, OCTAVES_2D as i32, 2.0)
+        .build();
 
         let mut result = vec![0.0f32; GRID_2D_AREA];
         group.bench_function("fastnoise2", |b| {
@@ -166,33 +181,32 @@ fn perlin_2d_octaves_benchmark(c: &mut Criterion) {
 
     group.finish();
 
-    let mut group = c.benchmark_group("perlin_noise_3d_3octaves_128x128x128");
+    let mut group = c.benchmark_group("cellular_noise_3d_3octaves_128x128x128");
     group.throughput(Throughput::Elements(GRID_3D_VOLUME as u64));
 
     // --- quick-noise grid ---
-    {
-        use quick_noise::{Fbm, Grid, Perlin};
-        let grid = Grid::<3>::new(GRID_3D, GRID_3D, GRID_3D);
-        let mut result = vec![0.0; GRID_3D_VOLUME];
-        group.bench_function("quick-noise grid", |b| {
-            b.iter(|| {
-                grid.builder::<Fbm, Perlin>()
-                    .octaves(OCTAVES_3D)
-                    .frequency(BASE_FREQ_3D as f32)
-                    .fill(result.as_mut_slice());
-                black_box(&result);
-            });
-        });
-    }
+    // {
+    //     let grid = Grid::<2>::new(GRID_2D, GRID_2D);
+    //     let mut result = vec![0.0; GRID_2D_AREA];
+    //     group.bench_function("quick-noise grid", |b| {
+    //         b.iter(|| {
+    //             grid.builder::<Fbm, Cellular>()
+    //                 .octaves(OCTAVES_2D)
+    //                 .frequency(BASE_FREQ_2D as f32)
+    //                 .fill(result.as_mut_slice());
+    //             black_box(&result);
+    //         });
+    //     });
+    // }
 
     // --- quick-noise batch ---
     {
-        use quick_noise::{BatchNoise, Fbm, Grid, Perlin};
+        use quick_noise::{BatchNoise, Cellular, Fbm, Grid};
         let grid = Grid::<3>::new(GRID_3D, GRID_3D, GRID_3D);
         let mut result = vec![0.0; GRID_3D_VOLUME];
         group.bench_function("quick-noise batch", |b| {
             b.iter(|| {
-                BatchNoise::<3, Fbm, Perlin>::builder(grid.x_iter(), grid.y_iter(), grid.z_iter())
+                BatchNoise::<3, Fbm, Cellular>::builder(grid.x_iter(), grid.y_iter(), grid.z_iter())
                     .octaves(OCTAVES_3D)
                     .frequency(BASE_FREQ_3D as f32)
                     .fill(result.as_mut_slice());
@@ -203,8 +217,8 @@ fn perlin_2d_octaves_benchmark(c: &mut Criterion) {
 
     // ---- noise-rs ----
     {
-        use noise::{Fbm, MultiFractal, NoiseFn, Perlin};
-        let fbm = Fbm::<Perlin>::new(0)
+        use noise::{Fbm, MultiFractal, NoiseFn, Worley};
+        let fbm = Fbm::<Worley>::new(0)
             .set_octaves(OCTAVES_3D)
             .set_frequency(BASE_FREQ_3D)
             .set_lacunarity(2.0)
@@ -228,7 +242,7 @@ fn perlin_2d_octaves_benchmark(c: &mut Criterion) {
     // ---- libnoise ----
     {
         use libnoise::prelude::*;
-        let generator = Source::perlin(0).fbm(OCTAVES_3D as u32, BASE_FREQ_3D, 2.0, 0.5);
+        let generator = Source::worley(0).fbm(OCTAVES_3D as u32, BASE_FREQ_3D, 2.0, 0.5);
 
         let mut result = vec![0.0f64; GRID_3D_VOLUME];
         group.bench_function("libnoise", |b| {
@@ -286,29 +300,24 @@ fn perlin_2d_octaves_benchmark(c: &mut Criterion) {
         });
     }
 
-    // ---- simdnoise ----
-    {
-        group.bench_function("simdnoise", |b| {
-            b.iter(|| {
-                let (result, _min, _max) = simdnoise::NoiseBuilder::fbm_3d(GRID_3D, GRID_3D, GRID_3D)
-                    .with_freq(BASE_FREQ_3D as f32)
-                    .with_octaves(OCTAVES_3D as u8)
-                    .with_gain(0.5)
-                    .with_lacunarity(2.0)
-                    .generate();
-                black_box(&result);
-            });
-        });
-    }
-
     // ---- fastnoise2 ----
     {
+        use fastnoise2::generator::DistanceFunction;
+        use fastnoise2::generator::cellular::CellularDistanceReturnType;
         use fastnoise2::generator::prelude::*;
-        let node = perlin().fbm(0.5, 0.0, OCTAVES_3D as i32, 2.0).build();
+        let node = cellular_distance(
+            1.0,
+            DistanceFunction::Euclidean,
+            0,
+            1,
+            CellularDistanceReturnType::Index0,
+        )
+        .fbm(0.5, 0.0, OCTAVES_2D as i32, 2.0)
+        .build();
 
-        let mut result = vec![0.0f32; GRID_3D_VOLUME];
         group.bench_function("fastnoise2", |b| {
             b.iter(|| {
+                let mut result = vec![0.0f32; GRID_3D_VOLUME];
                 node.gen_uniform_grid_3d(
                     &mut result,
                     0.0,
@@ -330,5 +339,5 @@ fn perlin_2d_octaves_benchmark(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, perlin_2d_octaves_benchmark);
+criterion_group!(benches, cellular_2d_octaves_benchmark);
 criterion_main!(benches);

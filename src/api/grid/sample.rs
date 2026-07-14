@@ -1,5 +1,5 @@
 use crate::api::configs::*;
-use crate::api::grid::interface::{GridNoise, GridNoiseParams, GridGenerator};
+use crate::api::grid::interface::{GridGenerator, GridNoise, GridNoiseParams};
 use crate::api::seed::gen_octave_seed;
 use crate::math::random::Random;
 use crate::noise::util::grid_helpers::{Arena, ArenaBuffer};
@@ -63,7 +63,7 @@ impl<const D: usize, F: Combiner, S: GridGenerator<D>> GridNoise<D, F, S> {
         }
 
         // Subsequent octaves:
-        for _ in 1..(octaves - 1) {
+        for _ in 1..(octaves.saturating_sub(2)) {
             if F::WEIGHT_DECAY {
                 params.weight *= noise_config.persistence;
             }
@@ -73,12 +73,15 @@ impl<const D: usize, F: Combiner, S: GridGenerator<D>> GridNoise<D, F, S> {
             S::sample_grid::<F, false, false>(params, f_config, state, result);
         }
 
-        params.weight *= noise_config.persistence;
-        params.frequency = std::array::from_fn(|i| params.frequency[i] * noise_config.lacunarity);
-        params.seed = gen_octave_seed(params.frequency, base_seed);
-        match noise_config.finalization {
-            true => S::sample_grid::<F, false, true>(params, f_config, state, result),
-            false => S::sample_grid::<F, false, false>(params, f_config, state, result),
+        if octaves > 1 {
+            params.weight *= noise_config.persistence;
+            params.frequency =
+                std::array::from_fn(|i| params.frequency[i] * noise_config.lacunarity);
+            params.seed = gen_octave_seed(params.frequency, base_seed);
+            match noise_config.finalization {
+                true => S::sample_grid::<F, false, true>(params, f_config, state, result),
+                false => S::sample_grid::<F, false, false>(params, f_config, state, result),
+            }
         }
     }
 }

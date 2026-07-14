@@ -1,17 +1,48 @@
  # Quick-Noise
 
-Quick-Noise is a high-performance SIMD-accelerated batched noise generation library,
-with world-class performance in uniform grid noise generation on the CPU.
-It runs on Stable Rust.
+Maximum performance SIMD-accelerated procedural noise library 
+with up to 10x+ performance on uniform grids. Works on stable Rust.
+
+# Performance
+
+### 2D Noise
+Time taken to produce 3 octaves of FBM noise for 1024x1024 (1,048,576) samples.
+| Library              | Perlin  | Value   | Simplex | Cellular |
+|----------------------|---------|---------|---------|----------|
+| quick-noise (grid)*  | 0.66 ms | 0.50 ms |    X    |    X     |
+| quick-noise (batch)  | 4.19 ms | 3.79 ms | 5.84 ms | 7.48 ms  |
+| fastnoise2           | 6.22 ms | 5.01 ms | 7.33 ms | 21.4 ms  |
+| simd-noise           | 9.70 ms |    X    |    X    |          |
+| noise-rs             | 30.1 ms | 29.2 ms | 49.4 ms | 96.3 ms  |
+| noiz                 | 32.0 ms | 32.0 ms | 32.0 ms | 32.0 ms  |
+| libnoise             | 87.8 ms | 27.9 ms | 117 ms  | 176 ms   |
+
+### 3D Noise
+Time taken to produce 3 octaves of FBM noise for 128x128x128 (2,097,152) samples.
+| Library              | Perlin  | Value   | Simplex | Cellular |
+|----------------------|---------|---------|---------|----------|
+| quick-noise (grid)*  | 0.87 ms | 0.62 ms |    X    |    X     |
+| quick-noise (batch)  | 27.2 ms | 12.0 ms | 24.1 ms | 39.0 ms  |
+| fastnoise2           | 29.7 ms | 16.0 ms | 37.9 ms | 137 ms   |
+| simd-noise           | 35.7 ms |    X    |    X    |    X     |
+| noise-rs             | 92.0 ms | 212 ms  | 251 ms  | 460 ms   |
+| noiz                 | 127 ms  | 127 ms  | 127 ms  | 127 ms   |
+| libnoise             | 232 ms  | 90.0 ms | 250 ms  | 919 ms   |
+
+*X signifies the noise type is not supported or readily exposed
+*Grid path performance degrades for very high frequencies, and cannot support frequencies
+>= 1.0. Grid noise. However, it can generate 10+ billion samples per second
+at smaller grid sizes (64x64, 32x32x32) where memory transfer is a smaller barrier.
+More detailed benchmarks below.
+
 
 # Usage
 
 Quick-Noise offers two public facing interfaces. The first is grid noise.
-The performance of grid noise is often magnitudes higher than batch noise, and is the recommended way to create noise for high-performance procedural generation.
-Grid noise samples a squared (2D) or cubed (3D) region uniformly.
-Quick-Noise also supports batch noise, which samples points at any arbitrary input.
-
-Node: For comprehensive details, check the documentation.
+The performance of grid noise is often magnitudes higher than the second interface,
+batch noise, and the recommended path for high-performance procedural generation.
+Grid noise samples a squared (2D) or cubed (3D) region uniformly while batch noise 
+samples points at arbitrary inputs.
 
 ## Builders
 

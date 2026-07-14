@@ -48,7 +48,7 @@ pub trait Combiner: Default + Copy + Clone + PartialEq {
     /// # Parameters
     /// - `current`: Existing noise value from previous samples
     /// - `output`: New sample output from the current noise pass
-    fn sample(
+    fn apply_sample(
         config: &Self::Config,
         state: Self::State,
         cur_result: ArchSimd<f32>,
@@ -65,11 +65,11 @@ pub trait Combiner: Default + Copy + Clone + PartialEq {
     /// - `current`: Existing noise value from previous samples
     /// - `output`: New sample output from the current noise pass
     #[inline(always)]
-    fn initialize(
+    fn initialize_sample(
         config: &Self::Config,
         new_sample: ArchSimd<f32>,
     ) -> (Self::State, ArchSimd<f32>) {
-        Self::sample(config, Default::default(), Default::default(), new_sample)
+        Self::apply_sample(config, Default::default(), Default::default(), new_sample)
     }
 
     /// Determines how the final noise sample is processed after
@@ -79,7 +79,7 @@ pub trait Combiner: Default + Copy + Clone + PartialEq {
     /// # Parameters
     /// - `last`: The final noise sample after prior fractal processing
     #[inline(always)]
-    fn finalize(_config: &Self::Config, _state: Self::State, last: ArchSimd<f32>) -> ArchSimd<f32> {
+    fn finalize_sample(_config: &Self::Config, _state: Self::State, last: ArchSimd<f32>) -> ArchSimd<f32> {
         last
     }
 }

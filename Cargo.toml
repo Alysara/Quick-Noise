@@ -25,13 +25,35 @@ itertools = "0.14.0"
 
 [dev-dependencies]
 criterion = { version = "0.8.2", default-features = false, features = ["cargo_bench_support"] }
-# fastnoise2 = "0.4.0"
+fastnoise2 = "0.4.0"
+noise = "0.9.0"
+libnoise = "1.2.0"
+noiz = "0.5.0"
+simdnoise = "3.1.6"
+fastnoise-lite = "1.1.1" # bonus: common cross-language reference impl
+bevy_math = "0.19.0"
 
 [features]
 image = ["dep:image"]
 
 [[bench]]
 name = "perlin"
+harness = false
+
+[[bench]]
+name = "value"
+harness = false
+
+[[bench]]
+name = "simplex"
+harness = false
+
+[[bench]]
+name = "cellular"
+harness = false
+
+[[bench]]
+name = "grid"
 harness = false
 
 [[example]]

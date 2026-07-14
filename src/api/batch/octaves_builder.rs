@@ -92,7 +92,7 @@ impl<F: Combiner, S: BatchGenerator<3>> BatchNoise<3, F, S> {
         X: Iterator<Item = ArchSimd<f32>>,
         Y: Iterator<Item = ArchSimd<f32>>,
         Z: Iterator<Item = ArchSimd<f32>>,
-        Zip<(X, Y)>: DimIter<3>,
+        Zip<(X, Y, Z)>: DimIter<3>,
     {
         OctaveBatchNoiseBuilder::<3, F, S, _>::new(octave_list, x_iter, y_iter, z_iter)
     }

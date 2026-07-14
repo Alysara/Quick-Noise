@@ -114,9 +114,9 @@ impl SliceIter {
     pub fn new(row_size: usize, slice_size: usize, num_slices: usize, start_val: f32) -> Self {
         Self {
             row_size,
-            slice_size,
+            slice_size: slice_size - 1,
             left_in_row: row_size,
-            left_in_slice: slice_size,
+            left_in_slice: slice_size - 1,
             slices_left: num_slices - 1,
             cur_val: start_val,
             start_val,

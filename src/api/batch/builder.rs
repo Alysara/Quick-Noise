@@ -68,7 +68,7 @@ where
 }
 
 impl<F: Combiner, S: BatchGenerator<3>> BatchNoise<3, F, S> {
-    pub fn sample_builder<X, Y, Z>(
+    pub fn builder<X, Y, Z>(
         x_iter: X,
         y_iter: Y,
         z_iter: Z,
@@ -77,7 +77,7 @@ impl<F: Combiner, S: BatchGenerator<3>> BatchNoise<3, F, S> {
         X: Iterator<Item = ArchSimd<f32>>,
         Y: Iterator<Item = ArchSimd<f32>>,
         Z: Iterator<Item = ArchSimd<f32>>,
-        Zip<(X, Y)>: DimIter<3>,
+        Zip<(X, Y, Z)>: DimIter<3>,
     {
         BatchNoiseBuilder::<3, F, S, _>::new(x_iter, y_iter, z_iter)
     }

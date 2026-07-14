@@ -20,7 +20,7 @@ impl Combiner for Ridged {
     type Config = RidgedConfig;
 
     #[inline(always)]
-    fn sample(
+    fn apply_sample(
         config: &RidgedConfig,
         state: Self::State,
         cur_result: ArchSimd<f32>,
@@ -43,7 +43,7 @@ impl Combiner for Ridged {
     }
 
     #[inline(always)]
-    fn initialize(
+    fn initialize_sample(
         _config: &RidgedConfig,
         new_sample: ArchSimd<f32>,
     ) -> (Self::State, ArchSimd<f32>) {
@@ -59,7 +59,7 @@ impl Combiner for Ridged {
     }
 
     #[inline(always)]
-    fn finalize(_config: &RidgedConfig, _state: Self::State, last: ArchSimd<f32>) -> ArchSimd<f32> {
+    fn finalize_sample(_config: &RidgedConfig, _state: Self::State, last: ArchSimd<f32>) -> ArchSimd<f32> {
         last
     }
 }

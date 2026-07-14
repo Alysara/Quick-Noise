@@ -73,7 +73,7 @@ impl BitWidth for B8 {
     const BIT_SIZE: usize = 8;
 }
 
-pub(crate) trait SafeAdd {
+pub trait SafeAdd {
     fn safe_add(self, rhs: Self) -> Self;
 }
 

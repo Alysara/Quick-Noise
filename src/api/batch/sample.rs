@@ -49,9 +49,9 @@ impl<const D: usize, F: Combiner, S: BatchGenerator<D>> BatchNoise<D, F, S> {
             let new_sample = S::sample_batch(seed, inputs, freq) * weight;
             
             if noise_config.initialization {
-                (state, sample) = F::initialize(&fractal_config, new_sample);
+                (state, sample) = F::initialize_sample(&fractal_config, new_sample);
             } else {
-                (state, sample) = F::sample(&fractal_config, state, sample, new_sample);
+                (state, sample) = F::apply_sample(&fractal_config, state, sample, new_sample);
             }
 
             for seed in seeds.iter().take(octaves).skip(1) {
@@ -61,11 +61,11 @@ impl<const D: usize, F: Combiner, S: BatchGenerator<D>> BatchNoise<D, F, S> {
                 }
 
                 let new_sample = S::sample_batch(*seed, inputs, freq) * weight;
-                (state, sample) = F::sample(&fractal_config, state, sample, new_sample);
+                (state, sample) = F::apply_sample(&fractal_config, state, sample, new_sample);
             }
 
             if noise_config.finalization {
-                F::finalize(&fractal_config, state, sample)
+                F::finalize_sample(&fractal_config, state, sample)
             } else {
                 sample
             }
