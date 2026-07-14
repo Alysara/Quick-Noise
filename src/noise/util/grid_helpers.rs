@@ -181,18 +181,18 @@ pub fn validate_grid_size<const D: usize>(grid_size: [usize; D], slice_len: usiz
 }
 
 #[inline(always)]
-pub fn validate_state_size<T: Combiner, const D: usize>(
+pub fn validate_state_size<C: Combiner, const D: usize>(
     grid_size: [usize; D],
     slice_len: usize,
 ) {
-    if T::State::STATE_SIZE > 0 {
+    if C::State::STATE_SIZE > 0 {
         let total_size: usize = grid_size.iter().product();
-        let required_size = total_size * T::State::STATE_SIZE;
+        let required_size = total_size * C::State::STATE_SIZE;
         assert!(
             slice_len >= required_size,
             "Uniform grid with dimensions {:?} with {} state variables requires a state size of{required_size}, which is more than the given slice length of {slice_len}",
             required_size,
-            T::State::STATE_SIZE,
+            C::State::STATE_SIZE,
         );
     }
 }
@@ -211,7 +211,7 @@ pub(crate) unsafe fn assume_init_slice<T>(s: &[MaybeUninit<T>]) -> &[T] {
 }
 
 #[inline(always)]
-pub fn grid_fill_indices_slice<const D: usize>(
+pub fn fill_grid_indices<const D: usize>(
     grid_indices: &mut [&mut [MaybeUninit<u32>]; D],
     distances: &[&mut [MaybeUninit<f32>]; D],
     distances_len: [usize; D],
@@ -228,18 +228,8 @@ pub fn grid_fill_indices_slice<const D: usize>(
             let mut bits = 0u64;
             for bit_index in (0..64).step_by(LANES) {
                 let cur_index = base_index + bit_index;
-                let (cur, prev) = unsafe {
-                    (
-                        ArchSimd::from_slice_unchecked(
-                            distances[i].get_unchecked(cur_index..).assume_init_ref(),
-                        ),
-                        ArchSimd::from_aligned_slice_unchecked(
-                            distances[i]
-                                .get_unchecked(cur_index - 1..)
-                                .assume_init_ref(),
-                        ),
-                    )
-                };
+                let cur = unsafe { distances[i].load_simd(cur_index)};
+                let prev = unsafe { distances[i].load_simd_aligned(cur_index - 1)};
 
                 let mask_bits = prev.simd_gt(cur).to_bits();
                 bits |= mask_bits << bit_index;
@@ -261,18 +251,8 @@ pub fn grid_fill_indices_slice<const D: usize>(
         let mut bits = 0u64;
         for bit_index in (0..tail_len).step_by(LANES) {
             let cur_index = bit_index + full_block_end + 1;
-            let (cur, prev) = unsafe {
-                (
-                    ArchSimd::from_slice_unchecked(
-                        distances[i].get_unchecked(cur_index..).assume_init_ref(),
-                    ),
-                    ArchSimd::from_aligned_slice_unchecked(
-                        distances[i]
-                            .get_unchecked(cur_index - 1..)
-                            .assume_init_ref(),
-                    ),
-                )
-            };
+            let cur = unsafe { distances[i].load_simd(cur_index)};
+            let prev = unsafe { distances[i].load_simd_aligned(cur_index - 1)};
 
             let mask_bits = prev.simd_gt(cur).to_bits();
             bits |= mask_bits << bit_index;

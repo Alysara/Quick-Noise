@@ -237,10 +237,64 @@ macro_rules! params_ridged_builder {
             /// # Default
             /// `2.0`
             pub fn gain(mut self, gain: f32) -> Self {
-                self.fractal_config.gain = gain;
+                self.combiner_config.gain = gain;
                 self
             }
         }
     };
 }
 pub(crate) use params_ridged_builder;
+
+macro_rules! params_ping_pong_builder {
+    ($name:ident, [ $($full_generics:tt)* ], [ $($short_generics:tt)* ]) => {
+        impl< $($full_generics)* > $name< $($short_generics)* > {
+            /// Controls how aggressively the noise output is folded.
+            ///
+            /// # Default
+            /// `2.0`
+            pub fn strength(mut self, strength: f32) -> Self {
+                self.combiner_config.strength = strength;
+                self
+            }
+        }
+    };
+}
+pub(crate) use params_ping_pong_builder;
+
+macro_rules! params_terrace_builder {
+    ($name:ident, [ $($full_generics:tt)* ], [ $($short_generics:tt)* ]) => {
+        impl< $($full_generics)* > $name< $($short_generics)* > {
+            /// Controls how many steps the final noise output is quantized across.
+            ///
+            /// # Default
+            /// `8.0`
+            pub fn steps(mut self, steps: f32) -> Self {
+                self.combiner_config.steps = steps;
+                self.combiner_config.step_size = 1.0 / steps;
+                self
+            }
+        }
+    };
+}
+pub(crate) use params_terrace_builder;
+
+macro_rules! params_hybrid_multi_builder {
+    ($name:ident, [ $($full_generics:tt)* ], [ $($short_generics:tt)* ]) => {
+        impl< $($full_generics)* > $name< $($short_generics)* > {
+            /// # Default
+            /// `2.0`
+            pub fn gain(mut self, gain: f32) -> Self {
+                self.combiner_config.gain = gain;
+                self
+            }
+
+            /// # Default
+            /// `1.0`
+            pub fn offset(mut self, offset: f32) -> Self {
+                self.combiner_config.offset = offset;
+                self
+            }
+        }
+    };
+}
+pub(crate) use params_hybrid_multi_builder;

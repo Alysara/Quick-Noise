@@ -5,12 +5,12 @@ use crate::math::random::Random;
 use crate::noise::util::grid_helpers::{Arena, ArenaBuffer};
 use crate::{Combiner, CombinerState};
 
-impl<const D: usize, F: Combiner, S: GridGenerator<D>> GridNoise<D, F, S> {
+impl<const D: usize, C: Combiner, G: GridGenerator<D>> GridNoise<D, C, G> {
     #[inline(always)]
     pub fn sample(
         grid_config: &GridConfig<D>,
         noise_config: &NoiseConfig<D>,
-        fractal_config: &F::Config,
+        combiner_config: &C::Config,
         result: &mut [f32],
     ) {
         let octaves = noise_config.num_grid_octaves();
@@ -27,7 +27,7 @@ impl<const D: usize, F: Combiner, S: GridGenerator<D>> GridNoise<D, F, S> {
 
         // FBM algorithm:
         let frequency = std::array::from_fn(|i| noise_config.scaling[i] * noise_config.frequency);
-        let weight = if noise_config.normalization && F::WEIGHT_DECAY {
+        let weight = if noise_config.normalization && C::WEIGHT_DECAY {
             noise_config.normalize_amplitude(noise_config.amplitude)
         } else {
             noise_config.amplitude
@@ -45,32 +45,32 @@ impl<const D: usize, F: Combiner, S: GridGenerator<D>> GridNoise<D, F, S> {
         };
 
         let total_size: usize = grid_config.grid_size.iter().product();
-        let needed_state_size = total_size * F::State::STATE_SIZE;
+        let needed_state_size = total_size * C::State::STATE_SIZE;
         let mut state_cache = ArenaBuffer::with_capacity(needed_state_size);
         let mut arena = Arena::with_cache(&mut state_cache);
         let state = arena.allocate(needed_state_size);
         let state = unsafe { state.assume_init_mut() };
-        let f_config = *fractal_config;
+        let f_config = *combiner_config;
 
         match (
             noise_config.initialization,
             noise_config.finalization && octaves == 1,
         ) {
-            (false, false) => S::sample_grid::<F, false, false>(params, f_config, state, result),
-            (true, false) => S::sample_grid::<F, true, false>(params, f_config, state, result),
-            (false, true) => S::sample_grid::<F, false, true>(params, f_config, state, result),
-            (true, true) => S::sample_grid::<F, true, true>(params, f_config, state, result),
+            (false, false) => G::sample_grid::<C, false, false>(params, f_config, state, result),
+            (true, false) => G::sample_grid::<C, true, false>(params, f_config, state, result),
+            (false, true) => G::sample_grid::<C, false, true>(params, f_config, state, result),
+            (true, true) => G::sample_grid::<C, true, true>(params, f_config, state, result),
         }
 
         // Subsequent octaves:
         for _ in 1..(octaves.saturating_sub(2)) {
-            if F::WEIGHT_DECAY {
+            if C::WEIGHT_DECAY {
                 params.weight *= noise_config.persistence;
             }
             params.frequency =
                 std::array::from_fn(|i| params.frequency[i] * noise_config.lacunarity);
             params.seed = gen_octave_seed(params.frequency, base_seed);
-            S::sample_grid::<F, false, false>(params, f_config, state, result);
+            G::sample_grid::<C, false, false>(params, f_config, state, result);
         }
 
         if octaves > 1 {
@@ -79,8 +79,8 @@ impl<const D: usize, F: Combiner, S: GridGenerator<D>> GridNoise<D, F, S> {
                 std::array::from_fn(|i| params.frequency[i] * noise_config.lacunarity);
             params.seed = gen_octave_seed(params.frequency, base_seed);
             match noise_config.finalization {
-                true => S::sample_grid::<F, false, true>(params, f_config, state, result),
-                false => S::sample_grid::<F, false, false>(params, f_config, state, result),
+                true => G::sample_grid::<C, false, true>(params, f_config, state, result),
+                false => G::sample_grid::<C, false, false>(params, f_config, state, result),
             }
         }
     }

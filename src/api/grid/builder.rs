@@ -6,7 +6,7 @@ use crate::api::parameters::*;
 use crate::math::random::Random;
 use crate::simd::arch_simd::ArchSimd;
 use crate::simd::register::iters::IntoSimdIterator;
-use crate::{Combiner, Ridged};
+use crate::{Combiner, HybridMulti, PingPong, Ridged, Terrace};
 
 /// A struct for creating FBM noise set on a uniform grid.
 /// The most performant way to generate Perlin noise.
@@ -14,13 +14,16 @@ use crate::{Combiner, Ridged};
 pub struct GridNoiseBuilder<const D: usize, F: Combiner, T: GridGenerator<D>> {
     grid_config: GridConfig<D>,
     noise_config: NoiseConfig<D>,
-    fractal_config: F::Config,
+    combiner_config: F::Config,
     _noise_type: PhantomData<T>,
 }
 
 params_noise_builder!(GridNoiseBuilder, [const D: usize, F: Combiner, T: GridGenerator<D>], [D, F, T]);
 params_lacunarity_builder!(GridNoiseBuilder, [const D: usize, F: Combiner, T: GridGenerator<D>], [D, F, T]);
 params_ridged_builder!(GridNoiseBuilder, [const D: usize, T: GridGenerator<D>], [D, Ridged, T]);
+params_ping_pong_builder!(GridNoiseBuilder, [const D: usize, T: GridGenerator<D>], [D, PingPong, T]);
+params_terrace_builder!(GridNoiseBuilder, [const D: usize, T: GridGenerator<D>], [D, Terrace, T]);
+params_hybrid_multi_builder!(GridNoiseBuilder, [const D: usize, T: GridGenerator<D>], [D, HybridMulti, T]);
 params_noise_scaling_2d!(GridNoiseBuilder, [F: Combiner, T: GridGenerator<2>], [2, F, T]);
 params_noise_scaling_3d!(GridNoiseBuilder, [F: Combiner, T: GridGenerator<3>], [3, F, T]);
 
@@ -39,7 +42,7 @@ impl<const D: usize, F: Combiner, T: GridGenerator<D>> GridNoiseBuilder<D, F, T>
         GridNoise::<D, F, T>::sample(
             &self.grid_config,
             &self.noise_config,
-            &self.fractal_config,
+            &self.combiner_config,
             result.as_mut_slice(),
         );
         result
@@ -49,7 +52,7 @@ impl<const D: usize, F: Combiner, T: GridGenerator<D>> GridNoiseBuilder<D, F, T>
         GridNoise::<D, F, T>::sample(
             &self.grid_config,
             &self.noise_config,
-            &self.fractal_config,
+            &self.combiner_config,
             result,
         );
     });

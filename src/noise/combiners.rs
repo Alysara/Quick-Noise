@@ -4,11 +4,19 @@ use crate::simd::arch_simd::ArchSimd;
 
 pub mod billow;
 pub mod fbm;
+pub mod hybrid_multi;
+pub mod multi;
+pub mod ping_pong;
 pub mod ridged;
+pub mod terrace;
 
 pub use billow::Billow;
 pub use fbm::Fbm;
+pub use multi::Multi;
+pub use hybrid_multi::HybridMulti;
+pub use ping_pong::PingPong;
 pub use ridged::Ridged;
+pub use terrace::Terrace;
 
 pub trait CombinerState:
     Copy + Index<usize, Output = ArchSimd<f32>> + IndexMut<usize> + Default
@@ -25,7 +33,7 @@ where
 
 pub type CombinerArray<const N: usize> = [ArchSimd<f32>; N];
 
-pub trait Combiner: Default + Copy + Clone + PartialEq {
+pub trait Combiner: Default + Copy + Clone {
     /// Determines whether or not octave weight parameters are ignored.
     /// If this is set to false, every octave has a weight of `1.0`.
     /// If this is set to true, every subsequent octave's weight is multiplied by persistence.
@@ -79,7 +87,11 @@ pub trait Combiner: Default + Copy + Clone + PartialEq {
     /// # Parameters
     /// - `last`: The final noise sample after prior fractal processing
     #[inline(always)]
-    fn finalize_sample(_config: &Self::Config, _state: Self::State, last: ArchSimd<f32>) -> ArchSimd<f32> {
+    fn finalize_sample(
+        _config: &Self::Config,
+        _state: Self::State,
+        last: ArchSimd<f32>,
+    ) -> ArchSimd<f32> {
         last
     }
 }

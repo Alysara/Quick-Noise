@@ -1,4 +1,4 @@
-//! Maximum performance SIMD-accelerated procedural noise library 
+//! Maximum performance SIMD-accelerated procedural noise library
 //! with up to 10x+ performance on uniform grids. Works on stable Rust.
 
 mod api;
@@ -18,6 +18,9 @@ pub use api::octave::Octave;
 pub use api::{
     BatchNoiseBuilder, GridNoiseBuilder, OctaveBatchNoiseBuilder, OctaveGridNoiseBuilder,
 };
-pub use noise::combiners::{Billow, Combiner, CombinerArray, CombinerState, Fbm, Ridged};
+pub use noise::combiners::{
+    Billow, Combiner, CombinerArray, CombinerState, Fbm, HybridMulti, Multi, PingPong, Ridged,
+    Terrace,
+};
 pub use noise::generators::{Cellular, Perlin, Simplex, Value};
 pub use noise::*;

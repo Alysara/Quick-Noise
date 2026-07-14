@@ -72,14 +72,14 @@ impl<'a> fmt::Debug for PerlinGradients2D<'a> {
 
 const LERP: u8 = Lerp::Quintic as u8;
 impl GridGenerator<2> for Perlin {
-    fn sample_grid<F: Combiner, const INIT: bool, const FINAL: bool>(
+    fn sample_grid<C: Combiner, const INIT: bool, const FINAL: bool>(
         params: GridNoiseParams<2>,
-        fractal_config: F::Config,
+        fractal_config: C::Config,
         state: &mut [f32],
         dst: &mut [f32],
     ) {
         validate_grid_size(params.grid_size, dst.len());
-        validate_state_size::<F, _>(params.grid_size, state.len());
+        validate_state_size::<C, _>(params.grid_size, state.len());
         let padded_size = pad_grid_size(params.grid_size);
 
         let required_cache = padded_size[1] * 3 + padded_size[0] * 12;
@@ -126,7 +126,7 @@ impl GridGenerator<2> for Perlin {
             );
 
             let y_range = y_cur_index..y_next_index;
-            grid_dotted_bilerp::<F, INIT, FINAL>(
+            grid_dotted_bilerp::<C, INIT, FINAL>(
                 &bilerp_config,
                 &fractal_config,
                 &grid_data,
@@ -244,9 +244,9 @@ pub(super) fn grid_gradients_2d<'a>(
 
 /// Handles interpolation execution state and fills
 /// the dst slice with interpolated values from gradient dot produtcts.
-pub(crate) struct DottedBilerpExecuter<'a, F: Combiner, const INIT: bool, const FINAL: bool> {
+pub(crate) struct DottedBilerpExecuter<'a, C: Combiner, const INIT: bool, const FINAL: bool> {
     config: &'a InterpolationConfig<NUM_BLOCKS>,
-    fractal_config: &'a F::Config,
+    fractal_config: &'a C::Config,
     grid_data: &'a GridData<'a, 2>,
     gradients: &'a PerlinGradients2D<'a>,
     y_range: Range<usize>,
@@ -262,9 +262,9 @@ pub(crate) struct DottedBilerpExecuter<'a, F: Combiner, const INIT: bool, const 
 
 /// Fills the dst slice with interpolated dot products from gradients.
 #[inline(always)]
-pub(super) fn grid_dotted_bilerp<F: Combiner, const INIT: bool, const FINAL: bool>(
+pub(super) fn grid_dotted_bilerp<C: Combiner, const INIT: bool, const FINAL: bool>(
     config: &InterpolationConfig<NUM_BLOCKS>,
-    fractal_config: &F::Config,
+    fractal_config: &C::Config,
     grid_data: &GridData<2>,
     gradients: &PerlinGradients2D,
     y_range: Range<usize>,
@@ -276,7 +276,7 @@ pub(super) fn grid_dotted_bilerp<F: Combiner, const INIT: bool, const FINAL: boo
             .assume_init()
     };
 
-    let mut executer = DottedBilerpExecuter::<F, INIT, FINAL> {
+    let mut executer = DottedBilerpExecuter::<C, INIT, FINAL> {
         config,
         fractal_config,
         grid_data,
@@ -303,7 +303,7 @@ pub(super) fn grid_dotted_bilerp<F: Combiner, const INIT: bool, const FINAL: boo
     }
 }
 
-impl<'a, F: Combiner, const INIT: bool, const FINAL: bool> DottedBilerpExecuter<'a, F, INIT, FINAL> {
+impl<'a, C: Combiner, const INIT: bool, const FINAL: bool> DottedBilerpExecuter<'a, C, INIT, FINAL> {
     #[inline(always)]
     pub fn interpolate<const IS_TAIL: bool>(&mut self, state: &mut [f32], dst: &mut [f32]) {
         let range = if IS_TAIL {
@@ -402,22 +402,22 @@ impl<'a, F: Combiner, const INIT: bool, const FINAL: bool> DottedBilerpExecuter<
             let output = y_lerp.mul_add(self.dif[block], self.top[block]);
 
             let (cur_state, mut result) = if INIT {
-                F::initialize_sample(self.fractal_config, output)
+                C::initialize_sample(self.fractal_config, output)
             } else {
-                let mut cur_state = F::State::default();
-                for i in 0..F::State::STATE_SIZE {
+                let mut cur_state = C::State::default();
+                for i in 0..C::State::STATE_SIZE {
                     let offset = i * self.grid_data.total_size;
                     let index = index + offset;
                     let tail_end = tail_end + offset;
                     cur_state[i] = unsafe { maybe_tail_load::<IS_TAIL>(index..tail_end, state) };
                 }
                 let cur_result = unsafe { maybe_tail_load::<IS_TAIL>(index..tail_end, dst) };
-                F::apply_sample(self.fractal_config, cur_state, cur_result, output)
+                C::apply_sample(self.fractal_config, cur_state, cur_result, output)
             };
 
             // Save changes to state.
             if !FINAL {
-                for i in 0..F::State::STATE_SIZE {
+                for i in 0..C::State::STATE_SIZE {
                     let offset = i * self.grid_data.total_size;
                     let index = index + offset;
                     let tail_end = tail_end + offset;
@@ -426,7 +426,7 @@ impl<'a, F: Combiner, const INIT: bool, const FINAL: bool> DottedBilerpExecuter<
             }
 
             if FINAL {
-                result = F::finalize_sample(self.fractal_config, cur_state, result);
+                result = C::finalize_sample(self.fractal_config, cur_state, result);
             }
 
             unsafe { maybe_tail_store::<IS_TAIL>(index..tail_end, result, dst) };

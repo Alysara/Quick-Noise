@@ -15,11 +15,11 @@ fn get_max<const D: usize>(array: [f32; D]) -> f32 {
 }
 
 /// Helper static function for custom noise.
-impl<const D: usize, F: Combiner, S: BatchGenerator<D>> BatchNoise<D, F, S> {
+impl<const D: usize, C: Combiner, G: BatchGenerator<D>> BatchNoise<D, C, G> {
     #[inline(always)]
     pub fn sample_with_octaves<I: DimIter<D>>(
         noise_config: OctaveNoiseConfig<D>,
-        fractal_config: F::Config,
+        combiner_config: C::Config,
         octave_list: &[Octave<D>],
         iters: I,
     ) -> impl Iterator<Item = ArchSimd<f32>> {
@@ -48,16 +48,16 @@ impl<const D: usize, F: Combiner, S: BatchGenerator<D>> BatchNoise<D, F, S> {
                 return ArchSimd::zero();
             }
 
-            let (mut state, mut sample): (F::State, ArchSimd<f32>) = Default::default();
+            let (mut state, mut sample): (C::State, ArchSimd<f32>) = Default::default();
 
             let freq = from_fn(|i| ArchSimd::splat(octave_list[0].frequency[i]));
             let seed = seeds[0];
             let weight = ArchSimd::splat(octave_list[0].weight) * weight_coef;
-            let new_sample = S::sample_batch(seed, inputs, freq) * weight;
+            let new_sample = G::sample_batch(seed, inputs, freq) * weight;
             if noise_config.initialization {
-                (state, sample) = F::initialize_sample(&fractal_config, new_sample);
+                (state, sample) = C::initialize_sample(&combiner_config, new_sample);
             } else {
-                (state, sample) = F::apply_sample(&fractal_config, state, sample, new_sample);
+                (state, sample) = C::apply_sample(&combiner_config, state, sample, new_sample);
             }
 
             for (i, octave) in octave_list
@@ -69,12 +69,12 @@ impl<const D: usize, F: Combiner, S: BatchGenerator<D>> BatchNoise<D, F, S> {
                 let freq = from_fn(|i| ArchSimd::splat(octave.frequency[i]));
                 let seed = seeds[i];
                 let weight = ArchSimd::splat(octave_list[0].weight) * weight_coef;
-                let new_sample = S::sample_batch(seed, inputs, freq) * weight;
-                (state, sample) = F::apply_sample(&fractal_config, state, sample, new_sample);
+                let new_sample = G::sample_batch(seed, inputs, freq) * weight;
+                (state, sample) = C::apply_sample(&combiner_config, state, sample, new_sample);
             }
 
             if noise_config.finalization {
-                F::finalize_sample(&fractal_config, state, sample)
+                C::finalize_sample(&combiner_config, state, sample)
             } else {
                 sample
             }

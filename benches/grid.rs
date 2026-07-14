@@ -7,11 +7,11 @@ const SCALES: [f32; 11] = [64.0, 48.0, 32.0, 24.0, 16.0, 12.0, 8.0, 6.0, 4.0, 3.
 
 fn grid_2d_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("grid_noise_2d");
-    group.throughput(Throughput::Elements(1024));
+    group.throughput(Throughput::Elements(4096));
 
-    let mut result = [0.0; 1024];
+    let mut result = [0.0; 4096];
     for scale in SCALES {
-        let grid = Grid::<2>::new(32, 32);
+        let grid = Grid::<2>::new(64, 64);
 
         group.bench_function(format!("scale: {scale}"), |b| {
             b.iter(|| {
@@ -25,6 +25,5 @@ fn grid_2d_benchmark(c: &mut Criterion) {
     }
 }
 
-// criterion_group!(benches, simd_array_benchmark, simd_vec_benchmark);
 criterion_group!(benches, grid_2d_benchmark);
 criterion_main!(benches);

@@ -92,15 +92,15 @@ impl<'a> fmt::Debug for PerlinGradients3D<'a> {
 
 const LERP: u8 = Lerp::Quintic as u8;
 impl GridGenerator<3> for Perlin {
-    fn sample_grid<F: Combiner, const INIT: bool, const FINAL: bool>(
+    fn sample_grid<C: Combiner, const INIT: bool, const FINAL: bool>(
         params: GridNoiseParams<3>,
-        fractal_config: F::Config,
+        fractal_config: C::Config,
         state: &mut [f32],
         dst: &mut [f32],
     ) {
         // Validate and pad grid size.
         validate_grid_size(params.grid_size, dst.len());
-        validate_state_size::<F, _>(params.grid_size, state.len());
+        validate_state_size::<C, _>(params.grid_size, state.len());
         let padded_size = pad_grid_size(params.grid_size);
 
         // Arena setup.
@@ -137,7 +137,7 @@ impl GridGenerator<3> for Perlin {
                 // Set bottom gradients.
                 grid_gradients_3d(&params, &grid_data, &mut gradients, y_it, z_it);
 
-                grid_dotted_trilerp::<F, INIT, FINAL>(
+                grid_dotted_trilerp::<C, INIT, FINAL>(
                     &mut trilerp_buffers,
                     &bilerp_config,
                     &fractal_config,
@@ -351,9 +351,9 @@ impl<'a> DottedTrilerpBuffers<'a> {
 
 /// Handles interpolation execution state and fills
 /// the dst slice with interpolated values from gradient dot produtcts.
-pub(crate) struct DottedTrilerpExecuter<'a, F: Combiner, const INIT: bool, const FINAL: bool> {
+pub(crate) struct DottedTrilerpExecuter<'a, C: Combiner, const INIT: bool, const FINAL: bool> {
     config: &'a InterpolationConfig<NUM_BLOCKS>,
-    fractal_config: &'a F::Config,
+    fractal_config: &'a C::Config,
     grid_data: &'a GridData<'a, 3>,
     gradients: &'a PerlinGradients3D<'a>,
     y_range: Range<usize>,
@@ -373,10 +373,10 @@ pub(crate) struct DottedTrilerpExecuter<'a, F: Combiner, const INIT: bool, const
 
 /// Fills the dst slice with interpolated dot products from gradients.
 #[inline(always)]
-pub(super) fn grid_dotted_trilerp<F: Combiner, const INIT: bool, const FINAL: bool>(
+pub(super) fn grid_dotted_trilerp<C: Combiner, const INIT: bool, const FINAL: bool>(
     buffers: &mut DottedTrilerpBuffers,
     config: &InterpolationConfig<NUM_BLOCKS>,
-    fractal_config: &F::Config,
+    fractal_config: &C::Config,
     grid_data: &GridData<3>,
     gradients: &PerlinGradients3D,
     ranges: (Range<usize>, Range<usize>),
@@ -393,7 +393,7 @@ pub(super) fn grid_dotted_trilerp<F: Combiner, const INIT: bool, const FINAL: bo
             .assume_init()
     };
 
-    let mut executer = DottedTrilerpExecuter::<F, INIT, FINAL> {
+    let mut executer = DottedTrilerpExecuter::<C, INIT, FINAL> {
         config,
         fractal_config,
         grid_data,
@@ -426,8 +426,8 @@ pub(super) fn grid_dotted_trilerp<F: Combiner, const INIT: bool, const FINAL: bo
     }
 }
 
-impl<'a, F: Combiner, const INIT: bool, const FINAL: bool>
-    DottedTrilerpExecuter<'a, F, INIT, FINAL>
+impl<'a, C: Combiner, const INIT: bool, const FINAL: bool>
+    DottedTrilerpExecuter<'a, C, INIT, FINAL>
 {
     #[inline(always)]
     pub fn interpolate<const IS_TAIL: bool>(
@@ -649,20 +649,20 @@ impl<'a, F: Combiner, const INIT: bool, const FINAL: bool>
             let output = y_lerp.mul_add(self.dif[block], self.top[block]);
 
             let (cur_state, mut result) = if INIT {
-                F::initialize_sample(self.fractal_config, output)
+                C::initialize_sample(self.fractal_config, output)
             } else {
-                let mut cur_state = F::State::default();
-                for i in 0..F::State::STATE_SIZE {
+                let mut cur_state = C::State::default();
+                for i in 0..C::State::STATE_SIZE {
                     let index = index + i * self.grid_data.total_size;
                     cur_state[i] = unsafe { maybe_tail_load::<IS_TAIL>(index..tail_end, state) };
                 }
                 let cur_result = unsafe { maybe_tail_load::<IS_TAIL>(index..tail_end, dst) };
-                F::apply_sample(self.fractal_config, cur_state, cur_result, output)
+                C::apply_sample(self.fractal_config, cur_state, cur_result, output)
             };
 
             // Save changes to state.
             if !FINAL {
-                for i in 0..F::State::STATE_SIZE {
+                for i in 0..C::State::STATE_SIZE {
                     let offset = i * self.grid_data.total_size;
                     let index = index + offset;
                     let tail_end = tail_end + offset;
@@ -671,7 +671,7 @@ impl<'a, F: Combiner, const INIT: bool, const FINAL: bool>
             }
 
             if FINAL {
-                result = F::finalize_sample(self.fractal_config, cur_state, result);
+                result = C::finalize_sample(self.fractal_config, cur_state, result);
             }
 
             unsafe { maybe_tail_store::<IS_TAIL>(index..tail_end, result, dst) };

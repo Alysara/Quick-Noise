@@ -2,7 +2,7 @@ use std::array::from_fn;
 use std::mem::MaybeUninit;
 
 use crate::api::grid::interface::GridNoiseParams;
-use crate::noise::util::grid_helpers::{Arena, configure_tiling, grid_fill_indices_slice};
+use crate::noise::util::grid_helpers::{Arena, configure_tiling, fill_grid_indices};
 use crate::simd::arch_simd::ArchSimd;
 
 pub(crate) struct GridData<'a, const D: usize> {
@@ -25,6 +25,7 @@ pub(crate) enum Lerp {
 }
 
 impl Lerp {
+    #[inline(always)]
     pub const fn from_u8(val: u8) -> Self {
         match val {
             0 => Self::Cubic,
@@ -84,7 +85,7 @@ impl<'a, const D: usize> GridData<'a, D> {
 
         // Identify the cutoff points between frequency-based grid boundaries .
         let mut grid_indices = from_fn(|i| arena.allocate(padded_size[i]));
-        let num_loops = grid_fill_indices_slice(&mut grid_indices, &distances, params.grid_size);
+        let num_loops = fill_grid_indices(&mut grid_indices, &distances, params.grid_size);
 
         // Adjust the tiling.
         let octave_tiling = configure_tiling(params);

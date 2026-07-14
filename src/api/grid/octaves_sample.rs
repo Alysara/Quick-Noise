@@ -10,12 +10,12 @@ fn get_max<const D: usize>(array: [f32; D]) -> f32 {
     array.iter().cloned().fold(f32::NEG_INFINITY, f32::max)
 }
 
-impl<const D: usize, F: Combiner, S: GridGenerator<D>> GridNoise<D, F, S> {
+impl<const D: usize, C: Combiner, G: GridGenerator<D>> GridNoise<D, C, G> {
     #[inline(always)]
     pub fn sample_with_octaves(
         grid_config: &GridConfig<D>,
         noise_config: &NoiseConfig<D>,
-        fractal_config: &F::Config,
+        combiner_config: &C::Config,
         octave_list: &[Octave<D>],
         dst: &mut [f32],
     ) {
@@ -45,12 +45,12 @@ impl<const D: usize, F: Combiner, S: GridGenerator<D>> GridNoise<D, F, S> {
         };
 
         let total_size: usize = grid_config.grid_size.iter().product();
-        let needed_state_size = total_size * F::State::STATE_SIZE;
+        let needed_state_size = total_size * C::State::STATE_SIZE;
         let mut state_cache = ArenaBuffer::with_capacity(needed_state_size);
         let mut arena = Arena::with_cache(&mut state_cache);
         let state = arena.allocate(needed_state_size);
         let state = unsafe { state.assume_init_mut() };
-        let f_config = *fractal_config;
+        let f_config = *combiner_config;
 
         // First octave:
         let mut octave_iter = octave_list.iter().filter(|x| get_max(x.frequency) < 1.0);
@@ -63,10 +63,10 @@ impl<const D: usize, F: Combiner, S: GridGenerator<D>> GridNoise<D, F, S> {
                 noise_config.initialization,
                 noise_config.finalization && num_octaves == 1,
             ) {
-                (true, true) => S::sample_grid::<F, true, true>(params, f_config, state, dst),
-                (false, true) => S::sample_grid::<F, false, true>(params, f_config, state, dst),
-                (true, false) => S::sample_grid::<F, true, false>(params, f_config, state, dst),
-                (false, false) => S::sample_grid::<F, false, false>(params, f_config, state, dst),
+                (true, true) => G::sample_grid::<C, true, true>(params, f_config, state, dst),
+                (false, true) => G::sample_grid::<C, false, true>(params, f_config, state, dst),
+                (true, false) => G::sample_grid::<C, true, false>(params, f_config, state, dst),
+                (false, false) => G::sample_grid::<C, false, false>(params, f_config, state, dst),
             }
         }
 
@@ -75,7 +75,7 @@ impl<const D: usize, F: Combiner, S: GridGenerator<D>> GridNoise<D, F, S> {
             params.seed = gen_octave_seed(octave.frequency, seed);
             params.frequency = octave.frequency;
             params.weight = octave.weight * weight_coef;
-            S::sample_grid::<F, false, false>(params, f_config, state, dst);
+            G::sample_grid::<C, false, false>(params, f_config, state, dst);
         }
 
         // Final octave:
@@ -84,8 +84,8 @@ impl<const D: usize, F: Combiner, S: GridGenerator<D>> GridNoise<D, F, S> {
             params.frequency = octave.frequency;
             params.weight = octave.weight * weight_coef;
             match noise_config.finalization {
-                true => S::sample_grid::<F, false, true>(params, f_config, state, dst),
-                false => S::sample_grid::<F, false, false>(params, f_config, state, dst),
+                true => G::sample_grid::<C, false, true>(params, f_config, state, dst),
+                false => G::sample_grid::<C, false, false>(params, f_config, state, dst),
             }
         }
     }

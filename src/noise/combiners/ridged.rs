@@ -15,8 +15,8 @@ impl Default for RidgedConfig {
 #[derive(Default, Copy, Clone, PartialEq, Debug)]
 pub struct Ridged {}
 impl Combiner for Ridged {
-    const WEIGHT_DECAY: bool = false; // gain/weight cascade replaces simple persistence decay
-    type State = CombinerArray<1>; // state[0] = weight carried to next octave
+    const WEIGHT_DECAY: bool = false;
+    type State = CombinerArray<1>;
     type Config = RidgedConfig;
 
     #[inline(always)]
@@ -53,7 +53,7 @@ impl Combiner for Ridged {
         let signal = signal * signal;
 
         let mut state = Self::State::default();
-        state[0] = signal; // first weight = first signal, per Musgrave's algorithm
+        state[0] = signal;
 
         (state, signal)
     }

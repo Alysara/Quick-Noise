@@ -29,9 +29,9 @@ Time taken to produce 3 octaves of FBM noise for 128x128x128 (2,097,152) samples
 | noiz                 | 127 ms  | 127 ms  | 127 ms  | 127 ms   |
 | libnoise             | 232 ms  | 90.0 ms | 250 ms  | 919 ms   |
 
-*X signifies the noise type is not supported or readily exposed
-*Grid path performance degrades for very high frequencies, and cannot support frequencies
->= 1.0. Grid noise. However, it can generate 10+ billion samples per second
+* X signifies the noise type is not supported or readily exposed
+* Grid path performance degrades for very high frequencies, and cannot support
+frequencies >= 1.0. Grid noise. However, it can generate 10+ billion samples per second
 at smaller grid sizes (64x64, 32x32x32) where memory transfer is a smaller barrier.
 More detailed benchmarks below.
 
@@ -47,41 +47,42 @@ samples points at arbitrary inputs.
 ## Builders
 
 Builders are used to offer extensive options while remaining approachable.
-Every builder can be executed with one of four methods: `build()`, `fill()`, `fill_onto()`, and `into_iter()`.
+Every builder can be executed with one of three methods: `build()`, `fill()`, and `into_iter()`.
 - `build()`: returns an array of the noise result directly
 - `fill()`: fills an array that you provide, potentially saving costly memory copies
-- `fill_onto`: adds the result to an array you provide, allowing you to do certain operations in-place
 - `into_iter()`: returns an iterator containing simd registers
 
 Iterators allow multiple steps of the noise pipeline to fuse together, providing speedups by keeping data in registers directly.
 Note that grid noise is an exception to this rule, but makes up for it many times over in speed.
 
-All builders must have their dimensions and sizes specified at compile time.
-The current implementation uses a stack-only approach for maximum performance,
-but a heap-based alternative is in progress for larger dimensions and dimensions determined at runtime.
+
+## Combiners and Generators
+
+Generators are structs that define how to generate noise. This includes [Perlin], [Value], [Simplex], and [Cellular].
+Combiners specify *how* that noise is applied across multiple octaves (noise passes). This includes
+[Fbm], [Billow], and [Ridged]. Combiners apply to both batch and grid noise.
 
 ## Grid Noise
 
 Grid noise is called through a grid region. Each noise call takes into account both the grid seed and the seed of the noise call,
-making it easier to have multiple noise maps with the same primary seed. Note that desipte specifying the dimensions explicitly,
-the total area (2D) or volume (3D) is necessary due to limitations with const generic expressions on Stable Rust.
+making it easier to have multiple noise maps with the same primary seed.
 
 ```rs
-use quick_noise::{Grid2D, Perlin};
+use quick_noise::{Grid, Fbm, Perlin};
 
 // Creates an anchor into a region of sample space.
-let grid_2d = Grid2D::<500, 500, 250000>::new()
-	.position(0, 0)
+let grid = Grid::<2>::new(200, 200) // Specify a 2D 200x200 grid.
+	.grid_position(0, 0)
 	.seed(102);
 	
-let grid_2d.fbm::<Perlin>()
+let grid.fbm::<Perlin>()
 	.octaves(6)
 	.frequency(0.01)
 	.into_iter()
 	.to_grayscale_image::<500, 500>("noise_images/perlin_batch_2d.png");
 	
 // FBM Grid noise with all parameters.
-let noise = grid_2d.fbm::<Perlin>()
+let noise = grid.builder::<Fbm, Perlin>()
 	.seed(0)
 	.octaves(1)
 	.frequency(0.03125)
@@ -90,34 +91,38 @@ let noise = grid_2d.fbm::<Perlin>()
 	.amplitude(1.0)
 	.normalization(true)
 	.scaling(1.0, 1.0)
+    .initialization(true)
+    .finalization(true)
 	.build();
 ```
 
 Currently, only Perlin and Value is supported for grid noise. For octave sequences more complicated than FBM noise,
-`custom` can be used for granular control over frequencies and weights.
+`builder_with_octaves` can be used for granular control over frequencies and weights.
 
 ```rs
-use quick_noise::{Grid2D, Perlin};
+use quick_noise::{Grid, Billow, Simplex};
+
+let grid = Grid::<2>::new(200, 200);
 
 // Custom list of octaves that can't be easily described by FBM noise.
-let octave_list = vec![
+let octave_list = [
 	// Creates octaves from frequency and weight.
-	Octave2D::splat(0.05, 7.0),
-	Octave2D::splat(0.02, 4.0),
-	Octave2D::splat(0.03, 15.0),
-	Octave2D::splat(0.04, 9.0),
-	Octave2D::splat(0.05, 15.0),
+	Octave::<2>::splat(0.05, 7.0),
+	Octave::<2>::splat(0.02, 4.0),
+	Octave::<2>::splat(0.03, 15.0),
+	Octave::<2>::splat(0.04, 9.0),
+	Octave::<2>::splat(0.05, 15.0),
 
 	// Allows axis-specific granularity for frequency.
 	// This creates 'stretched' noise.
-	Octave2D::new(Vec2::new(0.01, 0.015), 50.0),
+	Octave::<2>::new([0.01, 0.015], 50.0),
 ];
 
-// Takes in a slice reference for flexible array or heap usage.
-let noise = grid_2d.custom::<Perlin>(octave_list.as_slice())
+let mut result = vec![0.0; 40000];
+let noise = grid_2d.builder_with_octaves::<Billow, Simplex>(octave_list.as_slice())
 	.seed(1000)
 	.amplitude(2.0)
-	.build();
+	.fill(result.as_mut_slice());
 ```
 
 Quick-Noise makes FBM warped noise convenient through a dedicated grid method.
