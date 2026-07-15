@@ -20,6 +20,8 @@ strip = false
 [dependencies]
 num-traits = "0.2.19"
 image = { version = "0.25.9", default-features = false, features = ["png"], optional = true }
+serde = { version = "1", features = ["derive"], optional = true }
+serde_arrays = { version = "0.2", optional = true }
 paste = "1.0.15"
 itertools = "0.14.0"
 
@@ -35,6 +37,7 @@ bevy_math = "0.19.0"
 
 [features]
 image = ["dep:image"]
+serde = ["dep:serde", "dep:serde_arrays"]
 
 [[bench]]
 name = "perlin"
@@ -54,6 +57,10 @@ harness = false
 
 [[bench]]
 name = "grid"
+harness = false
+
+[[bench]]
+name = "batch"
 harness = false
 
 [[example]]

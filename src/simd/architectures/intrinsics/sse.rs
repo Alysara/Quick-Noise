@@ -117,47 +117,72 @@ impl SimdBitwiseImpl for SseReg {
     }
 }
 
+macro_rules! scalar_shift {
+    ($self:expr, $rhs:expr, $lanes:expr, $elem:ty, $uelem:ty, $op:tt) => {{
+        let mut a = [<$elem>::default(); $lanes];
+        let mut b = [<$elem>::default(); $lanes];
+        _mm_storeu_si128(a.as_mut_ptr() as *mut __m128i, $self.0);
+        _mm_storeu_si128(b.as_mut_ptr() as *mut __m128i, $rhs.0);
+        let width = (std::mem::size_of::<$elem>() * 8) as u32;
+        let mut out = [<$elem>::default(); $lanes];
+        for i in 0..$lanes {
+            let shift = b[i] as $uelem as u32;
+            out[i] = scalar_shift!(@apply $op, a[i], shift, width, $elem, $uelem);
+        }
+        Self(_mm_loadu_si128(out.as_ptr() as *const __m128i))
+    }};
+    (@apply sll, $val:expr, $shift:expr, $width:expr, $elem:ty, $uelem:ty) => {
+        if $shift >= $width { 0 } else { (($val as $uelem) << $shift) as $elem }
+    };
+    (@apply srl, $val:expr, $shift:expr, $width:expr, $elem:ty, $uelem:ty) => {
+        if $shift >= $width { 0 } else { (($val as $uelem) >> $shift) as $elem }
+    };
+    (@apply sra, $val:expr, $shift:expr, $width:expr, $elem:ty, $uelem:ty) => {
+        $val >> $shift.min($width - 1)
+    };
+}
+
 impl SimdShiftImpl for SseReg {
     #[inline(always)]
     unsafe fn sllv_64(self, rhs: Self) -> Self {
-        self_from_op!(_mm_sllv_epi64, self, rhs)
+        unsafe { scalar_shift!(self, rhs, 2, i64, u64, sll) }
     }
     #[inline(always)]
     unsafe fn srlv_64(self, rhs: Self) -> Self {
-        self_from_op!(_mm_srlv_epi64, self, rhs)
+        unsafe { scalar_shift!(self, rhs, 2, i64, u64, srl) }
     }
     #[inline(always)]
     unsafe fn srav_64(self, rhs: Self) -> Self {
-        self_from_op!(_mm_srav_epi64, self, rhs)
+        unsafe { scalar_shift!(self, rhs, 2, i64, u64, sra) }
     }
     #[inline(always)]
     unsafe fn sllv_32(self, rhs: Self) -> Self {
-        self_from_op!(_mm_sllv_epi32, self, rhs)
+        unsafe { scalar_shift!(self, rhs, 4, i32, u32, sll) }
     }
     #[inline(always)]
     unsafe fn srlv_32(self, rhs: Self) -> Self {
-        self_from_op!(_mm_srlv_epi32, self, rhs)
+        unsafe { scalar_shift!(self, rhs, 4, i32, u32, srl) }
     }
     #[inline(always)]
     unsafe fn srav_32(self, rhs: Self) -> Self {
-        self_from_op!(_mm_srav_epi32, self, rhs)
+        unsafe { scalar_shift!(self, rhs, 4, i32, u32, sra) }
     }
     #[inline(always)]
     unsafe fn sllv_16(self, rhs: Self) -> Self {
-        self_from_op!(_mm_sllv_epi16, self, rhs)
+        unsafe { scalar_shift!(self, rhs, 8, i16, u16, sll) }
     }
     #[inline(always)]
     unsafe fn srlv_16(self, rhs: Self) -> Self {
-        self_from_op!(_mm_srlv_epi16, self, rhs)
+        unsafe { scalar_shift!(self, rhs, 8, i16, u16, srl) }
     }
     #[inline(always)]
     unsafe fn srav_16(self, rhs: Self) -> Self {
-        self_from_op!(_mm_srav_epi16, self, rhs)
+        unsafe { scalar_shift!(self, rhs, 8, i16, u16, sra) }
     }
 }
-
 impl SimdLoadImpl for SseReg {
     type MaskType = Self;
+
     #[inline(always)]
     unsafe fn load_aligned<T>(ptr: *const T) -> Self {
         self_from_op!(_mm_load_si128, ptr)
@@ -166,18 +191,44 @@ impl SimdLoadImpl for SseReg {
     unsafe fn load_unaligned<T>(ptr: *const T) -> Self {
         self_from_op!(_mm_loadu_si128, ptr)
     }
+
     #[inline(always)]
     unsafe fn masked_load_64<T>(ptr: *const T, mask: Self::MaskType) -> Self {
-        self_from_op!(_mm_maskload_epi64, ptr, mask)
+        unsafe {
+            let mut m = [0i64; 2];
+            _mm_storeu_si128(m.as_mut_ptr() as *mut __m128i, mask.0);
+            let src = ptr as *const i64;
+            let mut out = [0i64; 2];
+            for i in 0..2 {
+                // AVX2 semantics: only the top bit of each lane's mask element is checked
+                if (m[i] as u64) & (1 << 63) != 0 {
+                    out[i] = *src.add(i);
+                }
+            }
+            Self(_mm_loadu_si128(out.as_ptr() as *const __m128i))
+        }
     }
+
     #[inline(always)]
     unsafe fn masked_load_32<T>(ptr: *const T, mask: Self::MaskType) -> Self {
-        self_from_op!(_mm_maskload_epi32, ptr, mask)
+        unsafe {
+            let mut m = [0i32; 4];
+            _mm_storeu_si128(m.as_mut_ptr() as *mut __m128i, mask.0);
+            let src = ptr as *const i32;
+            let mut out = [0i32; 4];
+            for i in 0..4 {
+                if (m[i] as u32) & (1 << 31) != 0 {
+                    out[i] = *src.add(i);
+                }
+            }
+            Self(_mm_loadu_si128(out.as_ptr() as *const __m128i))
+        }
     }
 }
 
 impl SimdStoreImpl for SseReg {
     type MaskType = Self;
+
     #[inline(always)]
     unsafe fn store_aligned<T>(self, ptr: *mut T) {
         execute_intrinsic!(_mm_store_si128, ptr, self);
@@ -186,13 +237,37 @@ impl SimdStoreImpl for SseReg {
     unsafe fn store_unaligned<T>(self, ptr: *mut T) {
         execute_intrinsic!(_mm_storeu_si128, ptr, self);
     }
+
     #[inline(always)]
     unsafe fn masked_store_64<T>(self, ptr: *mut T, mask: Self::MaskType) {
-        execute_intrinsic!(_mm_maskstore_epi64, ptr, mask, self);
+        unsafe {
+            let mut m = [0i64; 2];
+            let mut v = [0i64; 2];
+            _mm_storeu_si128(m.as_mut_ptr() as *mut __m128i, mask.0);
+            _mm_storeu_si128(v.as_mut_ptr() as *mut __m128i, self.0);
+            let dst = ptr as *mut i64;
+            for i in 0..2 {
+                if (m[i] as u64) & (1 << 63) != 0 {
+                    *dst.add(i) = v[i];
+                }
+            }
+        }
     }
+
     #[inline(always)]
     unsafe fn masked_store_32<T>(self, ptr: *mut T, mask: Self::MaskType) {
-        execute_intrinsic!(_mm_maskstore_epi32, ptr, mask, self);
+        unsafe {
+            let mut m = [0i32; 4];
+            let mut v = [0i32; 4];
+            _mm_storeu_si128(m.as_mut_ptr() as *mut __m128i, mask.0);
+            _mm_storeu_si128(v.as_mut_ptr() as *mut __m128i, self.0);
+            let dst = ptr as *mut i32;
+            for i in 0..4 {
+                if (m[i] as u32) & (1 << 31) != 0 {
+                    *dst.add(i) = v[i];
+                }
+            }
+        }
     }
 }
 
@@ -224,14 +299,24 @@ impl SimdIntCastsImpl for SseReg {
 impl SimdPermuteImpl for SseReg {
     #[inline(always)]
     unsafe fn permute_32(self, rhs: Self) -> Self {
-        self_from_op!(_mm_permutevar_ps, self, rhs)
+        unsafe {
+            let mut a = [0.0f32; 4];
+            let mut idx = [0i32; 4];
+            _mm_storeu_ps(a.as_mut_ptr(), std::mem::transmute(self.0));
+            _mm_storeu_si128(idx.as_mut_ptr() as *mut __m128i, rhs.0);
+            let mut out = [0.0f32; 4];
+            for i in 0..4 {
+                out[i] = a[(idx[i] & 0b11) as usize]; // low 2 bits select lane, same as hardware
+            }
+            Self(std::mem::transmute(_mm_loadu_ps(out.as_ptr())))
+        }
     }
+
     #[inline(always)]
     unsafe fn permute_8(self, rhs: Self) -> Self {
         self_from_op!(_mm_shuffle_epi8, self, rhs)
     }
 }
-
 impl SimdVariableBlendImpl for SseReg {
     type VecType = Self;
     #[inline(always)]
@@ -262,35 +347,46 @@ impl SimdImmediateBlendImpl for SseReg {
 impl SimdMulAddImpl for SseReg {
     #[inline(always)]
     unsafe fn mul_add_f64(self, mult: Self, add: Self) -> Self {
-        self_from_op!(_mm_fmadd_pd, self, mult, add)
+        self_from_op!(_mm_add_pd, self_from_op!(_mm_mul_pd, self, mult), add)
     }
     #[inline(always)]
     unsafe fn mul_sub_f64(self, mult: Self, sub: Self) -> Self {
-        self_from_op!(_mm_fmsub_pd, self, mult, sub)
+        self_from_op!(_mm_sub_pd, self_from_op!(_mm_mul_pd, self, mult), sub)
     }
     #[inline(always)]
     unsafe fn negated_mul_add_f64(self, mult: Self, add: Self) -> Self {
-        self_from_op!(_mm_fnmadd_pd, self, mult, add)
+        self_from_op!(_mm_sub_pd, add, self_from_op!(_mm_mul_pd, self, mult))
     }
     #[inline(always)]
     unsafe fn negated_mul_sub_f64(self, mult: Self, sub: Self) -> Self {
-        self_from_op!(_mm_fnmsub_pd, self, mult, sub)
+        let neg = self_from_op!(_mm_mul_pd, self, mult);
+        self_from_op!(
+            _mm_sub_pd,
+            self_from_op!(_mm_xor_pd, neg, Self::splat_64(-0.0f64).0),
+            sub
+        )
     }
+
     #[inline(always)]
     unsafe fn mul_add_f32(self, mult: Self, add: Self) -> Self {
-        self_from_op!(_mm_fmadd_ps, self, mult, add)
+        self_from_op!(_mm_add_ps, self_from_op!(_mm_mul_ps, self, mult), add)
     }
     #[inline(always)]
     unsafe fn mul_sub_f32(self, mult: Self, sub: Self) -> Self {
-        self_from_op!(_mm_fmsub_ps, self, mult, sub)
+        self_from_op!(_mm_sub_ps, self_from_op!(_mm_mul_ps, self, mult), sub)
     }
     #[inline(always)]
     unsafe fn negated_mul_add_f32(self, mult: Self, add: Self) -> Self {
-        self_from_op!(_mm_fnmadd_ps, self, mult, add)
+        self_from_op!(_mm_sub_ps, add, self_from_op!(_mm_mul_ps, self, mult))
     }
     #[inline(always)]
     unsafe fn negated_mul_sub_f32(self, mult: Self, sub: Self) -> Self {
-        self_from_op!(_mm_fnmsub_ps, self, mult, sub)
+        let neg = self_from_op!(_mm_mul_ps, self, mult);
+        self_from_op!(
+            _mm_sub_ps,
+            self_from_op!(_mm_xor_ps, neg, Self::splat_32(-0.0f32).0),
+            sub
+        )
     }
 }
 
@@ -349,51 +445,51 @@ impl SimdPartialOrdImpl for SseReg {
     type MaskType = Self;
     #[inline(always)]
     unsafe fn cmp_f64_eq(self, rhs: Self) -> Self {
-        self_from_const_op!(_mm_cmp_pd, _CMP_EQ_OQ, self, rhs)
+        self_from_op!(_mm_cmpeq_pd, self, rhs)
     }
     #[inline(always)]
     unsafe fn cmp_f64_lt(self, rhs: Self) -> Self {
-        self_from_const_op!(_mm_cmp_pd, _CMP_LT_OQ, self, rhs)
+        self_from_op!(_mm_cmplt_pd, self, rhs)
     }
     #[inline(always)]
     unsafe fn cmp_f64_le(self, rhs: Self) -> Self {
-        self_from_const_op!(_mm_cmp_pd, _CMP_LE_OQ, self, rhs)
+        self_from_op!(_mm_cmple_pd, self, rhs)
     }
     #[inline(always)]
     unsafe fn cmp_f64_gt(self, rhs: Self) -> Self {
-        self_from_const_op!(_mm_cmp_pd, _CMP_GT_OQ, self, rhs)
+        self_from_op!(_mm_cmpgt_pd, self, rhs)
     }
     #[inline(always)]
     unsafe fn cmp_f64_ge(self, rhs: Self) -> Self {
-        self_from_const_op!(_mm_cmp_pd, _CMP_GE_OQ, self, rhs)
+        self_from_op!(_mm_cmpge_pd, self, rhs)
     }
     #[inline(always)]
     unsafe fn cmp_f64_neq(self, rhs: Self) -> Self {
-        self_from_const_op!(_mm_cmp_pd, _CMP_NEQ_OQ, self, rhs)
+        self_from_op!(_mm_cmpneq_pd, self, rhs)
     }
     #[inline(always)]
     unsafe fn cmp_f32_eq(self, rhs: Self) -> Self {
-        self_from_const_op!(_mm_cmp_ps, _CMP_EQ_OQ, self, rhs)
+        self_from_op!(_mm_cmpeq_ps, self, rhs)
     }
     #[inline(always)]
     unsafe fn cmp_f32_lt(self, rhs: Self) -> Self {
-        self_from_const_op!(_mm_cmp_ps, _CMP_LT_OQ, self, rhs)
+        self_from_op!(_mm_cmplt_ps, self, rhs)
     }
     #[inline(always)]
     unsafe fn cmp_f32_le(self, rhs: Self) -> Self {
-        self_from_const_op!(_mm_cmp_ps, _CMP_LE_OQ, self, rhs)
+        self_from_op!(_mm_cmple_ps, self, rhs)
     }
     #[inline(always)]
     unsafe fn cmp_f32_gt(self, rhs: Self) -> Self {
-        self_from_const_op!(_mm_cmp_ps, _CMP_GT_OQ, self, rhs)
+        self_from_op!(_mm_cmpgt_ps, self, rhs)
     }
     #[inline(always)]
     unsafe fn cmp_f32_ge(self, rhs: Self) -> Self {
-        self_from_const_op!(_mm_cmp_ps, _CMP_GE_OQ, self, rhs)
+        self_from_op!(_mm_cmpge_ps, self, rhs)
     }
     #[inline(always)]
     unsafe fn cmp_f32_neq(self, rhs: Self) -> Self {
-        self_from_const_op!(_mm_cmp_ps, _CMP_NEQ_OQ, self, rhs)
+        self_from_op!(_mm_cmpneq_ps, self, rhs)
     }
     #[inline(always)]
     unsafe fn cmp_i64_eq(self, rhs: Self) -> Self {
@@ -517,13 +613,32 @@ impl SimdSplatImpl for SseReg {
 impl SimdGatherImpl for SseReg {
     #[inline(always)]
     unsafe fn gather_32_from_32<T, const B: i32>(self, ptr: *const T) -> Self {
-        self_from_const_op!(_mm_i32gather_epi32, B, ptr, self)
+        unsafe {
+            let mut idx = [0i32; 4];
+            _mm_storeu_si128(idx.as_mut_ptr() as *mut __m128i, self.0);
+            let base = ptr as *const u8;
+            let mut out = [0i32; 4];
+            for i in 0..4 {
+                let byte_offset = (idx[i] as isize) * (B as isize);
+                out[i] = *(base.offset(byte_offset) as *const i32);
+            }
+            Self(_mm_loadu_si128(out.as_ptr() as *const __m128i))
+        }
     }
-    // #[inline(always)] unsafe fn gather_64_from_32<T, const B: i32>(self, ptr: *const T) -> Self { self_from_const_op!(_mm_i32gather_epi64, B, ptr, self) }
-    // #[inline(always)] unsafe fn gather_32_from_64<T, const B: i32>(self, ptr: *const T) -> Self { self_from_const_op!(_mm_i64gather_epi32, B, ptr, self) }
+
     #[inline(always)]
     unsafe fn gather_64_from_64<T, const B: i32>(self, ptr: *const T) -> Self {
-        self_from_const_op!(_mm_i64gather_epi64, B, ptr, self)
+        unsafe {
+            let mut idx = [0i64; 2];
+            _mm_storeu_si128(idx.as_mut_ptr() as *mut __m128i, self.0);
+            let base = ptr as *const u8;
+            let mut out = [0i64; 2];
+            for i in 0..2 {
+                let byte_offset = (idx[i] as isize) * (B as isize);
+                out[i] = *(base.offset(byte_offset) as *const i64);
+            }
+            Self(_mm_loadu_si128(out.as_ptr() as *const __m128i))
+        }
     }
 }
 
@@ -644,4 +759,3 @@ impl SimdLaneShiftImpl for SseReg {
         }
     }
 }
-

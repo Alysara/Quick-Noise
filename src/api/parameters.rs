@@ -7,10 +7,9 @@
 /// Common interface for execucting all noise builders.
 ///
 /// All builders support these three execution methods:
-///  - `build()`: Create a new Vec
+///  - `build()`: Creates a new Vec
 ///  - `into_iter()`: Get a lazy iterator
-///  - `fill()`: Reuse existing memory
-///  - `fill_onto()`: Add onto existing values
+///  - `fill()`: insert data into an existing slice
 macro_rules! declare_build {
     ($self:ident, $body:tt) => {
         /// Creates the noise and returns the result in an output array.
@@ -27,6 +26,7 @@ macro_rules! declare_into_iter {
     ($self:ident, $body:tt) => {
         /// Returns an iterator containing chunks of the noise output.
         /// Ideal for managing streams of noise without unnecessary read/writes.
+        #[allow(clippy::should_implement_trait)]
         pub fn into_iter($self) -> impl Iterator<Item = ArchSimd<f32>> $body
     };
 }
@@ -39,14 +39,6 @@ macro_rules! declare_fill {
     };
 }
 pub(crate) use declare_fill;
-
-macro_rules! declare_fill_onto {
-    ($self:ident, $result:ident, $body:tt) => {
-        /// Creates the noise and *adds* to the existing values in a given array.
-        pub fn fill_onto($self, $result: &mut [f32]) $body
-    };
-}
-pub(crate) use declare_fill_onto;
 
 macro_rules! params_grid_seed_builder {
     ($name:ident, [ $($full_generics:tt)* ], [ $($short_generics:tt)* ]) => {
@@ -227,6 +219,19 @@ macro_rules! params_noise_scaling_3d {
     };
 }
 pub(crate) use params_noise_scaling_3d;
+
+macro_rules! params_combiner_builder {
+    ($name:ident, [ $($full_generics:tt)* ], [ $($short_generics:tt)* ]) => {
+        impl< $($full_generics)* > $name< $($short_generics)* > {
+            /// Configures the config for the combiner
+            pub fn combiner_config(mut self, config: C::Config) -> Self {
+                self.combiner_config = config;
+                self
+            }
+        }
+    };
+}
+pub(crate) use params_combiner_builder;
 
 macro_rules! params_ridged_builder {
     ($name:ident, [ $($full_generics:tt)* ], [ $($short_generics:tt)* ]) => {

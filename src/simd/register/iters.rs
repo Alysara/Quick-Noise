@@ -1,7 +1,8 @@
+use std::iter::zip;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 
-use crate::simd::arch_simd::ArchFamily;
+use crate::simd::arch_simd::{ArchFamily, ArchSimd};
 use crate::simd::architectures::interface::*;
 use crate::simd::array_trait::Array;
 use crate::simd::register::Simd;
@@ -246,3 +247,37 @@ impl<T: SimdElement, F: SimdFamily> Iterator for SimdVecIntoIter<T, F> {
     }
 }
 impl<T: SimdElement, F: SimdFamily> ExactSizeIterator for SimdVecIntoIter<T, F> {}
+
+impl<T: SimdElement, F: SimdFamily, const N: usize> FromIterator<Simd<T, F>> for [T; N] {
+    fn from_iter<I: IntoIterator<Item = Simd<T, F>>>(iter: I) -> Self {
+        let mut array = [T::default(); N];
+
+        let lane_iter = (0..N).step_by(Simd::<T, F>::LANES);
+        for (i, x) in zip(lane_iter, iter) {
+            x.copy_to_slice(&mut array[i..]);
+        }
+
+        array
+    }
+}
+
+impl<T: SimdElement, F: SimdFamily> FromIterator<Simd<T, F>> for Vec<T> {
+    fn from_iter<I: IntoIterator<Item = Simd<T, F>>>(iter: I) -> Self {
+        let iter = iter.into_iter();
+        let (lower_bound, upper_bound) = iter.size_hint();
+        if let Some(upper_bound) = upper_bound {
+            let mut vec = vec![T::default(); upper_bound * ArchSimd::<T>::LANES];
+            for (i, x) in iter.enumerate() {
+                x.copy_to_slice(&mut vec[i * ArchSimd::<T>::LANES..]);
+            }
+            vec
+        } else {
+            let mut vec = Vec::with_capacity(lower_bound);
+            for x in iter {
+                let array = x.to_array();
+                vec.extend_from_slice(array.as_slice());
+            }
+            vec
+        }
+    }
+}

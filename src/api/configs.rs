@@ -1,4 +1,7 @@
+/// Comprehensive config for noise parameters, including lacunarity
+/// octave generation.
 #[derive(Copy, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct NoiseConfig<const D: usize> {
     pub seed: u64,
     pub octaves: usize,
@@ -10,10 +13,14 @@ pub struct NoiseConfig<const D: usize> {
     pub initialization: bool,
     pub finalization: bool,
     pub magnification: f32,
+    #[cfg_attr(feature = "serde", serde(with = "serde_arrays"))]
     pub scaling: [f32; D],
 }
 
+/// Comprehensive config for noise parameters without lacunarity
+/// octave generation.
 #[derive(Copy, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct OctaveNoiseConfig<const D: usize> {
     pub seed: u64,
     pub amplitude: f32,
@@ -21,7 +28,21 @@ pub struct OctaveNoiseConfig<const D: usize> {
     pub initialization: bool,
     pub finalization: bool,
     pub magnification: f32,
+    #[cfg_attr(feature = "serde", serde(with = "serde_arrays"))]
     pub scaling: [f32; D],
+}
+
+/// Config specifying parameters of a grid.
+#[derive(Copy, Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct GridConfig<const D: usize> {
+    pub grid_seed: u64,
+    #[cfg_attr(feature = "serde", serde(with = "serde_arrays"))]
+    pub grid_size: [usize; D],
+    #[cfg_attr(feature = "serde", serde(with = "serde_arrays"))]
+    pub position: [i32; D],
+    #[cfg_attr(feature = "serde", serde(with = "serde_arrays"))]
+    pub tiling: [Option<u32>; D],
 }
 
 impl<const D: usize> NoiseConfig<D> {
@@ -52,10 +73,3 @@ impl<const D: usize> NoiseConfig<D> {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct GridConfig<const D: usize> {
-    pub grid_seed: u64,
-    pub grid_size: [usize; D],
-    pub position: [i32; D],
-    pub tiling: [Option<u32>; D],
-}

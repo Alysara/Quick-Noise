@@ -1,3 +1,5 @@
+#![doc = include_str!("../README.md")]
+
 //! Maximum performance SIMD-accelerated procedural noise library
 //! with up to 10x+ performance on uniform grids. Works on stable Rust.
 

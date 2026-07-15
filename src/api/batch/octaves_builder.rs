@@ -2,7 +2,6 @@ use std::marker::PhantomData;
 
 use itertools::{Zip, multizip};
 
-use crate::{BatchGenerator, HybridMulti, PingPong, Ridged, Terrace};
 use crate::api::batch::interface::{BatchNoise, DimIter};
 use crate::api::configs::*;
 use crate::api::octave::Octave;
@@ -10,6 +9,7 @@ use crate::api::parameters::*;
 use crate::math::random::Random;
 use crate::noise::combiners::Combiner;
 use crate::simd::arch_simd::ArchSimd;
+use crate::{BatchGenerator, HybridMulti, PingPong, Ridged, Terrace};
 
 pub struct OctaveBatchNoiseBuilder<
     'a,
@@ -28,6 +28,7 @@ pub struct OctaveBatchNoiseBuilder<
 params_noise_builder!(OctaveBatchNoiseBuilder, ['a, const D: usize, C: Combiner, G: BatchGenerator<D>, I: DimIter<D>], ['a, D, C, G, I]);
 params_grid_seed_builder!(OctaveBatchNoiseBuilder, ['a, const D: usize, C: Combiner, G: BatchGenerator<D>, I: DimIter<D>], ['a, D, C, G, I]);
 params_ridged_builder!(OctaveBatchNoiseBuilder, ['a, const D: usize, T: BatchGenerator<D>, I: DimIter<D>], ['a, D, Ridged, T, I]);
+params_combiner_builder!(OctaveBatchNoiseBuilder, ['a, const D: usize, C: Combiner<Config: Sized>, G: BatchGenerator<D>, I: DimIter<D>], ['a, D, C, G, I]);
 params_ping_pong_builder!(OctaveBatchNoiseBuilder, ['a, const D: usize, T: BatchGenerator<D>, I: DimIter<D>], ['a, D, PingPong, T, I]);
 params_terrace_builder!(OctaveBatchNoiseBuilder, ['a, const D: usize, T: BatchGenerator<D>, I: DimIter<D>], ['a, D, Terrace, T, I]);
 params_hybrid_multi_builder!(OctaveBatchNoiseBuilder, ['a, const D: usize, T: BatchGenerator<D>, I: DimIter<D>], ['a, D, HybridMulti, T, I]);
@@ -35,6 +36,8 @@ params_noise_scaling_2d!(OctaveBatchNoiseBuilder, ['a, C: Combiner, G: BatchGene
 params_noise_scaling_3d!(OctaveBatchNoiseBuilder, ['a, C: Combiner, G: BatchGenerator<3>, I: DimIter<3>], ['a, 3, C, G, I]);
 
 impl<F: Combiner, S: BatchGenerator<2>> BatchNoise<2, F, S> {
+    /// Creates a new builder using a custom octave list to configure
+    /// batches of noise.
     pub fn builder_with_octaves<'a, X, Y>(
         octave_list: &'a [Octave<2>],
         x_iter: X,
@@ -85,6 +88,8 @@ where
 }
 
 impl<F: Combiner, S: BatchGenerator<3>> BatchNoise<3, F, S> {
+    /// Creates a new builder using a custom octave list to configure
+    /// batches of noise.
     pub fn builder_with_octaves<'a, X, Y, Z>(
         octave_list: &'a [Octave<3>],
         x_iter: X,
@@ -142,23 +147,21 @@ impl<'a, const D: usize, F: Combiner, S: BatchGenerator<D>, I: DimIter<D>>
     OctaveBatchNoiseBuilder<'a, D, F, S, I>
 {
     declare_fill!(self, output, {
-        let mut i = 0;
-        self.into_iter().for_each(|x| {
-            x.copy_to_slice(&mut output[i..]);
-            i += ArchSimd::<f32>::LANES;
-        });
+        if self.noise_config.initialization {
+            for (i, x) in self.into_iter().enumerate() {
+                x.copy_to_slice(&mut output[i * ArchSimd::<f32>::LANES..]);
+            }
+        } else {
+            for (i, x) in self.into_iter().enumerate() {
+                let index = i * ArchSimd::<f32>::LANES;
+                let cur = ArchSimd::from_slice(&output[index..]);
+                let x = cur + x;
+                x.copy_to_slice(&mut output[i..]);
+            }
+        }
     });
 
-    declare_fill_onto!(self, output, {
-        let mut i = 0;
-        self.into_iter().for_each(|x| {
-            let cur = ArchSimd::from_slice(&output[i..]) + x;
-            cur.copy_to_slice(&mut output[i..]);
-            i += ArchSimd::<f32>::LANES;
-        });
-    });
-
-    // declare_build!(self, { self.into_iter().collect() });
+    declare_build!(self, { self.into_iter().collect() });
 
     declare_into_iter!(self, {
         BatchNoise::<D, F, S>::sample_with_octaves(

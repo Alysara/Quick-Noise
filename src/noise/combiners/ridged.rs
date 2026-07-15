@@ -2,6 +2,7 @@ use crate::simd::arch_simd::ArchSimd;
 use crate::{Combiner, CombinerArray};
 
 #[derive(Copy, Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct RidgedConfig {
     pub gain: f32,
 }

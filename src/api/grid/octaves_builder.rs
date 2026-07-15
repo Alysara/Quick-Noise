@@ -7,6 +7,7 @@ use crate::api::octave::Octave;
 use crate::api::parameters::*;
 use crate::simd::arch_simd::ArchSimd;
 use crate::simd::register::iters::IntoSimdIterator;
+use crate::math::random::Random;
 
 /// A struct for creating 2D Perlin noise set on a uniform grid with
 /// a custom list of octaves. Uses the performant perlin algorithm.
@@ -19,7 +20,8 @@ pub struct OctaveGridNoiseBuilder<'a, const D: usize, C: Combiner, G: GridGenera
     _noise_type: PhantomData<G>,
 }
 
-params_lacunarity_builder!(OctaveGridNoiseBuilder, ['a, const D: usize, C: Combiner, G: GridGenerator<D>], ['a, D, C, G]);
+params_noise_builder!(OctaveGridNoiseBuilder, ['a, const D: usize, C: Combiner, G: GridGenerator<D>], ['a, D, C, G]);
+params_combiner_builder!(OctaveGridNoiseBuilder, ['a, const D: usize, C: Combiner<Config: Sized>, G: GridGenerator<D>], ['a, D, C, G]);
 params_ridged_builder!(OctaveGridNoiseBuilder, ['a, const D: usize, G: GridGenerator<D>], ['a, D, Ridged, G]);
 params_ping_pong_builder!(OctaveGridNoiseBuilder, ['a, const D: usize, G: GridGenerator<D>], ['a, D, PingPong, G]);
 params_terrace_builder!(OctaveGridNoiseBuilder, ['a, const D: usize, G: GridGenerator<D>], ['a, D, Terrace, G]);
@@ -58,10 +60,6 @@ impl<'a, const D: usize, C: Combiner, G: GridGenerator<D>> OctaveGridNoiseBuilde
             result,
         );
     });
-
-    // declare_fill_onto!(self, result, {
-    //     self.custom_noise::<false>(result);
-    // });
 
     declare_into_iter!(self, { self.build().into_simd_iter() });
 }

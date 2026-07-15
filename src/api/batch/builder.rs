@@ -2,13 +2,13 @@ use std::marker::PhantomData;
 
 use itertools::{Zip, multizip};
 
-use crate::{HybridMulti, PingPong, Ridged, Terrace};
 use crate::api::batch::interface::{BatchGenerator, BatchNoise, DimIter};
 use crate::api::configs::*;
 use crate::api::parameters::*;
 use crate::math::random::Random;
 use crate::noise::combiners::Combiner;
 use crate::simd::arch_simd::ArchSimd;
+use crate::{HybridMulti, PingPong, Ridged, Terrace};
 
 pub struct BatchNoiseBuilder<const D: usize, C: Combiner, G: BatchGenerator<D>, I: DimIter<D>> {
     pub(crate) noise_config: NoiseConfig<D>,
@@ -19,6 +19,7 @@ pub struct BatchNoiseBuilder<const D: usize, C: Combiner, G: BatchGenerator<D>, 
 
 params_noise_builder!(BatchNoiseBuilder, [const D: usize, C: Combiner, G: BatchGenerator<D>, I: DimIter<D>], [D, C, G, I]);
 params_lacunarity_builder!(BatchNoiseBuilder, [const D: usize, C: Combiner, G: BatchGenerator<D>, I: DimIter<D>], [D, C, G, I]);
+params_combiner_builder!(BatchNoiseBuilder, [const D: usize, C: Combiner<Config: Sized>, G: BatchGenerator<D>, I: DimIter<D>], [D, C, G, I]);
 params_ridged_builder!(BatchNoiseBuilder, [const D: usize, G: BatchGenerator<D>, I: DimIter<D>], [D, Ridged, G, I]);
 params_ping_pong_builder!(BatchNoiseBuilder, [const D: usize, G: BatchGenerator<D>, I: DimIter<D>], [D, PingPong, G, I]);
 params_terrace_builder!(BatchNoiseBuilder, [const D: usize, G: BatchGenerator<D>, I: DimIter<D>], [D, Terrace, G, I]);
@@ -28,6 +29,7 @@ params_noise_scaling_2d!(BatchNoiseBuilder, [C: Combiner, G: BatchGenerator<2>, 
 params_noise_scaling_3d!(BatchNoiseBuilder, [C: Combiner, G: BatchGenerator<3>, I: DimIter<3>], [3, C, G, I]);
 
 impl<C: Combiner, G: BatchGenerator<2>> BatchNoise<2, C, G> {
+    /// Creates a new builder to easily configure batches of noise.
     pub fn builder<X, Y>(x_iter: X, y_iter: Y) -> BatchNoiseBuilder<2, C, G, Zip<(X, Y)>>
     where
         X: Iterator<Item = ArchSimd<f32>>,
@@ -71,6 +73,7 @@ where
 }
 
 impl<F: Combiner, S: BatchGenerator<3>> BatchNoise<3, F, S> {
+    /// Creates a new builder to easily configure batches of noise.
     pub fn builder<X, Y, Z>(
         x_iter: X,
         y_iter: Y,
@@ -124,23 +127,21 @@ impl<const D: usize, F: Combiner, S: BatchGenerator<D>, I: DimIter<D>>
     BatchNoiseBuilder<D, F, S, I>
 {
     declare_fill!(self, output, {
-        let mut i = 0;
-        self.into_iter().for_each(|x| {
-            x.copy_to_slice(&mut output[i..]);
-            i += ArchSimd::<f32>::LANES;
-        });
+        if self.noise_config.initialization {
+            for (i, x) in self.into_iter().enumerate() {
+                x.copy_to_slice(&mut output[i * ArchSimd::<f32>::LANES..]);
+            }
+        } else {
+            for (i, x) in self.into_iter().enumerate() {
+                let index = i * ArchSimd::<f32>::LANES;
+                let cur = ArchSimd::from_slice(&output[index..]);
+                let x = cur + x;
+                x.copy_to_slice(&mut output[i..]);
+            }
+        }
     });
 
-    declare_fill_onto!(self, output, {
-        let mut i = 0;
-        self.into_iter().for_each(|x| {
-            let cur = ArchSimd::from_slice(&output[i..]) + x;
-            cur.copy_to_slice(&mut output[i..]);
-            i += ArchSimd::<f32>::LANES;
-        });
-    });
-
-    // declare_build!(self, { self.into_iter().collect() });
+    declare_build!(self, { self.into_iter().collect() });
 
     declare_into_iter!(self, {
         BatchNoise::<D, F, S>::sample(self.noise_config, self.combiner_config, self.iters)

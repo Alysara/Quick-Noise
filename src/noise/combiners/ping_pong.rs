@@ -2,6 +2,7 @@ use crate::combiners::{Combiner, CombinerArray};
 use crate::simd::arch_simd::ArchSimd;
 
 #[derive(Copy, Clone, PartialEq, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PingPongConfig {
     pub strength: f32,
 }

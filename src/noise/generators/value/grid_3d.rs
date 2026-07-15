@@ -72,7 +72,7 @@ impl GridGenerator<3> for Value {
         let mut cache = ArenaBuffer::with_capacity(required_cache);
         let mut arena = Arena::with_cache(&mut cache);
         let mut data_arena = arena.allocate_arena(padded_size.iter().fold(0, |n, x| n + 3 * x));
-        let mut trilerp_arena = arena.allocate_arena(padded_size[0] * 12);
+        let mut trilerp_arena = arena.allocate_arena(padded_size[0] * 4);
 
         // Allocation setup.
         let bilerp_config = InterpolationConfig::new(params.grid_size[0]);

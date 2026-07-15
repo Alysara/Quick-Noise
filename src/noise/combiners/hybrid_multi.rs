@@ -1,6 +1,7 @@
 use crate::{Combiner, CombinerArray, simd::arch_simd::ArchSimd};
 
 #[derive(Copy, Clone, PartialEq, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct HybridMultiConfig {
     pub gain: f32,
     pub offset: f32,

@@ -1,138 +1,63 @@
-use std::hint::black_box;
-
 use quick_noise::emit::grayscale::NoiseImageExt;
 use quick_noise::simd::arch_simd::ArchSimd;
-use quick_noise::{Cellular, Grid, GridNoiseBuilder, Octave, Perlin, Value};
+use quick_noise::{
+    BatchNoise, Cellular, Fbm, Grid, HybridMulti, Octave, Perlin, PingPong, Ridged, Simplex, Value,
+};
 
 #[cfg(feature = "image")]
 fn main() {
-    // println!("array: {:?}", array);
-    // let simd = ArchSimd::<f32>::iota(4.0);
+    let grid_2d = Grid::<2>::new(2048, 2048);
+    let grid_3d = Grid::<3>::new(256, 256, 256);
 
-    // use std::time::{SystemTime, UNIX_EPOCH};
+    // Basic grid generation
+    grid_2d
+        .builder::<Fbm, Perlin>()
+        .octaves(1)
+        .into_iter()
+        .to_grayscale_image(2048, 2048, "noise_images/single_pass_perlin.png");
 
-    use std::iter::zip;
-    use std::time::Instant;
-
-    use itertools::izip;
-    use quick_noise::{BatchNoise, BatchNoiseBuilder, Billow, Fbm, HybridMulti, Multi, PingPong, Ridged, Simplex, Terrace};
-
-    const GRID_SEED: i64 = 124384833;
-    const FBM_SEED: i64 = 91191912;
-    let grid_2d = Grid::<2>::new(32, 32).sample_position(0, 0).seed(GRID_SEED);
-
-    let grid_2d_big = Grid::<2>::new(2047, 2047)
-        .sample_position(0, 0)
-        .seed(GRID_SEED);
-
-    let grid_3d = Grid::<3>::new(32, 32, 32)
-        .grid_position(0, 0, 0)
-        .seed(GRID_SEED);
-
-    // let mut buffer = SimdArray::<f32, 32768>::new(0.0);
-    // let
-    let mut buffer = [0.0; 1024];
-
-    // let time = Instant::now();
-    // const NUM_RUNS: usize = 5_000_000;
-    // let freq = 1. / 64.;
-    // for _ in 0..NUM_RUNS {
-    //     grid_2d.builder::<Fbm, Perlin>().frequency(freq).fill(&mut buffer);
-    //     black_box(&buffer);
-    // }
-    // let total = time.elapsed();
-    // println!(
-    //     "Total: {:?}, Average Completion: {:?}",
-    //     total,
-    //     total / NUM_RUNS as u32
-    // );
-
-    // let mut i = 0;
-    // for (x, y, z) in izip!(grid_3d.x_iter(), grid_3d.y_iter(), grid_3d.z_iter()) {
-    //     println!("{i} -- x: {:?}, y: {:?}, z: {:?}", x, y, z);
-    //     i += ArchSimd::<f32>::LANES;
-    // }
-
-    // grid_2d
-    //     .fbm::<Perlin>()
-    //     .octaves(1)
-    //     .frequency(1. / 32.)
-    //     .seed(FBM_SEED)
-    //     .into_iter()
-    //     .to_grayscale_image(32, 32, "noise_images/perlin_grid_2d.png");
-
-    // let octave_list: [Octave<2>; _] = [
-    //     Octave::new([1.0 / 480.0, 1.0 / 110.0], 1.0), // wide horizontal bands, tight vertical ripple
-    //     Octave::new([1.0 / 290.0, 1.0 / 230.0], 0.65), // axes converge toward similar scale
-    //     Octave::new([1.0 / 130.0, 1.0 / 310.0], 0.8), // weight bumps up, axes swap dominance
-    //     Octave::new([1.0 / 60.0, 1.0 / 520.0], 0.35), // x sharpens fast, y pulls back out
-    //                                                   // Octave::new([1.0 / 3.0,  1.0 / 9.0],  0.12),  // both fine, low influence to finish
-    // ];
-
-    // grid_2d_big
-    //     .builder_with_octaves::<Ridged, Perlin>(&octave_list)
-    //     .into_iter()
-    //     .map(|x| ArchSimd::splat(0.5) * x - ArchSimd::splat(1.0))
-    //     .to_grayscale_image(2047, 2047, "noise_images/grid_test.png");
-
-    let it1 = grid_2d_big
-        .builder::<Ridged, Perlin>()
+    // Domain warping
+    let iter1 = grid_2d
+        .builder::<Fbm, Perlin>()
         .seed(0)
         .octaves(6)
-        .frequency(1.0 / 2048.0)
+        .frequency(1.0 / 512.0)
         .into_iter();
-
-    let it2 = grid_2d_big
-        .builder::<HybridMulti, Perlin>()
-        .octaves(6)
+    let iter2 = grid_2d
+        .builder::<Fbm, Perlin>()
         .seed(1)
-        .frequency(1.0 / 2048.0)
-        .scaling(5.0, 1.0)
+        .octaves(6)
+        .frequency(1.0 / 512.0)
         .into_iter();
 
-    grid_2d_big.warp_builder::<Multi, Cellular>(500.0, it1, it2)
+    grid_2d
+        .warp_builder::<HybridMulti, Simplex>(1000.0, iter1, iter2)
         .octaves(6)
-        .frequency(1.0 / 2048.0)
-        .seed(3)
+        .frequency(1.0 / 512.0)
         .into_iter()
-        .map(|x| ArchSimd::splat(0.5) * x - ArchSimd::splat(1.0))
-        .to_grayscale_image(2047, 2047, "noise_images/grid_test.png");
+        .map(|x| ArchSimd::splat(0.25) * x - ArchSimd::splat(1.0))
+        .to_grayscale_image(2048, 2048, "noise_images/warped.png");
 
-    // grid_2d_big.builder::<Multi, Perlin>()
-    //     .octaves(6)
-    //     .frequency(1.0 / 64.0)
-    //     // .gain(2.0)
-    //     // .offset(1.0)
-    //     .into_iter()
-    //     .map(|x| ArchSimd::splat(1.0) * x - ArchSimd::splat(1.0))
-    //     .to_grayscale_image(2047, 2047, "noise_images/grid_test.png");
+    // Cellular batch noise.
+    BatchNoise::<2, Ridged, Cellular>::builder(grid_2d.x_iter(), grid_2d.y_iter())
+        .octaves(6)
+        .frequency(1.0 / 512.0)
+        .gain(1.5)
+        .into_iter()
+        .map(|x| ArchSimd::splat(0.4) * x - ArchSimd::splat(1.0))
+        .to_grayscale_image(2048, 2048, "noise_images/ridged_cellular.png");
 
+    // 3D grid + Custom octaves
+    let octave_list = [
+        Octave::<3>::new([0.01, 0.02, 0.01], 1.0),
+        Octave::<3>::new([0.02, 0.01, 0.02], 1.0),
+        Octave::<3>::new([0.03, 0.01, 0.01], 1.0),
+        Octave::<3>::new([0.005, 0.01, 0.005], 0.3),
+        Octave::<3>::splat(0.002, 0.2),
+    ];
 
-
-    // grid_2d_big
-    //     .builder::<Fbm, Perlin>()
-    //     .octaves(6)
-    //     .frequency(1. / 128.0)
-    //     .seed(FBM_SEED)
-    //     .seed(12)
-    //     .into_iter()
-    //     .to_grayscale_image(2047, 2047, "noise_images/grid_test.png");
-
-    // BatchNoise::<2, Ridged, Cellular>::builder(grid_2d_big.x_iter(), grid_2d_big.y_iter())
-    //     .octaves(4)
-    //     .frequency(1.0 / 512.0)
-    //     .into_iter()
-    //     .map(|x| ArchSimd::splat(0.5) * x - ArchSimd::splat(1.0))
-    //     .to_grayscale_image(2047, 2047, "noise_images/batch_test.png");
-
-    // BatchNoise::<3, Ridged, Cellular>::sample_builder(
-    //     grid_3d.x_iter(),
-    //     grid_3d.y_iter(),
-    //     grid_3d.z_iter(),
-    // )
-    // .octaves(4)
-    // .frequency(1.0 / 64.0)
-    // .into_iter()
-    // .map(|x| ArchSimd::splat(0.5) * x - ArchSimd::splat(1.0))
-    // .to_grayscale_image(255, 255, "noise_images/batch_test.png");
+    grid_3d
+        .builder_with_octaves::<PingPong, Value>(octave_list.as_slice())
+        .into_iter()
+        .to_grayscale_image(256, 256, "noise_images/custom_value.png");
 }

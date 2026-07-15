@@ -6,26 +6,45 @@ use crate::api::grid::octaves_builder::OctaveGridNoiseBuilder;
 use crate::math::random::Random;
 use crate::{Combiner, Octave};
 
+/// Handles raw parameters for grid noise generators
 #[derive(Copy, Clone, PartialEq, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct GridNoiseParams<const D: usize> {
     pub seed: u32,
+    #[cfg_attr(feature = "serde", serde(with = "serde_arrays"))]
     pub grid_size: [usize; D],
+    #[cfg_attr(feature = "serde", serde(with = "serde_arrays"))]
     pub position: [i32; D],
+    #[cfg_attr(feature = "serde", serde(with = "serde_arrays"))]
     pub frequency: [f32; D],
     pub weight: f32,
     pub magnification: f32,
+    #[cfg_attr(feature = "serde", serde(with = "serde_arrays"))]
     pub tiling: [Option<u32>; D],
 }
 
 pub trait GridGenerator<const D: usize>: Default + Copy + Clone + PartialEq {
-    fn sample_grid<T: Combiner, const INIT: bool, const FINAL: bool>(
+    /// Generates noise for a grid region.
+    ///
+    /// # Type Parameters
+    /// - `C`: Type of combiner used to layer noise
+    /// - `INIT`: Whether or not the generator should initialize dst
+    /// - `FINAL`: Whether or not the generator should finalize the final octave
+    ///
+    /// # Runtime Parameters
+    /// - `params`: Config specifying general noise parameters
+    /// - `combiner_config`: Config specifying combiner parameters
+    /// - `state`: Buffer containing sample information across octaves
+    /// - `dst`: Buffer to insert the results into
+    fn sample_grid<C: Combiner, const INIT: bool, const FINAL: bool>(
         params: GridNoiseParams<D>,
-        fractal_config: T::Config,
+        combiner_config: C::Config,
         state: &mut [f32],
         dst: &mut [f32],
     );
 }
 
+/// Static struct for sampling grid noise.
 pub struct GridNoise<const D: usize, F: Combiner, S: GridGenerator<D>> {
     _fractal: PhantomData<F>,
     _sampler: PhantomData<S>,
@@ -173,14 +192,18 @@ impl Grid<3> {
 }
 
 impl<const D: usize> Grid<D> {
+    /// Loads a config a config to create a grid.
     pub fn from_config(config: GridConfig<D>) -> Self {
         Self { config }
     }
 
+    /// Creates a new builder to easily configure a grid region of noise.
     pub fn builder<F: Combiner, T: GridGenerator<D>>(&self) -> GridNoiseBuilder<D, F, T> {
         GridNoiseBuilder::from_config(self.config)
     }
 
+    /// Creates a new builder using a custom octave list to configure
+    /// a grid region of noise.
     pub fn builder_with_octaves<'a, F: Combiner, T: GridGenerator<D>>(
         &self,
         octave_list: &'a [Octave<D>],

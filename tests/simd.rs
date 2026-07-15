@@ -159,9 +159,7 @@ simd_vec_tests!(shr_variable_test,
 
 // === Clamp ===
 // TODO: Add integer clamps.
-// simd_vec_tests!(clamp_min_test, [f32, f64], |x| { x.clamp_min(0.) });
-// simd_vec_tests!(clamp_max_test, [f32, f64], |x| { x.clamp_min(0.) });
-// simd_vec_tests!(clamp_test, [f32, f64], |x| { x.clamp(-1000., 1000.) });
+simd_vec_tests!(clamp_test, [f32, f64], |x, y, z| { x.clamp(y, z) });
 
 // === Floating Point Operations ===
 simd_vec_tests!(round_test, [f32, f64], |x| { x.round() });
