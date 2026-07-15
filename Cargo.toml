@@ -7,6 +7,13 @@ name = "quick-noise"
 version = "0.1.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/Alysara/quick-noise"
+keywords = ["noise", "simd", "simplex", "perlin", "performance"]
+categories = ["game-engines", "multimedia::images"]
+readme = "README.md"
+description = "High performance SIMD procedural noise library for batch and uniform grid sampling. Works on stable Rust."
+rust-version = "1.85"
+exclude = ["images/"]
 
 [profile.release]
 opt-level = 3
@@ -33,7 +40,6 @@ noise = "0.9.0"
 libnoise = "1.2.0"
 noiz = "0.5.0"
 simdnoise = "3.1.6"
-fastnoise-lite = "1.1.1" # bonus: common cross-language reference impl
 bevy_math = "0.19.0"
 
 [features]
