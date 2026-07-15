@@ -36,7 +36,7 @@ More detailed benchmarks below.
 
 # Usage
 
-Quick-Noise offers two public facing interfaces. The first is grid noise.
+quick-noise offers two public facing interfaces. The first is grid noise.
 The performance of grid noise is often magnitudes higher than the second interface,
 batch noise, and the recommended path for high-performance procedural generation.
 Grid noise samples a squared (2D) or cubed (3D) region uniformly while batch noise 
@@ -210,7 +210,7 @@ The serde feature flag dervies `Serialize` and `Deserialize` for config structs.
 
 ## Simd
 
-Quick-Noise uses a custom simd module purpose-built for noise. Unlike std::simd, it works on stable.
+quick-noise uses a custom simd module purpose-built for noise. Unlike std::simd, it works on stable.
 However, only SSE, AVX2, AVX512, and NEON are supported currently. For other systems, a scalar fallback exists,
 but the performance is much worse. Luckily the vast majority of computers used today support one of these instruction sets.
 
@@ -334,22 +334,22 @@ techniques such as domain warping. Results are measured in millions of points pe
 
 |   Perlin    | 2D AVX2 | 3D AVX2 |
 |-------------|---------|---------|
-| Quick-Noise | 645 M/s | 220 M/s |
+| quick-noise | 645 M/s | 220 M/s |
 | FastNoise2  | 425 M/s | 192 M/s |
 
 |    Value    | 2D AVX2   | 3D AVX2 |
 |-------------|-----------|---------|
-| Quick-Noise | 707 M/s   | 463 M/s |
+| quick-noise | 707 M/s   | 463 M/s |
 | FastNoise2  | 506 M/s   | 339 M/s |
 
 |   Simplex   | 2D AVX2 | 3D AVX2 |
 |-------------|---------|---------|
-| Quick-Noise | 473 M/s | 232 M/s |
+| quick-noise | 473 M/s | 232 M/s |
 | FastNoise2  | 378 M/s | 211 M/s |
 
 |   Cellular  | 2D AVX2 | 3D AVX2  |
 |-------------|---------|----------|
-| Quick-Noise | 375 M/s | 110 M/s  |
+| quick-noise | 375 M/s | 110 M/s  |
 | FastNoise2  | 140 M/s | 44.4 M/s |
 
 # Running
