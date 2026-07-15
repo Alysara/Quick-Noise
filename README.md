@@ -117,7 +117,7 @@ let octave_list = [
 ];
 
 let mut result = vec![0.0; 40000];
-let noise = grid_2d.builder_with_octaves::<Billow, Value>(octave_list.as_slice())
+let noise = grid.builder_with_octaves::<Billow, Value>(octave_list.as_slice())
 	.seed(1000)
 	.amplitude(2.0)
 	.fill(result.as_mut_slice());
@@ -129,18 +129,20 @@ This can be chained together for complex warp configurations. Since it uses batc
 Perlin, Value, Simplex, and Cellular can all be used here.
 
 ```rs
-use quick_noise::{Grid, Fbm, Perlin, Cellular};
+use quick_noise::{Grid, Fbm, Perlin};
 
-let grid = Grid::<2>::new(1024, 1024);
+let grid = Grid::<2>::new(1024, 512);
 
 // Create noise offsets to warp by with fast grid noise.
-let noise1 = grid_2d.builder::<Fbm, Perlin>().octaves(6).seed(0).into_iter();
-let noise2 = grid_2d.builder::<Fbm, Perlin>().octaves(6).seed(1).into_iter();
+let noise1 = grid.builder::<Fbm, Perlin>().octaves(6).seed(0).into_iter();
+let noise2 = grid.builder::<Fbm, Perlin>().octaves(6).seed(1).into_iter();
 
-grid_2d.warp_builder::<Fbm, Cellular>(100.0, noise1, noise2)
-	.octaves(1) // Cheap single octave for expensive batch noise call.
-	.into_iter()
-	.to_grayscale_image(1024, 1024, "noise_images/perlin_warp_2d.png");
+grid.warp_builder::<Fbm, Perlin>(100.0, noise1, noise2)
+    .octaves(2) // Cheap two octaves for expensive batch noise call.
+    .frequency(1. / 32.0)
+    .into_iter()
+    .to_grayscale_image(1024, 512, "noise_images/perlin_warp_2d.png");
+
 ```
 
 ![Warped Perlin Noise](images/perlin_warp_2d.png)
@@ -330,7 +332,7 @@ over a 64x64 grid (2D) and 32x32x32 grid (3D).
 ## Batch Noise
 
 Batch noise processing is much more flexible than uniform grid, allowing for any arbitrary input and enabling
-techniques such as domain warping. Results are measured in millions of points per second. Performance is still WIP.
+techniques such as domain warping, but at the cost of performance. Results are measured in millions of points per second.
 
 |   Perlin    | 2D AVX2 | 3D AVX2 |
 |-------------|---------|---------|
