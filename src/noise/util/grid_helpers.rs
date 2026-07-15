@@ -290,7 +290,7 @@ pub(crate) fn configure_tiling<const D: usize>(params: &GridNoiseParams<D>) -> [
                 nearness < 0.001,
                 "Frequency does not align with the tiling!"
             );
-            Some(float as u32)
+            Some(float.round() as u32)
         } else {
             None
         }

@@ -65,7 +65,7 @@ pub struct GridNoise<const D: usize, F: Combiner, S: GridGenerator<D>> {
 ///     .seed(1);
 /// ```
 
-#[derive(Default)]
+#[derive(Default, Clone, Copy, Debug, PartialEq)]
 pub struct Grid<const D: usize> {
     pub(crate) config: GridConfig<D>,
 }
@@ -103,7 +103,7 @@ impl Grid<2> {
     pub fn grid_position(mut self, x: i32, y: i32) -> Self {
         self.config.position = [
             x * self.config.grid_size[0] as i32,
-            y * self.config.grid_size[0] as i32,
+            y * self.config.grid_size[1] as i32,
         ];
         self
     }

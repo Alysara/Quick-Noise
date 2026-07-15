@@ -138,7 +138,7 @@ pub(super) fn grid_gradients_2d<'a>(
     y_it: usize,
 ) {
     let y_start = grid_data.grid_start[1] + y_it as i32;
-    let y_rem = grid_data.octave_tiling[1].map_or(y_start, |t| y_start % t as i32);
+    let y_rem = grid_data.octave_tiling[1].map_or(y_start, |t| y_start.rem_euclid(t as i32));
     let y_vec = ArchSimd::splat((y_rem as u32).wrapping_mul(params.seed));
 
     let prime = ArchSimd::splat(0x85ebca6b_u32);

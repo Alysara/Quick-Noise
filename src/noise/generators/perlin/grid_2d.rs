@@ -153,7 +153,7 @@ pub(super) fn grid_gradients_2d<'a>(
     y_it: usize,
 ) {
     let y_start = grid_data.grid_start[1] + y_it as i32;
-    let y_rem = grid_data.octave_tiling[1].map_or(y_start, |t| y_start % t as i32);
+    let y_rem = grid_data.octave_tiling[1].map_or(y_start, |t| y_start.rem_euclid(t as i32));
     let y_vec = ArchSimd::splat((y_rem as u32).wrapping_mul(params.seed));
 
     let prime = ArchSimd::splat(0x85ebca6b_u32);
@@ -303,7 +303,9 @@ pub(super) fn grid_dotted_bilerp<C: Combiner, const INIT: bool, const FINAL: boo
     }
 }
 
-impl<'a, C: Combiner, const INIT: bool, const FINAL: bool> DottedBilerpExecuter<'a, C, INIT, FINAL> {
+impl<'a, C: Combiner, const INIT: bool, const FINAL: bool>
+    DottedBilerpExecuter<'a, C, INIT, FINAL>
+{
     #[inline(always)]
     pub fn interpolate<const IS_TAIL: bool>(&mut self, state: &mut [f32], dst: &mut [f32]) {
         let range = if IS_TAIL {

@@ -93,10 +93,10 @@ fn cellular_2d_octaves_benchmark(c: &mut Criterion) {
         use noiz::prelude::*;
 
         let noise = Noise::<
-            LayeredNoise<
+            LayeredNoise::<
                 Normed<f32>,
                 Persistence,
-                FractalLayers<Octave<MixCellGradients<OrthoGrid, Smoothstep, QuickGradients>>>,
+                FractalLayers<Octave<PerCellPointDistances<Voronoi, EuclideanLength, WorleyLeastDistance>>>,
             >,
         >::from(LayeredNoise::new(
             Normed::default(),
@@ -128,22 +128,26 @@ fn cellular_2d_octaves_benchmark(c: &mut Criterion) {
     // ---- simdnoise ----
     {
         let mut result = vec![0.0f32; GRID_2D_AREA];
+        group.bench_function("simdnoise", |b| {
+            let mut amplitude = 1.0f32;
+            let mut frequency = BASE_FREQ_2D as f32;
 
-        let mut amplitude = 1.0f32;
-        let mut frequency = BASE_FREQ_2D as f32;
+            b.iter(|| {
+                for _ in 0..OCTAVES_2D {
+                    let (octave, _, _) = simdnoise::NoiseBuilder::cellular_2d(GRID_2D, GRID_2D)
+                        .with_freq(frequency)
+                        .generate();
 
-        for _ in 0..OCTAVES_2D {
-            let (octave, _, _) = simdnoise::NoiseBuilder::cellular_2d(GRID_2D, GRID_2D)
-                .with_freq(frequency)
-                .generate();
+                    for (dst, src) in result.iter_mut().zip(octave.iter()) {
+                        *dst += amplitude * *src;
+                    }
 
-            for (dst, src) in result.iter_mut().zip(octave.iter()) {
-                *dst += amplitude * *src;
-            }
-
-            amplitude *= 0.5;
-            frequency *= 2.0;
-        }
+                    amplitude *= 0.5;
+                    frequency *= 2.0;
+                }
+            });
+        });
+        black_box(&result);
     }
 
     // ---- fastnoise2 ----
@@ -265,10 +269,10 @@ fn cellular_2d_octaves_benchmark(c: &mut Criterion) {
         use noiz::prelude::*;
 
         let noise = Noise::<
-            LayeredNoise<
+            LayeredNoise::<
                 Normed<f32>,
                 Persistence,
-                FractalLayers<Octave<MixCellGradients<OrthoGrid, Smoothstep, QuickGradients>>>,
+                FractalLayers<Octave<PerCellPointDistances<Voronoi, EuclideanLength, WorleyLeastDistance>>>,
             >,
         >::from(LayeredNoise::new(
             Normed::default(),
@@ -298,6 +302,32 @@ fn cellular_2d_octaves_benchmark(c: &mut Criterion) {
                 black_box(&result);
             });
         });
+    }
+
+    // ---- simdnoise ----
+    {
+        let mut result = vec![0.0f32; GRID_3D_VOLUME];
+
+        group.bench_function("simdnoise", |b| {
+            b.iter(|| {
+                let mut amplitude = 1.0f32;
+                let mut frequency = BASE_FREQ_3D as f32;
+
+                for _ in 0..OCTAVES_3D {
+                    let (octave, _, _) = simdnoise::NoiseBuilder::cellular_3d(GRID_3D, GRID_3D, GRID_3D)
+                        .with_freq(frequency)
+                        .generate();
+
+                    for (dst, src) in result.iter_mut().zip(octave.iter()) {
+                        *dst += amplitude * *src;
+                    }
+
+                    amplitude *= 0.5;
+                    frequency *= 2.0;
+                }
+            });
+        });
+        black_box(&result);
     }
 
     // ---- fastnoise2 ----

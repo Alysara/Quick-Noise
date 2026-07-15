@@ -8,11 +8,11 @@ Time taken to produce 3 octaves of FBM noise for 1024x1024 (1,048,576) samples.
 | Library              | Perlin  | Value   | Simplex | Cellular |
 |----------------------|---------|---------|---------|----------|
 | quick-noise (grid)   | 0.66 ms | 0.50 ms |    X    |    X     |
-| quick-noise (batch)  | 4.19 ms | 3.79 ms | 5.84 ms | 7.48 ms  |
+| quick-noise (batch)  | 4.19 ms | 3.79 ms | 5.84 ms | 7.03 ms  |
 | fastnoise2           | 6.22 ms | 5.01 ms | 7.33 ms | 21.4 ms  |
-| simd-noise           | 9.70 ms |    X    |    X    |          |
+| simd-noise           | 9.70 ms |    X    |    X    | 14.0 ms  |
 | noise-rs             | 30.1 ms | 29.2 ms | 49.4 ms | 96.3 ms  |
-| noiz                 | 32.0 ms | 32.0 ms | 32.0 ms | 32.0 ms  |
+| noiz                 | 31.4 ms | 26.3 ms | 44.9 ms | 92.6 ms  |
 | libnoise             | 87.8 ms | 27.9 ms | 117 ms  | 176 ms   |
 
 ### 3D Noise
@@ -20,11 +20,11 @@ Time taken to produce 3 octaves of FBM noise for 128x128x128 (2,097,152) samples
 | Library              | Perlin  | Value   | Simplex | Cellular |
 |----------------------|---------|---------|---------|----------|
 | quick-noise (grid)   | 0.87 ms | 0.62 ms |    X    |    X     |
-| quick-noise (batch)  | 27.2 ms | 12.0 ms | 24.1 ms | 39.0 ms  |
+| quick-noise (batch)  | 27.2 ms | 12.0 ms | 24.1 ms | 43.4 ms  |
 | fastnoise2           | 29.7 ms | 16.0 ms | 37.9 ms | 137 ms   |
-| simd-noise           | 35.7 ms |    X    |    X    |    X     |
+| simd-noise           | 35.7 ms |    X    |    X    | 96.3 ms  |
 | noise-rs             | 92.0 ms | 212 ms  | 251 ms  | 460 ms   |
-| noiz                 | 127 ms  | 127 ms  | 127 ms  | 127 ms   |
+| noiz                 | 127 ms  | 107 ms  | 163 ms  | 489 ms   |
 | libnoise             | 232 ms  | 90.0 ms | 250 ms  | 919 ms   |
 
 * X signifies the noise type is not supported or readily exposed
@@ -46,9 +46,9 @@ samples points at arbitrary inputs.
 
 Builders are used to offer extensive options while remaining approachable.
 Every builder can be executed with one of three methods: `build()`, `fill()`, and `into_iter()`.
-- `build()`: returns an array of the noise result directly
-- `fill()`: fills an array that you provide, potentially saving costly memory copies
-- `into_iter()`: returns an iterator containing simd registers
+- `build()`: returns a new Vec of the noise result directly
+- `fill()`: fills a slice that you provide, potentially saving costly memory copies
+- `into_iter()`: returns an iterator containing simd registers of the output
 
 Iterators allow multiple steps of the noise pipeline to fuse together, providing speedups by keeping data in registers directly.
 Note that grid noise is an exception to this rule, but makes up for it many times over in speed.
@@ -58,7 +58,7 @@ Note that grid noise is an exception to this rule, but makes up for it many time
 
 Generators are structs that define how to generate noise. This includes `Perlin`, `Value`, `Simplex`, and `Cellular`.
 Combiners specify *how* that noise is applied across multiple octaves (noise passes). This includes
-`Fbm`, `Billow`, `Ridged`, and more. Combiners apply to both batch and grid noise.
+`Fbm`, `Billow`, `Ridged`, `Multi`, `HybridMulti`, `Terrace`, and `PingPong`. Combiners apply to both batch and grid noise.
 
 ## Grid Noise
 
@@ -349,7 +349,7 @@ techniques such as domain warping. Results are measured in millions of points pe
 
 |   Cellular  | 2D AVX2 | 3D AVX2  |
 |-------------|---------|----------|
-| quick-noise | 375 M/s | 110 M/s  |
+| quick-noise | 432 M/s | 123 M/s  |
 | FastNoise2  | 140 M/s | 44.4 M/s |
 
 # Running
@@ -368,4 +368,4 @@ Criterion benches can be run with:
 
 Simd module tests can be run with:
 
-> cargo test
+> cargo test --features="image" --release

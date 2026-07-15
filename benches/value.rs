@@ -94,10 +94,10 @@ fn value_2d_octaves_benchmark(c: &mut Criterion) {
         use noiz::prelude::*;
 
         let noise = Noise::<
-            LayeredNoise<
+            LayeredNoise::<
                 Normed<f32>,
                 Persistence,
-                FractalLayers<Octave<MixCellGradients<OrthoGrid, Smoothstep, QuickGradients>>>,
+                FractalLayers<Octave<MixCellValues<OrthoGrid, Smoothstep, Random<SNorm, f32>>>>,
             >,
         >::from(LayeredNoise::new(
             Normed::default(),
@@ -237,10 +237,10 @@ fn value_2d_octaves_benchmark(c: &mut Criterion) {
         use noiz::prelude::*;
 
         let noise = Noise::<
-            LayeredNoise<
+            LayeredNoise::<
                 Normed<f32>,
                 Persistence,
-                FractalLayers<Octave<MixCellGradients<OrthoGrid, Smoothstep, QuickGradients>>>,
+                FractalLayers<Octave<MixCellValues<OrthoGrid, Smoothstep, Random<SNorm, f32>>>>,
             >,
         >::from(LayeredNoise::new(
             Normed::default(),
@@ -251,6 +251,7 @@ fn value_2d_octaves_benchmark(c: &mut Criterion) {
                 amount: OCTAVES_3D as u32,
             },
         ));
+
 
         let mut result = vec![0.0f32; GRID_3D_VOLUME];
         group.bench_function("noiz", |b| {

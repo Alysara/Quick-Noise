@@ -181,7 +181,7 @@ pub(super) fn grid_gradients_3d<'a>(
     };
     let z_vec = [ArchSimd::splat(z1), ArchSimd::splat(z2)];
 
-    let y_rem = grid_data.octave_tiling[1].map_or(y_start, |t| y_start % t as i32);
+    let y_rem = grid_data.octave_tiling[1].map_or(y_start, |t| y_start.rem_euclid(t as i32));
     let y_vec = ArchSimd::splat((y_rem as u32).wrapping_mul(params.seed));
 
     const BYTE_SHUFFLE: [u8; 64] = [
