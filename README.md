@@ -56,9 +56,9 @@ Note that grid noise is an exception to this rule, but makes up for it many time
 
 ## Combiners and Generators
 
-Generators are structs that define how to generate noise. This includes [Perlin], [Value], [Simplex], and [Cellular].
+Generators are structs that define how to generate noise. This includes `Perlin`, `Value`, `Simplex`, and `Cellular`.
 Combiners specify *how* that noise is applied across multiple octaves (noise passes). This includes
-[Fbm], [Billow], [Ridged], and more. Combiners apply to both batch and grid noise.
+`Fbm`, `Billow`, `Ridged`, and more. Combiners apply to both batch and grid noise.
 
 ## Grid Noise
 
@@ -202,11 +202,11 @@ them on a grid. Batch noise also supports custom octaves.
 quick-noise offers a couple of utility features. These are disabled by default to keep compilation lean.
 
 ### image
-The image feature flag uses the [image] crate and enables the usage of `to_grayscale_image` for generating
+The image feature flag uses the `image` crate and enables the usage of `to_grayscale_image` for generating
 grayscale images of your noise.
 
 ### serde
-The serde feature flag dervies [Serialize] and [Deserialize] for config structs.
+The serde feature flag dervies `Serialize` and `Deserialize` for config structs.
 
 ## Simd
 
@@ -238,7 +238,7 @@ Using these iterators can fuse operations and avoid multiple vertical passes, pa
 `ArchSimd` represents a raw simd register for a given architecture. Unlike std::simd which abstracts these architecture details,
 this simd module offers you the ability to explicitly control loops that work best for your CPU.
 
-`simd_iter` and `simd_iter_mut` are exposed by the [SimdSliceIterExt] to create these iters from slices.
+`simd_iter` and `simd_iter_mut` are exposed by the `SimdSliceIterExt` to create these iters from slices.
 
 # Extensibility
 
@@ -281,11 +281,11 @@ impl Combiner for Fbm {
 ```
 (See Combiner trait documentation for more details)
 
-Custom noise generators can be created by implementing the [GridGenerator] and [BatchGenerator]
+Custom noise generators can be created by implementing the `GridGenerator` and `BatchGenerator`
 traits.
 
-To sample directly, [GridNoise] and [BatchNoise] both have `sample` and `sample_with_octaves`.
-Structs that implement [GridGenerator] and [BatchGenerator] support `sample_grid` and `sample_batch`.
+To sample directly, `GridNoise` and `BatchNoise` both have `sample` and `sample_with_octaves`.
+Structs that implement `GridGenerator` and `BatchGenerator` support `sample_grid` and `sample_batch`.
 They use configs that 
 
 # Detailed Performance
