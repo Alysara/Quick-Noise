@@ -7,7 +7,7 @@ with up to 10x+ performance on uniform grids. Works on stable Rust.
 Time taken to produce 3 octaves of FBM noise for 1024x1024 (1,048,576) samples.
 | Library              | Perlin  | Value   | Simplex | Cellular |
 |----------------------|---------|---------|---------|----------|
-| quick-noise (grid)*  | 0.66 ms | 0.50 ms |    X    |    X     |
+| quick-noise (grid)   | 0.66 ms | 0.50 ms |    X    |    X     |
 | quick-noise (batch)  | 4.19 ms | 3.79 ms | 5.84 ms | 7.48 ms  |
 | fastnoise2           | 6.22 ms | 5.01 ms | 7.33 ms | 21.4 ms  |
 | simd-noise           | 9.70 ms |    X    |    X    |          |
@@ -19,7 +19,7 @@ Time taken to produce 3 octaves of FBM noise for 1024x1024 (1,048,576) samples.
 Time taken to produce 3 octaves of FBM noise for 128x128x128 (2,097,152) samples.
 | Library              | Perlin  | Value   | Simplex | Cellular |
 |----------------------|---------|---------|---------|----------|
-| quick-noise (grid)*  | 0.87 ms | 0.62 ms |    X    |    X     |
+| quick-noise (grid)   | 0.87 ms | 0.62 ms |    X    |    X     |
 | quick-noise (batch)  | 27.2 ms | 12.0 ms | 24.1 ms | 39.0 ms  |
 | fastnoise2           | 29.7 ms | 16.0 ms | 37.9 ms | 137 ms   |
 | simd-noise           | 35.7 ms |    X    |    X    |    X     |
