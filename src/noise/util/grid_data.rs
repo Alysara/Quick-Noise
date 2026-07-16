@@ -60,8 +60,9 @@ impl<'a, const D: usize> GridData<'a, D> {
         let fade_factors = from_fn(|i| arena.allocate(padded_size[i]));
 
         // Get the distances from the gradient gridpoints.
-        let mut cur_dist: [_; D] =
-            from_fn(|i| ArchSimd::iota(frac_start[i]) * ArchSimd::splat(increment[i]));
+        let mut cur_dist: [_; D] = from_fn(|i| {
+            ArchSimd::iota(0.0) * ArchSimd::splat(increment[i]) + ArchSimd::splat(frac_start[i])
+        });
         let chunk_increment: [_; D] = from_fn(|i| ArchSimd::splat(increment[i] * LANES as f32));
 
         for axis in 0..D {
