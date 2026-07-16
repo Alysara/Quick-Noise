@@ -103,8 +103,6 @@ impl GridGenerator<3> for Perlin {
         validate_state_size::<C, _>(params.grid_size, state.len());
         let padded_size = pad_grid_size(params.grid_size);
 
-        println!("Params: {:?}", params);
-
         // Arena setup.
         let required_cache = padded_size[0] * 41 + padded_size[1] * 3 + padded_size[2] * 3;
         let mut cache = ArenaBuffer::with_capacity(required_cache);
