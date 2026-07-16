@@ -367,6 +367,8 @@ Criterion benches can be run with:
 
 > cargo bench
 
-Simd module tests can be run with:
+Test modules can be run with:
 
 > cargo test --features="image" --release
+
+MacOS users may have to comment out the simdnoise dev-dependency due to a Sse4.1 target error.
