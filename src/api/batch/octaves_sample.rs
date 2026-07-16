@@ -54,7 +54,7 @@ impl<const D: usize, C: Combiner, G: BatchGenerator<D>> BatchNoise<D, C, G> {
             let seed = seeds[0];
             let weight = ArchSimd::splat(octave_list[0].weight) * weight_coef;
             let new_sample = G::sample_batch(seed, inputs, freq) * weight;
-            if noise_config.initialization {
+            if noise_config.initialize {
                 (state, sample) = C::initialize_sample(&combiner_config, new_sample);
             } else {
                 (state, sample) = C::apply_sample(&combiner_config, state, sample, new_sample);
@@ -73,7 +73,7 @@ impl<const D: usize, C: Combiner, G: BatchGenerator<D>> BatchNoise<D, C, G> {
                 (state, sample) = C::apply_sample(&combiner_config, state, sample, new_sample);
             }
 
-            if noise_config.finalization {
+            if noise_config.finalize {
                 C::finalize_sample(&combiner_config, state, sample)
             } else {
                 sample

@@ -94,7 +94,7 @@ impl Grid<2> {
     }
 
     /// Determines the position values provided to noise calls. This value represents
-    /// the position of this grid region in grid units determiend by its grid_size.
+    /// the position of this grid region in grid units determined by its grid_size.
     /// A 32x32 grid at position `{ 1, 2 }` covers samples in the range `{ 32..64, 64..96 }`.
     ///
     /// # Default:
@@ -148,7 +148,7 @@ impl Grid<3> {
     }
 
     /// Determines the position values provided to noise calls. This value represents
-    /// the position of this grid region in grid units determiend by its grid_size.
+    /// the position of this grid region in grid units determined by its grid_size.
     /// A 32x32x32 grid at position `{ 1, 2, 3 }` covers samples in the range
     /// `{ 32..64, 64..96, 96..128 }`.
     ///

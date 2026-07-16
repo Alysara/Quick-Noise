@@ -127,7 +127,7 @@ impl<const D: usize, F: Combiner, S: BatchGenerator<D>, I: DimIter<D>>
     BatchNoiseBuilder<D, F, S, I>
 {
     declare_fill!(self, output, {
-        if self.noise_config.initialization {
+        if self.noise_config.initialize {
             for (i, x) in self.into_iter().enumerate() {
                 x.copy_to_slice(&mut output[i * ArchSimd::<f32>::LANES..]);
             }

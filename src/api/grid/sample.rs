@@ -17,7 +17,7 @@ impl<const D: usize, C: Combiner, G: GridGenerator<D>> GridNoise<D, C, G> {
 
         // Fill with zeroes if there are no octaves.
         if octaves == 0 {
-            if noise_config.initialization {
+            if noise_config.initialize {
                 result.fill(0.0)
             }
             return;
@@ -53,8 +53,8 @@ impl<const D: usize, C: Combiner, G: GridGenerator<D>> GridNoise<D, C, G> {
         let f_config = *combiner_config;
 
         match (
-            noise_config.initialization,
-            noise_config.finalization && octaves == 1,
+            noise_config.initialize,
+            noise_config.finalize && octaves == 1,
         ) {
             (false, false) => G::sample_grid::<C, false, false>(params, f_config, state, result),
             (true, false) => G::sample_grid::<C, true, false>(params, f_config, state, result),
@@ -78,7 +78,7 @@ impl<const D: usize, C: Combiner, G: GridGenerator<D>> GridNoise<D, C, G> {
             params.frequency =
                 std::array::from_fn(|i| params.frequency[i] * noise_config.lacunarity);
             params.seed = gen_octave_seed(params.frequency, base_seed);
-            match noise_config.finalization {
+            match noise_config.finalize {
                 true => G::sample_grid::<C, false, true>(params, f_config, state, result),
                 false => G::sample_grid::<C, false, false>(params, f_config, state, result),
             }

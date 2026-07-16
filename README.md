@@ -88,8 +88,8 @@ let noise = grid.builder::<Fbm, Perlin>()
 	.amplitude(1.0)
 	.normalization(true)
 	.scaling(1.0, 1.0)
-    .initialization(true) // Setting to false adds noise to current values.
-    .finalization(true) // Some combiners have a finalization stage.
+    .initialize(true) // Setting to false adds noise to current values.
+    .finalize(true) // Some combiners have a finalization stage.
 	.build();
 ```
 

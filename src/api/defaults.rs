@@ -11,8 +11,8 @@ impl<const D: usize> Default for NoiseConfig<D> {
             lacunarity: 2.0,
             persistence: 0.5,
             normalization: true,
-            initialization: true,
-            finalization: true,
+            initialize: true,
+            finalize: true,
             magnification: 1.0,
             scaling: [1.0; D],
         }
@@ -25,8 +25,8 @@ impl<const D: usize> Default for OctaveNoiseConfig<D> {
             seed: 0xD5E7B3C94F8A1E6B,
             amplitude: 1.0,
             normalization: true,
-            initialization: true,
-            finalization: true,
+            initialize: true,
+            finalize: true,
             magnification: 1.0,
             scaling: [1.0; D],
         }

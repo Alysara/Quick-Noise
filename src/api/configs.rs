@@ -10,8 +10,8 @@ pub struct NoiseConfig<const D: usize> {
     pub lacunarity: f32,
     pub persistence: f32,
     pub normalization: bool,
-    pub initialization: bool,
-    pub finalization: bool,
+    pub initialize: bool,
+    pub finalize: bool,
     pub magnification: f32,
     #[cfg_attr(feature = "serde", serde(with = "serde_arrays"))]
     pub scaling: [f32; D],
@@ -25,8 +25,8 @@ pub struct OctaveNoiseConfig<const D: usize> {
     pub seed: u64,
     pub amplitude: f32,
     pub normalization: bool,
-    pub initialization: bool,
-    pub finalization: bool,
+    pub initialize: bool,
+    pub finalize: bool,
     pub magnification: f32,
     #[cfg_attr(feature = "serde", serde(with = "serde_arrays"))]
     pub scaling: [f32; D],

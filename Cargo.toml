@@ -12,7 +12,7 @@ keywords = ["noise", "simd", "simplex", "perlin", "performance"]
 categories = ["game-engines", "multimedia::images"]
 readme = "README.md"
 description = "High performance SIMD procedural noise library for batch and uniform grid sampling. Works on stable Rust."
-rust-version = "1.85"
+rust-version = "1.95"
 exclude = ["images/"]
 
 [profile.release]

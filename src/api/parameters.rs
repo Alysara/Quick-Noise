@@ -110,15 +110,15 @@ macro_rules! params_noise_builder {
             ///
             /// # Default
             /// `true`
-            pub fn initialization(mut self, initialization: bool) -> Self {
-                self.noise_config.initialization = initialization;
+            pub fn initialize(mut self, initialize: bool) -> Self {
+                self.noise_config.initialize = initialize;
                 self
             }
 
             /// Determines whether or not to finalize the values after the final octave.
             /// This finalization uses what is defined by the [Fractal] type.
-            pub fn finalization(mut self, finalization: bool) -> Self {
-                self.noise_config.finalization = finalization;
+            pub fn finalize(mut self, finalize: bool) -> Self {
+                self.noise_config.finalize = finalize;
                 self
             }
 

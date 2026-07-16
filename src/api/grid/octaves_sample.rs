@@ -60,8 +60,8 @@ impl<const D: usize, C: Combiner, G: GridGenerator<D>> GridNoise<D, C, G> {
             params.weight = octave.weight * weight_coef;
 
             match (
-                noise_config.initialization,
-                noise_config.finalization && num_octaves == 1,
+                noise_config.initialize,
+                noise_config.finalize && num_octaves == 1,
             ) {
                 (true, true) => G::sample_grid::<C, true, true>(params, f_config, state, dst),
                 (false, true) => G::sample_grid::<C, false, true>(params, f_config, state, dst),
@@ -83,7 +83,7 @@ impl<const D: usize, C: Combiner, G: GridGenerator<D>> GridNoise<D, C, G> {
             params.seed = gen_octave_seed(octave.frequency, seed);
             params.frequency = octave.frequency;
             params.weight = octave.weight * weight_coef;
-            match noise_config.finalization {
+            match noise_config.finalize {
                 true => G::sample_grid::<C, false, true>(params, f_config, state, dst),
                 false => G::sample_grid::<C, false, false>(params, f_config, state, dst),
             }
