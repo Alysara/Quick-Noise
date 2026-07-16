@@ -377,7 +377,7 @@ fn create_test_images_batch_3d() {
         .into_iter()
         .to_grayscale_image(1000, 1000, "test_images/batch_grid_3d_value.png");
     BatchNoise::<3, Fbm, Simplex>::builder(grid_3d.x_iter(), grid_3d.y_iter(), grid_3d.z_iter())
-        .octaves(6)
+        .octaves(1)
         .into_iter()
         .to_grayscale_image(1000, 1000, "test_images/batch_grid_3d_simplex.png");
     BatchNoise::<3, Fbm, Cellular>::builder(grid_3d.x_iter(), grid_3d.y_iter(), grid_3d.z_iter())

@@ -309,49 +309,49 @@ over a 64x64 grid (2D) and 32x32x32 grid (3D).
 ### Perlin
 | Frequency | 2D AVX2  | 3D AVX2  | 2D AVX512 | 3D AVX512 |
 |-----------|----------|----------|-----------|-----------|
-| 1 / 64    | 13.2 B/s | 11.4 B/s | 17.6 B/s  | 51.0 B/s  |
-| 1 / 48    | 11.6 B/s | 11.4 B/s | 15.4 B/s  | 42.5 B/s  |
-| 1 / 32    | 11.3 B/s | 11.4 B/s | 17.6 B/s  | 51.0 B/s  |
-| 1 / 24    | 10.3 B/s | 9.69 B/s | 12.8 B/s  | 32.7 B/s  |
-| 1 / 16    | 9.52 B/s | 9.58 B/s | 14.2 B/s  | 33.3 B/s  |
-| 1 / 8     | 6.52 B/s | 6.96 B/s | 8.74 B/s  | 20.9 B/s  |
-| 1 / 4     | 3.38 B/s | 2.86 B/s | 4.73 B/s  | 5.42 B/s  |
+| 1 / 64    | 13.2 B/s | 11.4 B/s | 35.0 B/s  | 15.9 B/s  |
+| 1 / 48    | 11.6 B/s | 11.4 B/s | 29.4 B/s  | 16.0 B/s  |
+| 1 / 32    | 11.3 B/s | 11.4 B/s | 29.5 B/s  | 16.0 B/s  |
+| 1 / 24    | 10.3 B/s | 9.69 B/s | 24.2 B/s  | 13.4 B/s  |
+| 1 / 16    | 9.52 B/s | 9.58 B/s | 22.1 B/s  | 13.7 B/s  |
+| 1 / 8     | 6.52 B/s | 6.96 B/s | 12.9 B/s  | 9.47 B/s  |
+| 1 / 4     | 3.38 B/s | 2.86 B/s | 5.35 B/s  | 4.37 B/s  |
 
 ### Value
-| Frequency | 2D AVX2  | 3D AVX2  |
-|-----------|----------|----------|
-| 1 / 64    | 24.3 B/s | 14.3 B/s |
-| 1 / 48    | 22.0 B/s | 14.3 B/s |
-| 1 / 32    | 22.3 B/s | 14.6 B/s |
-| 1 / 24    | 19.7 B/s | 12.9 B/s |
-| 1 / 16    | 17.5 B/s | 13.2 B/s |
-| 1 / 8     | 12.7 B/s | 11.6 B/s |
-| 1 / 4     | 6.68 B/s | 6.56 B/s |
+| Frequency | 2D AVX2  | 3D AVX2  | 2D AVX512 | 3D AVX512 |
+|-----------|----------|----------|-----------|-----------|
+| 1 / 64    | 24.3 B/s | 14.3 B/s | 20.8 B/s  | 32.9 B/s  |
+| 1 / 48    | 22.0 B/s | 14.3 B/s | 18.5 B/s  | 33.0 B/s  |
+| 1 / 32    | 22.3 B/s | 14.6 B/s | 18.3 B/s  | 32.8 B/s  |
+| 1 / 24    | 19.7 B/s | 12.9 B/s | 16.2 B/s  | 26.5 B/s  |
+| 1 / 16    | 17.5 B/s | 13.2 B/s | 15.8 B/s  | 26.7 B/s  |
+| 1 / 8     | 12.7 B/s | 11.6 B/s | 14.2 B/s  | 17.5 B/s  |
+| 1 / 4     | 6.68 B/s | 6.56 B/s | 7.76 B/s  | 8.51 B/s  |
 
 ## Batch Noise
 
 Batch noise processing is much more flexible than uniform grid, allowing for any arbitrary input and enabling
 techniques such as domain warping, but at the cost of performance. Results are measured in millions of points per second.
 
-|   Perlin    | 2D AVX2 | 3D AVX2 |
-|-------------|---------|---------|
-| quick-noise | 645 M/s | 220 M/s |
-| FastNoise2  | 425 M/s | 192 M/s |
+|   Perlin    | 2D AVX2 | 3D AVX2 | 2D AVX512 | 3D AVX512 |
+|-------------|---------|---------|-----------|-----------|
+| quick-noise | 645 M/s | 220 M/s | 1,810 M/s | 871 M/s   |
+| FastNoise2  | 425 M/s | 192 M/s | 942 M/s   | 678 M/s   |
 
-|    Value    | 2D AVX2   | 3D AVX2 |
-|-------------|-----------|---------|
-| quick-noise | 707 M/s   | 463 M/s |
-| FastNoise2  | 506 M/s   | 339 M/s |
+|    Value    | 2D AVX2   | 3D AVX2 | 2D AVX512 | 3D AVX512 |
+|-------------|-----------|---------|-----------|-----------|
+| quick-noise | 707 M/s   | 463 M/s | 2,265 M/s | 1,386 M/s |
+| FastNoise2  | 506 M/s   | 339 M/s | 1,193 M/s | 808 M/s   |
 
-|   Simplex   | 2D AVX2 | 3D AVX2 |
-|-------------|---------|---------|
-| quick-noise | 473 M/s | 232 M/s |
-| FastNoise2  | 378 M/s | 211 M/s |
+|   Simplex   | 2D AVX2 | 3D AVX2 | 2D AVX512 | 3D AVX512 |
+|-------------|---------|---------|-----------|-----------|
+| quick-noise | 473 M/s | 232 M/s | 1,282 M/s | 816 M/s   |
+| FastNoise2  | 378 M/s | 211 M/s | 910 M/s   | 640 M/s   |
 
-|   Cellular  | 2D AVX2 | 3D AVX2  |
-|-------------|---------|----------|
-| quick-noise | 432 M/s | 123 M/s  |
-| FastNoise2  | 140 M/s | 44.4 M/s |
+|   Cellular  | 2D AVX2 | 3D AVX2  | 2D AVX512 | 3D AVX512 |
+|-------------|---------|----------|-----------|-----------|
+| quick-noise | 432 M/s | 123 M/s  | 1,196 M/s | 416 M/s   |
+| FastNoise2  | 140 M/s | 44.4 M/s | 397 M/s   | 149 M/s   |
 
 # Running
 
