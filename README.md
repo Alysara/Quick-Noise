@@ -64,8 +64,9 @@ Combiners specify *how* that noise is applied across multiple octaves (noise pas
 Grid noise is called through a grid region. Each noise call takes into account both the grid seed and the seed of the noise call,
 making it easier to have multiple noise maps with the same primary seed.
 
-```rs
+```rust
 use quick_noise::{Grid, Fbm, Perlin};
+use quick_noise::emit::NoiseImageExt;
 
 // Creates an anchor into a region of sample space.
 let grid = Grid::<2>::new(200, 200) // Specify a 2D 200x200 grid.
@@ -96,8 +97,8 @@ let noise = grid.builder::<Fbm, Perlin>()
 Currently, only Perlin and Value is supported for grid noise. For octave sequences more complicated than FBM noise,
 `builder_with_octaves` can be used for granular control over frequencies and weights.
 
-```rs
-use quick_noise::{Grid, Billow, Value};
+```rust
+use quick_noise::{Octave, Grid, Billow, Value};
 
 let grid = Grid::<2>::new(200, 200);
 
@@ -127,8 +128,9 @@ It internally adds the values of the grid to the offset iterators you provide it
 This can be chained together for complex warp configurations. Since it uses batch noise,
 Perlin, Value, Simplex, and Cellular can all be used here.
 
-```rs
+```rust
 use quick_noise::{Grid, Fbm, Perlin};
+use quick_noise::emit::NoiseImageExt;
 
 let grid = Grid::<2>::new(1024, 512);
 
@@ -157,8 +159,9 @@ for grid_noise currently.
 You can choose to only enable tiling for specific axes and can specify the
 size of the tiles for each axis specifically.
 
-```rs
+```rust
 use quick_noise::{Grid, Fbm, Perlin};
+use quick_noise::emit::NoiseImageExt;
 
 let grid = Grid::<2>::new(1024, 1024)
 	.grid_position(0, 0)
@@ -178,8 +181,9 @@ grid.builder::<Fbm, Perlin>()
 
 Batch noise operates directly on static methods and takes iterators as inputs. Perlin, Value, Simplex, and Cellular all support Batch noise.
 
-```rs
-use quick_noise::{BatchNoise, Fbm, Simplex};
+```rust
+use quick_noise::{Grid, BatchNoise, Fbm, Simplex};
+use quick_noise::emit::NoiseImageExt;
 
 // Use grid for generating iters.
 let grid = Grid::<2>::new(100, 100).grid_position(0, 0);
@@ -217,8 +221,8 @@ but the performance is much worse. Luckily the vast majority of computers used t
 
 This simd module can support most basic operations, and can be used directly to benefit from it:
 
-```rs
-use quick_noise::{BatchNoise, Ridged, Cellular};
+```rust
+use quick_noise::{Grid, BatchNoise, Ridged, Cellular};
 use quick_noise::simd::ArchSimd;
 use std::iter::zip;
 
@@ -247,7 +251,7 @@ quick-noise allows you to implement your own custom combiners and generators.
 They are defined once in one place and work for both grid and batch noise.
 For example, the Fbm combiner is defined as:
 
-```rs
+```rust
 #[derive(Default, Copy, Clone, PartialEq, Debug)]
 pub struct Fbm {}
 use quick_noise::{Combiner, CombinerArray};

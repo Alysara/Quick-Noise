@@ -1,5 +1,5 @@
-use quick_noise::emit::grayscale::NoiseImageExt;
-use quick_noise::simd::arch_simd::ArchSimd;
+use quick_noise::emit::NoiseImageExt;
+use quick_noise::simd::ArchSimd;
 use quick_noise::*;
 
 #[test]

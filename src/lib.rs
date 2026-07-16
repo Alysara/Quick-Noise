@@ -10,7 +10,9 @@ pub mod simd;
 
 #[cfg(feature = "image")]
 pub mod emit {
-    pub mod grayscale;
+    mod grayscale;
+    pub use grayscale::NoiseImageExt;
+
 }
 
 pub use api::batch::interface::{BatchGenerator, BatchNoise};
