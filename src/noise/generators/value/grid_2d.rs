@@ -107,7 +107,7 @@ impl GridGenerator<2> for Value {
                 grad_scratch,
                 gradients.bl,
                 gradients.br,
-                y_it,
+                y_it + 1,
             );
 
             let y_range = y_cur_index..y_next_index;

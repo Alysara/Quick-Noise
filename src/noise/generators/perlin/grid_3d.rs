@@ -135,7 +135,7 @@ impl GridGenerator<3> for Perlin {
                 let y_range = y_cur_index..y_next_index;
 
                 // Set bottom gradients.
-                grid_gradients_3d(&params, &grid_data, &mut gradients, y_it, z_it);
+                grid_gradients_3d(&params, &grid_data, &mut gradients, y_it + 1, z_it);
 
                 grid_dotted_trilerp::<C, INIT, FINAL>(
                     &mut trilerp_buffers,
@@ -175,8 +175,8 @@ pub(super) fn grid_gradients_3d<'a>(
                 .wrapping_add(params.seed),
         ),
         Some(t) => (
-            (z_start % t as i32) as u32,
-            ((z_start + 1) % t as i32) as u32,
+            (z_start.rem_euclid(t as i32)) as u32,
+            ((z_start + 1).rem_euclid(t as i32)) as u32,
         ),
     };
     let z_vec = [ArchSimd::splat(z1), ArchSimd::splat(z2)];
