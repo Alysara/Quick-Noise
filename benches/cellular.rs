@@ -93,10 +93,12 @@ fn cellular_2d_octaves_benchmark(c: &mut Criterion) {
         use noiz::prelude::*;
 
         let noise = Noise::<
-            LayeredNoise::<
+            LayeredNoise<
                 Normed<f32>,
                 Persistence,
-                FractalLayers<Octave<PerCellPointDistances<Voronoi, EuclideanLength, WorleyLeastDistance>>>,
+                FractalLayers<
+                    Octave<PerCellPointDistances<Voronoi, EuclideanLength, WorleyLeastDistance>>,
+                >,
             >,
         >::from(LayeredNoise::new(
             Normed::default(),
@@ -183,6 +185,24 @@ fn cellular_2d_octaves_benchmark(c: &mut Criterion) {
         });
     }
 
+    // --- noise functions ---
+    {
+        use noise_functions::{CellDistance, Noise};
+        let mut result = vec![0.0f32; GRID_2D_AREA];
+        group.bench_function("noise-functions", |b| {
+            b.iter(|| {
+                for y in 0..GRID_2D {
+                    for x in 0..GRID_2D {
+                        result[y * GRID_2D + x] = CellDistance::default()
+                            .fbm(OCTAVES_2D as u32, 0.5, 2.0)
+                            .sample2([y as f32, x as f32]);
+                    }
+                }
+            });
+        });
+        black_box(&result);
+    }
+
     group.finish();
 
     let mut group = c.benchmark_group("cellular_noise_3d_3octaves_128x128x128");
@@ -210,10 +230,14 @@ fn cellular_2d_octaves_benchmark(c: &mut Criterion) {
         let mut result = vec![0.0; GRID_3D_VOLUME];
         group.bench_function("quick-noise batch", |b| {
             b.iter(|| {
-                BatchNoise::<3, Fbm, Cellular>::builder(grid.x_iter(), grid.y_iter(), grid.z_iter())
-                    .octaves(OCTAVES_3D)
-                    .frequency(BASE_FREQ_3D as f32)
-                    .fill(result.as_mut_slice());
+                BatchNoise::<3, Fbm, Cellular>::builder(
+                    grid.x_iter(),
+                    grid.y_iter(),
+                    grid.z_iter(),
+                )
+                .octaves(OCTAVES_3D)
+                .frequency(BASE_FREQ_3D as f32)
+                .fill(result.as_mut_slice());
                 black_box(&result);
             });
         });
@@ -234,7 +258,8 @@ fn cellular_2d_octaves_benchmark(c: &mut Criterion) {
                 for z in 0..GRID_3D {
                     for y in 0..GRID_3D {
                         for x in 0..GRID_3D {
-                            result[z * GRID_3D * GRID_3D + y * GRID_3D + x] = fbm.get([x as f64, y as f64, z as f64]);
+                            result[z * GRID_3D * GRID_3D + y * GRID_3D + x] =
+                                fbm.get([x as f64, y as f64, z as f64]);
                         }
                     }
                 }
@@ -254,7 +279,8 @@ fn cellular_2d_octaves_benchmark(c: &mut Criterion) {
                 for z in 0..GRID_3D {
                     for y in 0..GRID_3D {
                         for x in 0..GRID_3D {
-                            result[z * GRID_3D * GRID_3D + y * GRID_3D + x] = generator.sample([x as f64, y as f64, z as f64]);
+                            result[z * GRID_3D * GRID_3D + y * GRID_3D + x] =
+                                generator.sample([x as f64, y as f64, z as f64]);
                         }
                     }
                 }
@@ -269,10 +295,12 @@ fn cellular_2d_octaves_benchmark(c: &mut Criterion) {
         use noiz::prelude::*;
 
         let noise = Noise::<
-            LayeredNoise::<
+            LayeredNoise<
                 Normed<f32>,
                 Persistence,
-                FractalLayers<Octave<PerCellPointDistances<Voronoi, EuclideanLength, WorleyLeastDistance>>>,
+                FractalLayers<
+                    Octave<PerCellPointDistances<Voronoi, EuclideanLength, WorleyLeastDistance>>,
+                >,
             >,
         >::from(LayeredNoise::new(
             Normed::default(),
@@ -314,9 +342,10 @@ fn cellular_2d_octaves_benchmark(c: &mut Criterion) {
                 let mut frequency = BASE_FREQ_3D as f32;
 
                 for _ in 0..OCTAVES_3D {
-                    let (octave, _, _) = simdnoise::NoiseBuilder::cellular_3d(GRID_3D, GRID_3D, GRID_3D)
-                        .with_freq(frequency)
-                        .generate();
+                    let (octave, _, _) =
+                        simdnoise::NoiseBuilder::cellular_3d(GRID_3D, GRID_3D, GRID_3D)
+                            .with_freq(frequency)
+                            .generate();
 
                     for (dst, src) in result.iter_mut().zip(octave.iter()) {
                         *dst += amplitude * *src;
@@ -364,6 +393,27 @@ fn cellular_2d_octaves_benchmark(c: &mut Criterion) {
                 black_box(&result);
             });
         });
+    }
+
+    // --- noise functions ---
+    {
+        use noise_functions::{CellDistance, Noise};
+        let mut result = vec![0.0f32; GRID_3D_VOLUME];
+        group.bench_function("noise-functions", |b| {
+            b.iter(|| {
+                for z in 0..GRID_3D {
+                    for y in 0..GRID_3D {
+                        for x in 0..GRID_3D {
+                            result[z * GRID_3D * GRID_3D + y * GRID_3D + x] =
+                                CellDistance::default()
+                                    .fbm(OCTAVES_3D as u32, 0.5, 2.0)
+                                    .sample3([z as f32, y as f32, x as f32]);
+                        }
+                    }
+                }
+            });
+        });
+        black_box(&result);
     }
 
     group.finish();

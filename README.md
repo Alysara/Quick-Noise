@@ -13,6 +13,7 @@ Time taken to produce 3 octaves of FBM noise for 1024x1024 (1,048,576) samples.
 | noise-rs             | 30.1 ms | 29.2 ms | 49.4 ms | 96.3 ms  |
 | noiz                 | 31.4 ms | 26.3 ms | 44.9 ms | 92.6 ms  |
 | libnoise             | 87.8 ms | 27.9 ms | 117 ms  | 176 ms   |
+| noise-functions      | 12.0 ms | 5.77 ms | 44.6 ms | 52.7 ms  |
 
 ### 3D Noise
 Time taken to produce 3 octaves of FBM noise for 128x128x128 (2,097,152) samples.
@@ -25,6 +26,7 @@ Time taken to produce 3 octaves of FBM noise for 128x128x128 (2,097,152) samples
 | noise-rs             | 92.0 ms | 212 ms  | 251 ms  | 460 ms   |
 | noiz                 | 127 ms  | 107 ms  | 163 ms  | 489 ms   |
 | libnoise             | 232 ms  | 90.0 ms | 250 ms  | 919 ms   |
+| noise-functions      | 113 ms  | 82.0 ms | 322 ms  | 334 ms   |
 
 * X signifies the noise type is not supported or readily exposed
 * Grid path performance degrades for very high frequencies, and cannot support
@@ -291,7 +293,6 @@ traits.
 
 To sample directly, `GridNoise` and `BatchNoise` both have `sample` and `sample_with_octaves`.
 Structs that implement `GridGenerator` and `BatchGenerator` support `sample_grid` and `sample_batch`.
-They use configs that 
 
 # Detailed Performance
 

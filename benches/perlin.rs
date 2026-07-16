@@ -1,6 +1,7 @@
 use std::hint::black_box;
 
 use criterion::{Criterion, Throughput, criterion_group, criterion_main};
+use noise_functions::{Noise, Perlin};
 
 const GRID_2D: usize = 32;
 const GRID_2D_AREA: usize = GRID_2D * GRID_2D;
@@ -121,9 +122,9 @@ fn perlin_2d_octaves_benchmark(c: &mut Criterion) {
                         result[y * GRID_2D + x] = noise.sample(p);
                     }
                 }
-                black_box(&result);
             });
         });
+        black_box(&result);
     }
 
     // ---- simdnoise ----
@@ -159,9 +160,26 @@ fn perlin_2d_octaves_benchmark(c: &mut Criterion) {
                     BASE_FREQ_2D as f32,
                     1337,
                 );
-                black_box(&result);
             });
         });
+        black_box(&result);
+    }
+
+    // --- noise functions ---
+    {
+        let mut result = vec![0.0f32; GRID_2D_AREA];
+        group.bench_function("noise-functions", |b| {
+            b.iter(|| {
+                for y in 0..GRID_2D {
+                    for x in 0..GRID_2D {
+                        result[y * GRID_2D + x] = Perlin
+                            .fbm(OCTAVES_2D as u32, 0.5, 2.0)
+                            .sample2([y as f32, x as f32]);
+                    }
+                }
+            });
+        });
+        black_box(&result);
     }
 
     group.finish();
@@ -216,7 +234,8 @@ fn perlin_2d_octaves_benchmark(c: &mut Criterion) {
                 for z in 0..GRID_3D {
                     for y in 0..GRID_3D {
                         for x in 0..GRID_3D {
-                            result[z * GRID_3D * GRID_3D + y * GRID_3D + x] = fbm.get([x as f64, y as f64, z as f64]);
+                            result[z * GRID_3D * GRID_3D + y * GRID_3D + x] =
+                                fbm.get([x as f64, y as f64, z as f64]);
                         }
                     }
                 }
@@ -236,7 +255,8 @@ fn perlin_2d_octaves_benchmark(c: &mut Criterion) {
                 for z in 0..GRID_3D {
                     for y in 0..GRID_3D {
                         for x in 0..GRID_3D {
-                            result[z * GRID_3D * GRID_3D + y * GRID_3D + x] = generator.sample([x as f64, y as f64, z as f64]);
+                            result[z * GRID_3D * GRID_3D + y * GRID_3D + x] =
+                                generator.sample([x as f64, y as f64, z as f64]);
                         }
                     }
                 }
@@ -290,12 +310,13 @@ fn perlin_2d_octaves_benchmark(c: &mut Criterion) {
     {
         group.bench_function("simdnoise", |b| {
             b.iter(|| {
-                let (result, _min, _max) = simdnoise::NoiseBuilder::fbm_3d(GRID_3D, GRID_3D, GRID_3D)
-                    .with_freq(BASE_FREQ_3D as f32)
-                    .with_octaves(OCTAVES_3D as u8)
-                    .with_gain(0.5)
-                    .with_lacunarity(2.0)
-                    .generate();
+                let (result, _min, _max) =
+                    simdnoise::NoiseBuilder::fbm_3d(GRID_3D, GRID_3D, GRID_3D)
+                        .with_freq(BASE_FREQ_3D as f32)
+                        .with_octaves(OCTAVES_3D as u8)
+                        .with_gain(0.5)
+                        .with_lacunarity(2.0)
+                        .generate();
                 black_box(&result);
             });
         });
@@ -325,6 +346,26 @@ fn perlin_2d_octaves_benchmark(c: &mut Criterion) {
                 black_box(&result);
             });
         });
+    }
+
+    // --- noise functions ---
+    {
+        use noise_functions::{Noise, Perlin};
+        let mut result = vec![0.0f32; GRID_3D_VOLUME];
+        group.bench_function("noise-functions", |b| {
+            b.iter(|| {
+                for z in 0..GRID_3D {
+                    for y in 0..GRID_3D {
+                        for x in 0..GRID_3D {
+                            result[z * GRID_3D * GRID_3D + y * GRID_3D + x] = Perlin
+                                .fbm(OCTAVES_3D as u32, 0.5, 2.0)
+                                .sample3([z as f32, y as f32, x as f32]);
+                        }
+                    }
+                }
+            });
+        });
+        black_box(&result);
     }
 
     group.finish();
