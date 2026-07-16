@@ -222,11 +222,11 @@ fn create_test_images_grid_3d() {
         .map(|x| x * ArchSimd::splat(0.25) - ArchSimd::splat(1.0))
         .to_grayscale_image(1024, 1024, "test_images/grid_3d_hybrid_multi_perlin_tiled.png");
 
-    let grid_3d_full = Grid::<3>::new(32, 32, 32);
+    let grid_3d_full = Grid::<3>::new(1024, 1024, 32).grid_position(-50, 100, 123);
     grid_3d_full.builder::<Fbm, Perlin>()
-        .octaves(6)
+        .octaves(1)
         .into_iter()
-        .to_grayscale_image(32, 1024, "test_images/grid_3d_perlin_full.png");
+        .to_grayscale_image(1024, 1024 * 32, "test_images/grid_3d_perlin_full.png");
 }
 
 #[test]
