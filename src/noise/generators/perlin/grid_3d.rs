@@ -165,7 +165,7 @@ pub(super) fn grid_gradients_3d<'a>(
     y_it: usize,
     z_it: usize,
 ) {
-    let y_start = y_it as i32 + grid_data.grid_start[2];
+    let y_start = y_it as i32 + grid_data.grid_start[1];
     let z_start = z_it as i32 + grid_data.grid_start[2];
     let (z1, z2) = match grid_data.octave_tiling[2] {
         None => (
@@ -270,7 +270,7 @@ pub(super) fn grid_gradients_3d_set_loop<'a, const IS_FRONT: bool>(
         )
     } else {
         (
-            &mut gradients.scratch[0],
+            &mut gradients.scratch[1],
             &mut gradients.blb,
             &mut gradients.brb,
         )

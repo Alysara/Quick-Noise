@@ -65,16 +65,16 @@ fn main() {
     let grid_3d_2 = Grid::<3>::new(256, 256, 256).grid_position(24, -10, 15);
 
     grid_3d.builder::<Fbm, Perlin>()
-        .octaves(3)
+        .octaves(6)
         .frequency(1.0)
-        .scaling(1.0 / 32.0, 1.0 / 32.0, 1.0 / 32.0)
+        .scaling(1.0 / 128.0, 1.0 / 128.0, 1.0 / 128.0)
         .into_iter()
         .to_grayscale_image(256, 256 * 64, "noise_images/3d_test.png");
 
     grid_3d_2.builder::<Fbm, Perlin>()
-        .octaves(3)
+        .octaves(6)
         .frequency(1.0)
-        .scaling(1.0 / 32.0, 1.0 / 32.0, 1.0 / 32.0)
+        .scaling(1.0 / 128.0, 1.0 / 128.0, 1.0 / 128.0)
         .into_iter()
         .to_grayscale_image(256, 256 * 64, "noise_images/3d_test_2.png");
 }
