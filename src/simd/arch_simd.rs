@@ -9,7 +9,7 @@ cfg_select! {
         pub const SIMD_WIDTH: usize = 64;
         pub const NUM_SIMD_REG: usize = 32;
         pub type ArchSimd<T> = Simd<T, Avx512>;
-        pub type ArchMask<T> = SimdMask<T, Avx512>;
+        pub type ArchMask<T> = Mask<T, Avx512>;
         pub type ArchFamily = Avx512;
     }
     all(target_arch = "x86_64", target_feature = "avx2", target_feature = "fma") => {

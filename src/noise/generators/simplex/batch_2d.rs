@@ -76,12 +76,12 @@ impl BatchGenerator<2> for Simplex {
         let x2_shuf = x2.permute_8(shuffle_indices) ^ prime;
         let y2_shuf = y2.permute_8(shuffle_indices) ^ prime;
 
-        let mix_lo = (x1_shuf * y1_shuf) ^ x1_shuf;
-        let mix_hi = (x2_shuf * y2_shuf) ^ x2_shuf;
+        let mix_lo = (x1_shuf * y1_shuf) * x1_shuf;
+        let mix_hi = (x2_shuf * y2_shuf) * x2_shuf;
 
         let x_shuf_mi = triangle_mask.raw_cast().select(x2_shuf, x1_shuf);
         let y_shuf_mi = triangle_mask.raw_cast().select(y1_shuf, y2_shuf);
-        let mix_mi = (x_shuf_mi * y_shuf_mi) ^ x_shuf_mi;
+        let mix_mi = (x_shuf_mi * y_shuf_mi) * x_shuf_mi;
 
         // Gradient lookup: 9
         let indices_lo = mix_lo >> 29;
