@@ -1,4 +1,4 @@
-High performance SIMD procedural noise library for batch and uniform grid sampling. Works on stable Rust.
+Blazingly fast SIMD procedural noise library for batch and uniform grid sampling. Works on stable Rust.
 
 # Performance
 
