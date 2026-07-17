@@ -365,7 +365,7 @@ Height maps can be generated in `examples/basic.rs`. To run these examples, use:
 > cargo run --example basic --release --features="image"
 
 It is important that `RUSTFLAGS='-C target-cpu=native'` and `--release` is used for the best performance.
-`target-cpu=native` is specified by default in this project, but if you use it in your project use other flags
+`target-cpu=native` is specified by default in this project, but if you use it in your project and use other flags
 you may achieve worse performance.
 
 Criterion benches can be run with:
@@ -376,4 +376,4 @@ Test modules can be run with:
 
 > cargo test --features="image" --release
 
-MacOS users may have to comment out the simdnoise dev-dependency due to a Sse4.1 target error.
+macOS users may have to comment out the simdnoise dev-dependency due to a Sse4.1 target error.
