@@ -3,7 +3,7 @@ use std::hint::black_box;
 use criterion::{Criterion, Throughput, criterion_group, criterion_main};
 use noise_functions::{Noise, Perlin};
 
-const GRID_2D: usize = 32;
+const GRID_2D: usize = 1024;
 const GRID_2D_AREA: usize = GRID_2D * GRID_2D;
 const OCTAVES_2D: usize = 3;
 const BASE_FREQ_2D: f64 = 1.0 / 128.0;
