@@ -12,12 +12,11 @@ pub mod simd;
 pub mod emit {
     mod grayscale;
     pub use grayscale::NoiseImageExt;
-
 }
 
 pub use api::batch::interface::{BatchGenerator, BatchNoise};
 pub use api::defaults::*;
-pub use api::grid::interface::{Grid, GridGenerator};
+pub use api::grid::interface::{Grid, GridGenerator, GridNoise, GridNoiseParams};
 pub use api::octave::Octave;
 pub use api::{
     BatchNoiseBuilder, GridNoiseBuilder, OctaveBatchNoiseBuilder, OctaveGridNoiseBuilder,
