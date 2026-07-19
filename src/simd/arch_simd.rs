@@ -38,7 +38,7 @@ cfg_select! {
     }
     _ => {
         use crate::simd::architectures::families::Scalar128;
-        pub const SIMD_WIDTH: usize = 4;
+        pub const SIMD_WIDTH: usize = 16;
         pub const NUM_SIMD_REG: usize = 8;
         pub type ArchSimd<T> = Simd<T, Scalar128>;
         pub type ArchMask<T> = Mask<T, Scalar128>;
