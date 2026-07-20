@@ -3,7 +3,7 @@ pub mod simd_utils {
     pub mod macros;
 }
 
-use quick_noise::simd::static_simd::{StaticSimd, ArchFamily, ScalarFamily, ScalarSimd};
+use quick_noise::simd::{StaticSimd, ScalarSimd, StaticArch, ScalarArch};
 use quick_noise::simd::architectures::interface::*;
 use quick_noise::simd::array_trait::Array;
 use quick_noise::simd::register::Simd;
@@ -60,23 +60,23 @@ simd_vec_tests!(to_bits_test, [[f32, f32 -> f32]], |x, y| {
 });
 
 simd_vec_tests!(permute_32_test, [[f32, u32 -> f32], [i32, u32 -> i32], [u32, u32 -> u32]], |x, y| {
-    let mask = Simd::<u32, F>::splat((F::SIMD_WIDTH as u32 / 4) - 1);
+    let mask = Simd::<u32, A>::splat((A::SIMD_WIDTH as u32 / 4) - 1);
     x.permute_32(y & mask)
 });
 
 simd_vec_tests!(permute_8_test, [[f32, u8 -> f32], [i32, u8 -> i32], [u64, u8 -> u64], [u8, u8 -> u8]], |x, y| {
-    let mask = Simd::<u8, F>::splat((F::SIMD_WIDTH as u8) - 1);
+    let mask = Simd::<u8, A>::splat((A::SIMD_WIDTH as u8) - 1);
     x.permute_8(y & mask)
 });
 
 simd_vec_tests!(gather_32_test, [[u32 -> f32]], |x| {
     let array: [f32; 32] = std::array::from_fn(|i| i as f32 * 10.0);
-    let mask = Simd::<u32, F>::splat(32 - 1);
+    let mask = Simd::<u32, A>::splat(32 - 1);
     (x & mask).gather(&array)
 });
 simd_vec_tests!(gather_64_test, [[u64 -> f64]], |x| {
     let array: [f64; 32] = std::array::from_fn(|i| i as f64 * 10.0);
-    let mask = Simd::<u64, F>::splat(32 - 1);
+    let mask = Simd::<u64, A>::splat(32 - 1);
     (x & mask).gather(&array)
 });
 
@@ -145,7 +145,7 @@ simd_vec_tests!(xor_test, [u8, u16, u32, u64], |x, y| { x ^ y });
 simd_vec_tests!(andnot_test, [u8, u16, u32, u64], |x, y| { x.andnot(y) });
 simd_vec_tests!(not_test, [u8, u16, u32, u64], |x| { !x });
 
-// TODO: VARIABLE SHIFTS DO NOT WORK ON SSE!
+// TODO: VARIABLE SHIATS DO NOT WORK ON SSE!
 simd_vec_tests!(shl_scalar_test, [u32, i32], |x| { x << 10 });
 simd_vec_tests!(shr_scalar_test, [u32, i32], |x| { x >> 10 });
 simd_vec_tests!(shl_variable_test,
@@ -161,7 +161,7 @@ simd_vec_tests!(shr_variable_test,
 // TODO: Add integer clamps.
 simd_vec_tests!(clamp_test, [f32, f64], |x, y, z| { x.clamp(y, z) });
 
-// === Floating Point Operations ===
+// === Aloating Point Operations ===
 simd_vec_tests!(round_test, [f32, f64], |x| { x.round() });
 simd_vec_tests!(floor_test, [f32, f64], |x| { x.floor() });
 simd_vec_tests!(ceil_test, [f32, f64], |x| { x.ceil() });

@@ -3,9 +3,10 @@ use std::marker::PhantomData;
 use crate::api::configs::GridConfig;
 use crate::api::grid::builder::GridNoiseBuilder;
 use crate::api::grid::octaves_builder::OctaveGridNoiseBuilder;
+use crate::api::octave::Octave;
 use crate::math::random::Random;
 use crate::simd::Arch;
-use crate::{Combiner, Octave};
+use crate::{Combiner};
 
 /// Handles raw parameters for grid noise generators
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -44,6 +45,7 @@ pub trait GridGenerator<const D: usize>: Default + Copy + Clone + PartialEq {
         dst: &mut [f32],
     );
 }
+
 
 /// Static struct for sampling grid noise.
 pub struct GridNoise<const D: usize, C: Combiner, S: GridGenerator<D>> {
@@ -203,12 +205,28 @@ impl<const D: usize> Grid<D> {
         GridNoiseBuilder::from_config(self.config)
     }
 
+    /// Creates a new builder to easily configure a grid region of noise.
+    /// Uses a specified simd feature set that can be dispated using at runtime.
+    pub fn builder_for<F: Combiner, T: GridGenerator<D>, A: Arch>(&self) -> GridNoiseBuilder<D, F, T, A> {
+        GridNoiseBuilder::from_config(self.config)
+    }
+
     /// Creates a new builder using a custom octave list to configure
     /// a grid region of noise.
     pub fn builder_with_octaves<'a, F: Combiner, T: GridGenerator<D>>(
         &self,
         octave_list: &'a [Octave<D>],
     ) -> OctaveGridNoiseBuilder<'a, D, F, T> {
+        OctaveGridNoiseBuilder::new(self.config, octave_list)
+    }
+
+    /// Creates a new builder using a custom octave list to configure
+    /// a grid region of noise.
+    /// Uses a specified simd feature set that can be dispated using at runtime.
+    pub fn builder_with_octaves_for<'a, F: Combiner, T: GridGenerator<D>, A: Arch>(
+        &self,
+        octave_list: &'a [Octave<D>],
+    ) -> OctaveGridNoiseBuilder<'a, D, F, T, A> {
         OctaveGridNoiseBuilder::new(self.config, octave_list)
     }
 }

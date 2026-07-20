@@ -60,12 +60,12 @@ impl GridGenerator<3> for Value {
     ) {
         // Validate and pad grid size.
         validate_grid_size(params.grid_size, dst.len());
-        validate_state_size::<C, _>(params.grid_size, state.len());
-        let padded_size = pad_grid_size(params.grid_size);
+        validate_state_size::<C, A, _>(params.grid_size, state.len());
+        let padded_size = pad_grid_size::<A, 3>(params.grid_size);
 
         // Arena setup.
         let required_cache = padded_size[0] * 17 + padded_size[1] * 3 + padded_size[2] * 3;
-        let mut cache = ArenaBuffer::with_capacity(required_cache);
+        let mut cache = ArenaBuffer::<A>::with_capacity(required_cache);
         let mut arena = Arena::with_cache(&mut cache);
         let mut data_arena = arena.allocate_arena(padded_size.iter().fold(0, |n, x| n + 3 * x));
         let mut trilerp_arena = arena.allocate_arena(padded_size[0] * 4);
@@ -73,7 +73,7 @@ impl GridGenerator<3> for Value {
         // Allocation setup.
         let num_blocks = A::NUM_SIMD_REG / 4;
         let bilerp_config = InterpolationConfig::new(num_blocks, params.grid_size[0]);
-        let grid_data = GridData::new::<LERP>(&params, &mut data_arena, &padded_size);
+        let grid_data = GridData::new::<A, LERP>(&params, &mut data_arena, &padded_size);
         let mut trilerp_buffers = TrilerpBuffers::new(&mut trilerp_arena, padded_size[0]);
         let mut gradients = ValueGradients3D::new(&mut arena, padded_size[0]);
 
@@ -85,7 +85,7 @@ impl GridGenerator<3> for Value {
             let z_range = z_cur_index..z_next_index;
 
             // Set the top gradients.
-            grid_gradients_3d(&params, &grid_data, &mut gradients, 0, z_it);
+            grid_gradients_3d::<A>(&params, &grid_data, &mut gradients, 0, z_it);
             gradients.swap_top_bottom();
 
             let mut y_cur_index = 0;
@@ -95,9 +95,9 @@ impl GridGenerator<3> for Value {
                 let y_range = y_cur_index..y_next_index;
 
                 // Set bottom gradients.
-                grid_gradients_3d(&params, &grid_data, &mut gradients, y_it + 1, z_it);
+                grid_gradients_3d::<A>(&params, &grid_data, &mut gradients, y_it + 1, z_it);
 
-                grid_trilerp::<C, INIT, FINAL>(
+                grid_trilerp::<A, C, INIT, FINAL>(
                     &mut trilerp_buffers,
                     &bilerp_config,
                     &fractal_config,
@@ -151,7 +151,7 @@ pub(super) fn grid_gradients_3d<'a, A: Arch>(
         5, 11, 8, 10, 9, 15, 12, 14, 13,
     ];
 
-    let shuffle_indices = Simd::<u8>::from_slice(&BYTE_SHUFFLE[..]);
+    let shuffle_indices = Simd::<u8, A>::from_slice(&BYTE_SHUFFLE[..]);
 
     let prime = Simd::splat(0x85ebca6b_u32);
     let z_shuf: [_; 2] = from_fn(|i| z_vec[i].permute_8(shuffle_indices) ^ prime);
@@ -160,9 +160,9 @@ pub(super) fn grid_gradients_3d<'a, A: Arch>(
 
     // Main vectorized bit mixing loop.
     let end_index = grid_data.num_loops[0] + 1;
-    let hash_mask: Simd<u32> = Simd::splat(0x007FFFFF);
-    let exp_bits: Simd<u32> = Simd::splat(0x40000000);
-    let three: Simd<f32> = Simd::splat(3.0);
+    let hash_mask: Simd<u32, A> = Simd::splat(0x007FFFFF);
+    let exp_bits: Simd<u32, A> = Simd::splat(0x40000000);
+    let three: Simd<f32, A> = Simd::splat(3.0);
 
     if let Some(x_tiling) = grid_data.octave_tiling[0] {
         let x_tiling = Simd::splat(x_tiling as f32);
@@ -206,8 +206,8 @@ pub(super) fn grid_gradients_3d<'a, A: Arch>(
         }
     }
 
-    grid_gradients_3d_set_loop::<true>(grid_data, gradients);
-    grid_gradients_3d_set_loop::<false>(grid_data, gradients);
+    grid_gradients_3d_set_loop::<A, true>(grid_data, gradients);
+    grid_gradients_3d_set_loop::<A, false>(grid_data, gradients);
 }
 
 #[inline(always)]
@@ -241,8 +241,8 @@ pub(super) fn grid_gradients_3d_set_loop<'a, A: Arch, const IS_FRONT: bool>(
 
             let mut index = x_cur_index as usize;
             while amount > 0 {
-                left.write_simd(index, Simd::splat(l));
-                right.write_simd(index, Simd::splat(r));
+                left.write_simd(index, Simd::<_, A>::splat(l));
+                right.write_simd(index, Simd::<_, A>::splat(r));
 
                 amount -= Simd::<f32, A>::LANES as isize;
                 index += Simd::<f32, A>::LANES;
@@ -461,23 +461,23 @@ impl<'a, A: Arch, C: Combiner, const INIT: bool, const FINAL: bool>
                 C::initialize_sample(self.fractal_config, output)
             } else {
                 let mut cur_state = C::State::default();
-                for i in 0..C::State::STATE_SIZE {
+                for i in 0..C::State::<A>::STATE_SIZE {
                     let offset = i * self.grid_data.total_size;
                     let index = index + offset;
                     let tail_end = tail_end + offset;
-                    cur_state[i] = unsafe { maybe_tail_load::<IS_TAIL>(index..tail_end, state) };
+                    cur_state[i] = unsafe { maybe_tail_load::<A, IS_TAIL>(index..tail_end, state) };
                 }
-                let cur_result = unsafe { maybe_tail_load::<IS_TAIL>(index..tail_end, dst) };
+                let cur_result = unsafe { maybe_tail_load::<A, IS_TAIL>(index..tail_end, dst) };
                 C::apply_sample(self.fractal_config, cur_state, cur_result, output)
             };
 
             // Save changes to state.
             if !FINAL {
-                for i in 0..C::State::STATE_SIZE {
+                for i in 0..C::State::<A>::STATE_SIZE {
                     let offset = i * self.grid_data.total_size;
                     let index = index + offset;
                     let tail_end = tail_end + offset;
-                    unsafe { maybe_tail_store::<IS_TAIL>(index..tail_end, cur_state[i], state) };
+                    unsafe { maybe_tail_store::<A, IS_TAIL>(index..tail_end, cur_state[i], state) };
                 }
             }
 
@@ -485,7 +485,7 @@ impl<'a, A: Arch, C: Combiner, const INIT: bool, const FINAL: bool>
                 result = C::finalize_sample(self.fractal_config, cur_state, result);
             }
 
-            unsafe { maybe_tail_store::<IS_TAIL>(index..tail_end, result, dst) };
+            unsafe { maybe_tail_store::<A, IS_TAIL>(index..tail_end, result, dst) };
         }
     }
 }

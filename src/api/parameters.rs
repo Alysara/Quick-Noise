@@ -12,11 +12,7 @@
 ///  - `fill()`: insert data into an existing slice
 macro_rules! declare_build {
     ($self:ident, $body:tt) => {
-        /// Creates the noise and returns the result in an output array.
-        ///
-        /// Needs to know the length of the output SimdArray because
-        /// const generic expr is not yet available in stable Rust when this was
-        /// created.
+        /// Allocates a Vec and fills it with the noise result.
         pub fn build($self) -> Vec<f32> $body
     };
 }
@@ -34,7 +30,7 @@ pub(crate) use declare_into_iter;
 
 macro_rules! declare_fill {
     ($self:ident, $result:ident, $body:tt) => {
-        /// Creates the noise and puts the result in a given array.
+        /// Creates the noise and puts the result in a given slice.
         pub fn fill($self, $result: &mut [f32]) $body
     };
 }

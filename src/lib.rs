@@ -3,7 +3,7 @@
 //! Maximum performance SIMD-accelerated procedural noise library
 //! with up to 10x+ performance on uniform grids. Works on stable Rust.
 
-mod api;
+pub mod api;
 pub mod math;
 mod noise;
 pub mod simd;
@@ -13,6 +13,9 @@ pub mod emit {
     mod grayscale;
     pub use grayscale::NoiseImageExt;
 }
+
+// pub use api::grid::interface::{GridGenerator, GridNoiseParams};
+// pub use api::batch::interface::{BatchGenerator};
 
 pub use api::batch::interface::{BatchGenerator, BatchNoise};
 pub use api::defaults::*;

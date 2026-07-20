@@ -1,10 +1,9 @@
 // use crate::simd::architectures::arch_impl::*;
-use quick_noise::simd::traits::*;
 // use std::ops::*;
 // use num_traits::NumCast;
 // use crate::simd::simd_vec::core::Simd;
 // use crate::simd::simd_traits::*;
-// use crate::simd::arch_simd::{ArchSimd, ArchMask, ScalarSimd, ScalarMask};
+// use crate::simd::arch_simd::{StaticSimd, ArchMask, ScalarSimd, ScalarMask};
 // use $crate::simd_utils::generator::{apply};
 
 
@@ -86,6 +85,9 @@ macro_rules! assert_simd_eq {
         }
     }};
 }
+use quick_noise::simd::SimdElement;
+use quick_noise::simd::traits::SimdType;
+
 pub use crate::assert_simd_eq;
 
 #[macro_export]
@@ -93,12 +95,12 @@ macro_rules! simd_vec_test {
     // === 0 arg ===
     ($test_name:ident, || -> $ret_ty:ty $body:block) => {
         paste::paste! {
-            fn [<$test_name _func>]<F: SimdFamily>() -> Simd<$ret_ty, F> $body
+            fn [<$test_name _func>]<A: Arch>() -> Simd<$ret_ty, A> $body
 
             #[test]
             fn $test_name() {
-                let simd_result = [<$test_name _func>]::<ArchFamily>();
-                let scalar_result = [<$test_name _func>]::<ScalarFamily>();
+                let simd_result = [<$test_name _func>]::<StaticArch>();
+                let scalar_result = [<$test_name _func>]::<ScalarArch>();
                 $crate::simd_utils::macros::assert_simd_eq!(
                     simd_result,
                     scalar_result
@@ -110,11 +112,11 @@ macro_rules! simd_vec_test {
     // === 1 arg, inferred return type ===
     ($test_name:ident, |$x:ident: $elem_ty:ty| $body:block) => {
         paste::paste! {
-            fn [<$test_name _func>]<F: SimdFamily>($x: Simd<$elem_ty, F>) -> Simd<$elem_ty, F> $body
+            fn [<$test_name _func>]<A: Arch>($x: Simd<$elem_ty, A>) -> Simd<$elem_ty, A> $body
             #[test]
             fn $test_name() {
                 for (simd, scalar) in itertools::izip!(
-                    $crate::simd_utils::generator::test_vecs!(ArchSimd, $elem_ty),
+                    $crate::simd_utils::generator::test_vecs!(StaticSimd, $elem_ty),
                     $crate::simd_utils::generator::test_vecs!(ScalarSimd, $elem_ty)
                 ) {
                     let simd_result = [<$test_name _func>](simd);
@@ -131,18 +133,18 @@ macro_rules! simd_vec_test {
     // === 2 args, inferred return type ===
     ($test_name:ident, |$x1:ident: $elem_ty1:ty, $x2:ident: $elem_ty2:ty| $body:block) => {
         paste::paste! {
-            fn [<$test_name _func>]<F: SimdFamily>(
-                $x1: Simd<$elem_ty1, F>,
-                $x2: Simd<$elem_ty2, F>
-            ) -> Simd<$elem_ty1, F> $body
+            fn [<$test_name _func>]<A: Arch>(
+                $x1: Simd<$elem_ty1, A>,
+                $x2: Simd<$elem_ty2, A>
+            ) -> Simd<$elem_ty1, A> $body
             #[test]
             fn $test_name() {
                 let pairs1: Vec<_> = itertools::izip!(
-                    $crate::simd_utils::generator::test_vecs!(ArchSimd, $elem_ty1),
+                    $crate::simd_utils::generator::test_vecs!(StaticSimd, $elem_ty1),
                     $crate::simd_utils::generator::test_vecs!(ScalarSimd, $elem_ty1)
                 ).collect();
                 let pairs2: Vec<_> = itertools::izip!(
-                    $crate::simd_utils::generator::test_vecs!(ArchSimd, $elem_ty2),
+                    $crate::simd_utils::generator::test_vecs!(StaticSimd, $elem_ty2),
                     $crate::simd_utils::generator::test_vecs!(ScalarSimd, $elem_ty2)
                 ).collect();
                 for (simd1, scalar1) in &pairs1 {
@@ -165,23 +167,23 @@ macro_rules! simd_vec_test {
     // === 3 args, inferred return type ===
     ($test_name:ident, |$x1:ident: $elem_ty1:ty, $x2:ident: $elem_ty2:ty, $x3:ident: $elem_ty3:ty| $body:block) => {
         paste::paste! {
-            fn [<$test_name _func>]<F: SimdFamily>(
-                $x1: Simd<$elem_ty1, F>,
-                $x2: Simd<$elem_ty2, F>,
-                $x3: Simd<$elem_ty3, F>
-            ) -> Simd<$elem_ty1, F> $body
+            fn [<$test_name _func>]<A: Arch>(
+                $x1: Simd<$elem_ty1, A>,
+                $x2: Simd<$elem_ty2, A>,
+                $x3: Simd<$elem_ty3, A>
+            ) -> Simd<$elem_ty1, A> $body
             #[test]
             fn $test_name() {
                 let pairs1: Vec<_> = itertools::izip!(
-                    $crate::simd_utils::generator::test_vecs!(ArchSimd, $elem_ty1),
+                    $crate::simd_utils::generator::test_vecs!(StaticSimd, $elem_ty1),
                     $crate::simd_utils::generator::test_vecs!(ScalarSimd, $elem_ty1)
                 ).collect();
                 let pairs2: Vec<_> = itertools::izip!(
-                    $crate::simd_utils::generator::test_vecs!(ArchSimd, $elem_ty2),
+                    $crate::simd_utils::generator::test_vecs!(StaticSimd, $elem_ty2),
                     $crate::simd_utils::generator::test_vecs!(ScalarSimd, $elem_ty2)
                 ).collect();
                 let pairs3: Vec<_> = itertools::izip!(
-                    $crate::simd_utils::generator::test_vecs!(ArchSimd, $elem_ty3),
+                    $crate::simd_utils::generator::test_vecs!(StaticSimd, $elem_ty3),
                     $crate::simd_utils::generator::test_vecs!(ScalarSimd, $elem_ty3)
                 ).collect();
                 for (simd1, scalar1) in &pairs1 {
@@ -207,13 +209,13 @@ macro_rules! simd_vec_test {
     // === 1 arg, explicit return type ===
     ($test_name:ident, |$x:ident: $elem_ty:ty| -> $ret_ty:ty $body:block) => {
         paste::paste! {
-            fn [<$test_name _func>]<F: SimdFamily>($x: Simd<$elem_ty, F>) -> Simd<$ret_ty, F> {
+            fn [<$test_name _func>]<A: Arch>($x: Simd<$elem_ty, A>) -> Simd<$ret_ty, A> {
                 $body
             }
             #[test]
             fn $test_name() {
                 for (simd, scalar) in itertools::izip!(
-                    $crate::simd_utils::generator::test_vecs!(ArchSimd, $elem_ty),
+                    $crate::simd_utils::generator::test_vecs!(StaticSimd, $elem_ty),
                     $crate::simd_utils::generator::test_vecs!(ScalarSimd, $elem_ty)
                 ) {
                     let simd_result = [<$test_name _func>](simd);
@@ -230,20 +232,20 @@ macro_rules! simd_vec_test {
     // === 2 args, explicit return type ===
     ($test_name:ident, |$x1:ident: $elem_ty1:ty, $x2:ident: $elem_ty2:ty| -> $ret_ty:ty $body:block) => {
         paste::paste! {
-            fn [<$test_name _func>]<F: SimdFamily>(
-                $x1: Simd<$elem_ty1, F>,
-                $x2: Simd<$elem_ty2, F>
-            ) -> Simd<$ret_ty, F> {
+            fn [<$test_name _func>]<A: Arch>(
+                $x1: Simd<$elem_ty1, A>,
+                $x2: Simd<$elem_ty2, A>
+            ) -> Simd<$ret_ty, A> {
                 $body
             }
             #[test]
             fn $test_name() {
                 let pairs1: Vec<_> = itertools::izip!(
-                    $crate::simd_utils::generator::test_vecs!(ArchSimd, $elem_ty1),
+                    $crate::simd_utils::generator::test_vecs!(StaticSimd, $elem_ty1),
                     $crate::simd_utils::generator::test_vecs!(ScalarSimd, $elem_ty1)
                 ).collect();
                 let pairs2: Vec<_> = itertools::izip!(
-                    $crate::simd_utils::generator::test_vecs!(ArchSimd, $elem_ty2),
+                    $crate::simd_utils::generator::test_vecs!(StaticSimd, $elem_ty2),
                     $crate::simd_utils::generator::test_vecs!(ScalarSimd, $elem_ty2)
                 ).collect();
                 for (simd1, scalar1) in &pairs1 {
@@ -266,25 +268,25 @@ macro_rules! simd_vec_test {
     // === 3 args, explicit return type ===
     ($test_name:ident, |$x1:ident: $elem_ty1:ty, $x2:ident: $elem_ty2:ty, $x3:ident: $elem_ty3:ty| -> $ret_ty:ty $body:block) => {
         paste::paste! {
-            fn [<$test_name _func>]<F: SimdFamily>(
-                $x1: Simd<$elem_ty1, F>,
-                $x2: Simd<$elem_ty2, F>,
-                $x3: Simd<$elem_ty3, F>
-            ) -> Simd<$ret_ty, F> {
+            fn [<$test_name _func>]<A: Arch>(
+                $x1: Simd<$elem_ty1, A>,
+                $x2: Simd<$elem_ty2, A>,
+                $x3: Simd<$elem_ty3, A>
+            ) -> Simd<$ret_ty, A> {
                 $body
             }
             #[test]
             fn $test_name() {
                 let pairs1: Vec<_> = itertools::izip!(
-                    $crate::simd_utils::generator::test_vecs!(ArchSimd, $elem_ty1),
+                    $crate::simd_utils::generator::test_vecs!(StaticSimd, $elem_ty1),
                     $crate::simd_utils::generator::test_vecs!(ScalarSimd, $elem_ty1)
                 ).collect();
                 let pairs2: Vec<_> = itertools::izip!(
-                    $crate::simd_utils::generator::test_vecs!(ArchSimd, $elem_ty2),
+                    $crate::simd_utils::generator::test_vecs!(StaticSimd, $elem_ty2),
                     $crate::simd_utils::generator::test_vecs!(ScalarSimd, $elem_ty2)
                 ).collect();
                 let pairs3: Vec<_> = itertools::izip!(
-                    $crate::simd_utils::generator::test_vecs!(ArchSimd, $elem_ty3),
+                    $crate::simd_utils::generator::test_vecs!(StaticSimd, $elem_ty3),
                     $crate::simd_utils::generator::test_vecs!(ScalarSimd, $elem_ty3)
                 ).collect();
                 for (simd1, scalar1) in &pairs1 {

@@ -61,11 +61,11 @@ impl GridGenerator<2> for Value {
         dst: &mut [f32],
     ) {
         validate_grid_size(params.grid_size, dst.len());
-        validate_state_size::<C, _>(params.grid_size, state.len());
-        let padded_size = pad_grid_size(params.grid_size);
+        validate_state_size::<C, A, _>(params.grid_size, state.len());
+        let padded_size = pad_grid_size::<A, 2>(params.grid_size);
 
         let required_cache = padded_size[1] * 3 + padded_size[0] * 8;
-        let mut cache = ArenaBuffer::with_capacity(required_cache);
+        let mut cache = ArenaBuffer::<A>::with_capacity(required_cache);
         let mut arena = Arena::with_cache(&mut cache);
 
         // SIMD Slice constants.
@@ -73,7 +73,7 @@ impl GridGenerator<2> for Value {
         let bilerp_config = InterpolationConfig::new(num_blocks, params.grid_size[0]);
 
         let mut sub_arena = arena.allocate_arena(padded_size[0] * 3 + padded_size[1] * 3);
-        let mut grid_data = GridData::new::<LERP>(&params, &mut sub_arena, &padded_size);
+        let mut grid_data = GridData::new::<A, LERP>(&params, &mut sub_arena, &padded_size);
 
         // Allocate scratch buffer for gradients.
         let grad_scratch = arena.allocate(padded_size[0]);
@@ -82,7 +82,7 @@ impl GridGenerator<2> for Value {
         let mut gradients = ValueGradients2D::new(&mut arena, padded_size[0]);
 
         // Set the top gradients.
-        grid_gradients_2d(
+        grid_gradients_2d::<A>(
             &params,
             &mut grid_data,
             grad_scratch,
@@ -98,7 +98,7 @@ impl GridGenerator<2> for Value {
                 unsafe { grid_data.grid_indices[1].get_unchecked(y_it).assume_init() as usize };
 
             // Set bottom gradients.
-            grid_gradients_2d(
+            grid_gradients_2d::<A>(
                 &params,
                 &mut grid_data,
                 grad_scratch,
@@ -108,7 +108,7 @@ impl GridGenerator<2> for Value {
             );
 
             let y_range = y_cur_index..y_next_index;
-            grid_bilerp::<C, INIT, FINAL>(
+            grid_bilerp::<A, C, INIT, FINAL>(
                 &bilerp_config,
                 &fractal_config,
                 &grid_data,
@@ -145,13 +145,13 @@ pub(super) fn grid_gradients_2d<'a, A: Arch>(
         15, 12, 14, 13, 3, 0, 2, 1, 7, 4, 6, 5, 11, 8, 10, 9, 15, 12, 14, 13, 3, 0, 2, 1, 7, 4, 6,
         5, 11, 8, 10, 9, 15, 12, 14, 13,
     ];
-    let shuffle_indices = unsafe { Simd::<u8>::from_slice_unchecked(&BYTE_SHUFFLE[..]) };
+    let shuffle_indices = unsafe { Simd::<u8, A>::from_slice_unchecked(&BYTE_SHUFFLE[..]) };
     let y_shuf = y_vec.permute_8(shuffle_indices) ^ prime;
     let y_shuf = y_shuf * y_shuf;
 
-    let hash_mask: Simd<u32> = Simd::splat(0x007FFFFF);
-    let exp_bits: Simd<u32> = Simd::splat(0x40000000);
-    let three: Simd<f32> = Simd::splat(3.0);
+    let hash_mask: Simd<u32, A> = Simd::splat(0x007FFFFF);
+    let exp_bits: Simd<u32, A> = Simd::splat(0x40000000);
+    let three: Simd<f32, A> = Simd::splat(3.0);
 
     if let Some(x_tiling) = grid_data.octave_tiling[0] {
         let x_tiling = Simd::splat(x_tiling as f32);
@@ -201,8 +201,8 @@ pub(super) fn grid_gradients_2d<'a, A: Arch>(
 
             let mut index = x_cur_index as usize;
             while amount > 0 {
-                left.write_simd(index, Simd::splat(l));
-                right.write_simd(index, Simd::splat(r));
+                left.write_simd(index, Simd::<f32, A>::splat(l));
+                right.write_simd(index, Simd::<f32, A>::splat(r));
                 amount -= lanes as isize;
                 index += lanes;
             }
@@ -257,7 +257,9 @@ pub(super) fn grid_bilerp<A: Arch, C: Combiner, const INIT: bool, const FINAL: b
     }
 }
 
-impl<'a, A: Arch, C: Combiner, const INIT: bool, const FINAL: bool> BilerpExecuter<'a, A, C, INIT, FINAL> {
+impl<'a, A: Arch, C: Combiner, const INIT: bool, const FINAL: bool>
+    BilerpExecuter<'a, A, C, INIT, FINAL>
+{
     #[inline(always)]
     pub fn interpolate<const IS_TAIL: bool>(&mut self, state: &mut [f32], dst: &mut [f32]) {
         let range = if IS_TAIL {
@@ -340,24 +342,24 @@ impl<'a, A: Arch, C: Combiner, const INIT: bool, const FINAL: bool> BilerpExecut
             let (cur_state, mut result) = if INIT {
                 C::initialize_sample(self.fractal_config, output)
             } else {
-                let mut cur_state = C::State::default();
-                for i in 0..C::State::STATE_SIZE {
+                let mut cur_state = C::State::<A>::default();
+                for i in 0..C::State::<A>::STATE_SIZE {
                     let offset = i * self.grid_data.total_size;
                     let index = index + offset;
                     let tail_end = tail_end + offset;
-                    cur_state[i] = unsafe { maybe_tail_load::<IS_TAIL>(index..tail_end, state) };
+                    cur_state[i] = unsafe { maybe_tail_load::<A, IS_TAIL>(index..tail_end, state) };
                 }
-                let cur_result = unsafe { maybe_tail_load::<IS_TAIL>(index..tail_end, dst) };
+                let cur_result = unsafe { maybe_tail_load::<A, IS_TAIL>(index..tail_end, dst) };
                 C::apply_sample(self.fractal_config, cur_state, cur_result, output)
             };
 
             // Save changes to state.
             if !FINAL {
-                for i in 0..C::State::STATE_SIZE {
+                for i in 0..C::State::<A>::STATE_SIZE {
                     let offset = i * self.grid_data.total_size;
                     let index = index + offset;
                     let tail_end = tail_end + offset;
-                    unsafe { maybe_tail_store::<IS_TAIL>(index..tail_end, cur_state[i], state) };
+                    unsafe { maybe_tail_store::<A, IS_TAIL>(index..tail_end, cur_state[i], state) };
                 }
             }
 
@@ -365,7 +367,7 @@ impl<'a, A: Arch, C: Combiner, const INIT: bool, const FINAL: bool> BilerpExecut
                 result = C::finalize_sample(self.fractal_config, cur_state, result);
             }
 
-            unsafe { maybe_tail_store::<IS_TAIL>(index..tail_end, result, dst) };
+            unsafe { maybe_tail_store::<A, IS_TAIL>(index..tail_end, result, dst) };
         }
     }
 }

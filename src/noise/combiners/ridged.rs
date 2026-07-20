@@ -52,7 +52,7 @@ impl Combiner for Ridged {
         let signal = one - new_sample.abs();
         let signal = signal * signal;
 
-        let mut state = Default::default();
+        let mut state: Self::State<A> = Default::default();
         state[0] = signal;
 
         (state, signal)

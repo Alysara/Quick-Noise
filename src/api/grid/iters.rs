@@ -20,14 +20,14 @@ impl Grid<2> {
     }
 
     #[inline(always)]
-    pub fn x_iter_with_arch<A: Arch>(&self) -> RowIter<A> {
+    pub fn x_iter_for<A: Arch>(&self) -> RowIter<A> {
         let pos = self.config.position;
         let dim = self.config.grid_size;
         RowIter::new(dim[0], dim[1], pos[0] as f32)
     }
 
     #[inline(always)]
-    pub fn y_iter_with_arch<A: Arch>(&self) -> SliceIter<A> {
+    pub fn y_iter_for<A: Arch>(&self) -> SliceIter<A> {
         let pos = self.config.position;
         let dim = self.config.grid_size;
         SliceIter::new(dim[0], dim[1], 1, pos[1] as f32)
@@ -57,21 +57,21 @@ impl Grid<3> {
     }
 
     #[inline(always)]
-    pub fn x_iter_with_arch<A: Arch>(&self) -> RowIter<A> {
+    pub fn x_iter_for<A: Arch>(&self) -> RowIter<A> {
         let pos = self.config.position;
         let dim = self.config.grid_size;
         RowIter::new(dim[0], dim[1] * dim[2], pos[0] as f32)
     }
 
     #[inline(always)]
-    pub fn y_iter_with_arch<A: Arch>(&self) -> SliceIter<A> {
+    pub fn y_iter_for<A: Arch>(&self) -> SliceIter<A> {
         let pos = self.config.position;
         let dim = self.config.grid_size;
         SliceIter::new(dim[0], dim[1], dim[2], pos[1] as f32)
     }
 
     #[inline(always)]
-    pub fn z_iter_with_arch<A: Arch>(&self) -> SliceIter<A> {
+    pub fn z_iter_for<A: Arch>(&self) -> SliceIter<A> {
         let pos = self.config.position;
         let dim = self.config.grid_size;
         SliceIter::new(dim[0] * dim[1], dim[2], 1, pos[2] as f32)

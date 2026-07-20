@@ -96,12 +96,12 @@ impl GridGenerator<3> for Perlin {
     ) {
         // Validate and pad grid size.
         validate_grid_size(params.grid_size, dst.len());
-        validate_state_size::<C, _>(params.grid_size, state.len());
-        let padded_size = pad_grid_size(params.grid_size);
+        validate_state_size::<C, A, _>(params.grid_size, state.len());
+        let padded_size = pad_grid_size::<A, 3>(params.grid_size);
 
         // Arena setup.
         let required_cache = padded_size[0] * 41 + padded_size[1] * 3 + padded_size[2] * 3;
-        let mut cache = ArenaBuffer::with_capacity(required_cache);
+        let mut cache = ArenaBuffer::<A>::with_capacity(required_cache);
         let mut arena = Arena::with_cache(&mut cache);
         let mut data_arena = arena.allocate_arena(padded_size.iter().fold(0, |n, x| n + 3 * x));
         let mut trilerp_arena = arena.allocate_arena(padded_size[0] * 12);
@@ -110,7 +110,7 @@ impl GridGenerator<3> for Perlin {
 
         let num_blocks = A::NUM_SIMD_REG / 8;
         let bilerp_config = InterpolationConfig::new(num_blocks, params.grid_size[0]);
-        let grid_data = GridData::new::<LERP>(&params, &mut data_arena, &padded_size);
+        let grid_data = GridData::new::<A, LERP>(&params, &mut data_arena, &padded_size);
         let mut trilerp_buffers = DottedTrilerpBuffers::new(&mut trilerp_arena, padded_size[0]);
         let mut gradients = PerlinGradients3D::new(&mut arena, padded_size[0]);
 
@@ -122,7 +122,7 @@ impl GridGenerator<3> for Perlin {
             let z_range = z_cur_index..z_next_index;
 
             // Set the top gradients.
-            grid_gradients_3d(&params, &grid_data, &mut gradients, 0, z_it);
+            grid_gradients_3d::<A>(&params, &grid_data, &mut gradients, 0, z_it);
             gradients.swap_top_bottom();
 
             let mut y_cur_index = 0;
@@ -132,9 +132,9 @@ impl GridGenerator<3> for Perlin {
                 let y_range = y_cur_index..y_next_index;
 
                 // Set bottom gradients.
-                grid_gradients_3d(&params, &grid_data, &mut gradients, y_it + 1, z_it);
+                grid_gradients_3d::<A>(&params, &grid_data, &mut gradients, y_it + 1, z_it);
 
-                grid_dotted_trilerp::<C, INIT, FINAL>(
+                grid_dotted_trilerp::<A, C, INIT, FINAL>(
                     &mut trilerp_buffers,
                     &bilerp_config,
                     &fractal_config,
@@ -188,7 +188,7 @@ pub(super) fn grid_gradients_3d<'a, A: Arch>(
         5, 11, 8, 10, 9, 15, 12, 14, 13,
     ];
 
-    let shuffle_indices = Simd::<u8>::from_slice(&BYTE_SHUFFLE[..]);
+    let shuffle_indices = Simd::<u8, A>::from_slice(&BYTE_SHUFFLE[..]);
 
     let prime = Simd::splat(0x85ebca6b_u32);
     let z_shuf: [_; 2] = from_fn(|i| z_vec[i].permute_8(shuffle_indices) ^ prime);
@@ -236,12 +236,12 @@ pub(super) fn grid_gradients_3d<'a, A: Arch>(
         }
     }
 
-    grid_gradients_3d_set_loop::<true>(grid_data, gradients);
-    grid_gradients_3d_set_loop::<false>(grid_data, gradients);
+    grid_gradients_3d_set_loop::<A, true>(grid_data, gradients);
+    grid_gradients_3d_set_loop::<A, false>(grid_data, gradients);
 
     for i in (0..params.grid_size[0]).step_by(lanes) {
         unsafe {
-            let cur_dist = grid_data.distances[0].load_simd_aligned(i);
+            let cur_dist: Simd<f32, A> = grid_data.distances[0].load_simd_aligned(i);
             let lf = gradients.blf[0].load_simd_aligned(i);
             let rf = gradients.brf[0].load_simd_aligned(i);
             let lb = gradients.blb[0].load_simd_aligned(i);
@@ -287,12 +287,12 @@ pub(super) fn grid_gradients_3d_set_loop<'a, A: Arch, const IS_FRONT: bool>(
             let l = GRADIENTS_3D.get_unchecked(l);
             let r = GRADIENTS_3D.get_unchecked(r);
 
-            let lx = Simd::splat(l[0]);
-            let ly = Simd::splat(l[1]);
-            let lz = Simd::splat(l[2]);
-            let rx = Simd::splat(r[0]);
-            let ry = Simd::splat(r[1]);
-            let rz = Simd::splat(r[2]);
+            let lx = Simd::<f32, A>::splat(l[0]);
+            let ly = Simd::<f32, A>::splat(l[1]);
+            let lz = Simd::<f32, A>::splat(l[2]);
+            let rx = Simd::<f32, A>::splat(r[0]);
+            let ry = Simd::<f32, A>::splat(r[1]);
+            let rz = Simd::<f32, A>::splat(r[2]);
 
             let mut index = x_cur_index as usize;
             while amount > 0 {
@@ -510,7 +510,7 @@ impl<'a, A: Arch, C: Combiner, const INIT: bool, const FINAL: bool>
                 let z_blb = self.gradients.blb[2].load_simd_aligned(x);
                 let z_brb = self.gradients.brb[2].load_simd_aligned(x);
 
-                let calc_prod_sum = |z_inc: Simd<f32>, y_inc: Simd<f32>, z, y, x| {
+                let calc_prod_sum = |z_inc: Simd<f32, A>, y_inc: Simd<f32, A>, z, y, x| {
                     z_inc.mul_add(z, y_inc.mul_add(y, x))
                 };
 
@@ -655,22 +655,22 @@ impl<'a, A: Arch, C: Combiner, const INIT: bool, const FINAL: bool>
             let (cur_state, mut result) = if INIT {
                 C::initialize_sample(self.fractal_config, output)
             } else {
-                let mut cur_state = C::State::default();
-                for i in 0..C::State::STATE_SIZE {
+                let mut cur_state = C::State::<A>::default();
+                for i in 0..C::State::<A>::STATE_SIZE {
                     let index = index + i * self.grid_data.total_size;
-                    cur_state[i] = unsafe { maybe_tail_load::<IS_TAIL>(index..tail_end, state) };
+                    cur_state[i] = unsafe { maybe_tail_load::<A, IS_TAIL>(index..tail_end, state) };
                 }
-                let cur_result = unsafe { maybe_tail_load::<IS_TAIL>(index..tail_end, dst) };
+                let cur_result = unsafe { maybe_tail_load::<A, IS_TAIL>(index..tail_end, dst) };
                 C::apply_sample(self.fractal_config, cur_state, cur_result, output)
             };
 
             // Save changes to state.
             if !FINAL {
-                for i in 0..C::State::STATE_SIZE {
+                for i in 0..C::State::<A>::STATE_SIZE {
                     let offset = i * self.grid_data.total_size;
                     let index = index + offset;
                     let tail_end = tail_end + offset;
-                    unsafe { maybe_tail_store::<IS_TAIL>(index..tail_end, cur_state[i], state) };
+                    unsafe { maybe_tail_store::<A, IS_TAIL>(index..tail_end, cur_state[i], state) };
                 }
             }
 
@@ -678,7 +678,7 @@ impl<'a, A: Arch, C: Combiner, const INIT: bool, const FINAL: bool>
                 result = C::finalize_sample(self.fractal_config, cur_state, result);
             }
 
-            unsafe { maybe_tail_store::<IS_TAIL>(index..tail_end, result, dst) };
+            unsafe { maybe_tail_store::<A, IS_TAIL>(index..tail_end, result, dst) };
 
             self.dif[block] += self.d_dif[block];
             self.top[block] += self.d_top[block];

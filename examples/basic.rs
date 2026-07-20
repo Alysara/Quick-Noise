@@ -1,5 +1,5 @@
 use quick_noise::emit::NoiseImageExt;
-use quick_noise::simd::static_simd::StaticSimd;
+use quick_noise::simd::StaticSimd;
 use quick_noise::{
     BatchNoise, Cellular, Fbm, Grid, HybridMulti, Octave, Perlin, PingPong, Ridged, Simplex, Value,
 };
@@ -31,7 +31,7 @@ fn main() {
         .into_iter();
 
     grid_2d
-        .warp_builder::<HybridMulti, Simplex>(1000.0, iter1, iter2)
+        .warp_builder::<HybridMulti, Simplex, _>(1000.0, iter1, iter2)
         .octaves(6)
         .frequency(1.0 / 512.0)
         .into_iter()

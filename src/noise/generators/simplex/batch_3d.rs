@@ -37,7 +37,7 @@ impl BatchGenerator<3> for Simplex {
         const S: f32 = 100.0;
         const GRAD_TABLE: [f32; 4] = [0.0, S, -S, 0.0];
 
-        let shuffle_indices = Simd::<u8>::from_slice(&BYTE_SHUFFLE[..]);
+        let shuffle_indices = Simd::<u8, A>::from_slice(&BYTE_SHUFFLE[..]);
         let channel_seed = Simd::splat(seed);
         let prime = Simd::splat(0x85ebca6b_u32);
 

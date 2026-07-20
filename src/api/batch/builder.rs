@@ -7,7 +7,7 @@ use crate::api::configs::*;
 use crate::api::parameters::*;
 use crate::math::random::Random;
 use crate::noise::combiners::Combiner;
-use crate::simd::{Arch, Simd, StaticSimd};
+use crate::simd::{Arch, Simd};
 use crate::{HybridMulti, PingPong, Ridged, Terrace};
 
 pub struct BatchNoiseBuilder<
@@ -142,7 +142,7 @@ impl<const D: usize, F: Combiner, S: BatchGenerator<D>, A: Arch, I: DimIter<A, D
     declare_fill!(self, output, {
         if self.noise_config.initialize {
             for (i, x) in self.into_iter().enumerate() {
-                x.copy_to_slice(&mut output[i * StaticSimd::<f32>::LANES..]);
+                x.copy_to_slice(&mut output[i * Simd::<f32, A>::LANES..]);
             }
         } else {
             for (i, x) in self.into_iter().enumerate() {

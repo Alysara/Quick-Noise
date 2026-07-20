@@ -1,9 +1,13 @@
+use std::sync::LazyLock;
+
 #[cfg(target_arch = "aarch64")]
 pub use crate::simd::architectures::arch::Neon;
 pub use crate::simd::architectures::arch::Scalar128;
 #[cfg(target_arch = "x86_64")]
 pub use crate::simd::architectures::arch::{Avx2, Avx512, Sse};
 pub use crate::simd::architectures::interface::Arch;
+
+pub static DETECTED_ARCH: LazyLock<Architecture> = LazyLock::new(detect_architecture);
 
 pub enum Architecture {
     #[cfg(target_arch = "x86_64")]
@@ -47,8 +51,8 @@ pub fn detect_architecture() -> Architecture {
 
 #[macro_export]
 macro_rules! dispatch {
-    ($enum:ident, $func:ident($($args:expr),*)) => {
-        match $enum {
+    ($func:ident($($args:expr),*)) => {
+        match *DETECTED_ARCH {
             #[cfg(target_arch = "x86_64")]
             Architecture::Sse => $func::<Sse>($($args),*),
             #[cfg(target_arch = "x86_64")]
@@ -61,8 +65,8 @@ macro_rules! dispatch {
         }
     };
 
-    ($enum:ident, $func:ident::<$($generics:ident),+>($($args:expr),*)) => {
-        match $enum {
+    ($func:ident::<$($generics:ident),+>($($args:expr),*)) => {
+        match *DETECTED_ARCH {
             #[cfg(target_arch = "x86_64")]
             Architecture::Sse => $func::<Sse, $($generics),+>($($args),*),
             #[cfg(target_arch = "x86_64")]
@@ -76,3 +80,33 @@ macro_rules! dispatch {
     };
 }
 pub use dispatch;
+
+// #[macro_export]
+// macro_rules! dispatch_fn {
+//     ($($prefix:tt )* $vis:vis fn $name:ident($($arg:ident : $ty:ty),*) $(-> $ret:ty)? { $($body:tt)* }) => {
+//         $($prefix )* $vis:vis fn $name($($arg: $ty),*) $(-> $ret)? {
+//             $($prefix )* fn internal<A: $crate::simd::architectures::interface::Arch>($($arg: $ty),*) $(-> $ret)? {
+//                 $($body)*
+//             }
+//             dispatch!(detect_architecture(), internal($($arg),*))
+//         }
+//     };
+// }
+// pub use dispatch_fn;
+
+// #[dispatch_arch(A)]
+// pub fn simd_work(arg1, arg2) {
+//     simd_function::<A>(arg1, arg2);
+// }
+//
+// ->
+//
+// pub fn simd_work() {
+//     {
+//         fn simd_work_internal<A: Arch>() {
+//             simd_function::<A>();
+//         }
+//
+//         dispatch!(simd_work_internal());
+//     }
+// }

@@ -1,4 +1,4 @@
-pub mod static_simd;
+mod static_simd;
 pub mod architectures;
 pub mod array_trait;
 pub mod mask;

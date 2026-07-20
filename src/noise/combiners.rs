@@ -32,7 +32,7 @@ where
     const STATE_SIZE: usize = N;
 }
 
-pub type CombinerArray<A: Arch, const N: usize> = [Simd<f32, A>; N];
+pub type CombinerArray<A, const N: usize> = [Simd<f32, A>; N];
 
 pub trait Combiner: Default + Copy + Clone {
     /// Determines whether or not octave weight parameters are ignored.

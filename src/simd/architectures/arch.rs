@@ -16,7 +16,7 @@ use crate::simd::architectures::intrinsics::scalar::{ScalarReg, ScalarMask};
 use crate::simd::register::Simd;
 use std::fmt::Debug;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 #[cfg(target_arch = "x86_64")]
 pub struct Sse;
 #[cfg(target_arch = "x86_64")]
@@ -37,7 +37,7 @@ impl Arch for Sse {
 }
 
 #[cfg(target_arch = "x86_64")]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 pub struct Avx2;
 #[cfg(target_arch = "x86_64")]
 impl Arch for Avx2 {
@@ -57,7 +57,7 @@ impl Arch for Avx2 {
 }
 
 #[cfg(target_arch = "x86_64")]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 pub struct Avx512;
 #[cfg(target_arch = "x86_64")]
 impl Arch for Avx512 {
@@ -77,7 +77,7 @@ impl Arch for Avx512 {
 }
 
 #[cfg(target_arch = "aarch64")]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 pub struct Neon;
 #[cfg(target_arch = "aarch64")]
 impl Arch for Neon {
@@ -96,7 +96,7 @@ impl Arch for Neon {
     type Array8<T: Debug + Copy> = [T; 16];
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 pub struct Scalar128;
 impl Arch for Scalar128 {
     const SIMD_WIDTH: usize = 16;
@@ -114,7 +114,7 @@ impl Arch for Scalar128 {
     type Array8<T: Debug + Copy> = [T; 16];
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 pub struct Scalar256;
 impl Arch for Scalar256 {
     const SIMD_WIDTH: usize = 32;
@@ -132,7 +132,7 @@ impl Arch for Scalar256 {
     type Array8<T: Debug + Copy> = [T; 32];
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 pub struct Scalar512;
 impl Arch for Scalar512 {
     const SIMD_WIDTH: usize = 64;

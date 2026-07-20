@@ -76,7 +76,7 @@ impl GridGenerator<2> for Perlin {
         dst: &mut [f32],
     ) {
         validate_grid_size(params.grid_size, dst.len());
-        validate_state_size::<C, _>(params.grid_size, state.len());
+        validate_state_size::<C, A, _>(params.grid_size, state.len());
         let padded_size = pad_grid_size::<A, _>(params.grid_size);
 
         let required_cache = padded_size[1] * 3 + padded_size[0] * 12;
@@ -413,23 +413,23 @@ impl<'a, A: Arch, C: Combiner, const INIT: bool, const FINAL: bool>
                 C::initialize_sample(self.fractal_config, output)
             } else {
                 let mut cur_state = C::State::<A>::default();
-                for i in 0..C::State::STATE_SIZE {
+                for i in 0..C::State::<A>::STATE_SIZE {
                     let offset = i * self.grid_data.total_size;
                     let index = index + offset;
                     let tail_end = tail_end + offset;
-                    cur_state[i] = unsafe { maybe_tail_load::<IS_TAIL>(index..tail_end, state) };
+                    cur_state[i] = unsafe { maybe_tail_load::<A, IS_TAIL>(index..tail_end, state) };
                 }
-                let cur_result = unsafe { maybe_tail_load::<IS_TAIL>(index..tail_end, dst) };
+                let cur_result = unsafe { maybe_tail_load::<A, IS_TAIL>(index..tail_end, dst) };
                 C::apply_sample(self.fractal_config, cur_state, cur_result, output)
             };
 
             // Save changes to state.
             if !FINAL {
-                for i in 0..C::State::STATE_SIZE {
+                for i in 0..C::State::<A>::STATE_SIZE {
                     let offset = i * self.grid_data.total_size;
                     let index = index + offset;
                     let tail_end = tail_end + offset;
-                    unsafe { maybe_tail_store::<IS_TAIL>(index..tail_end, cur_state[i], state) };
+                    unsafe { maybe_tail_store::<A, IS_TAIL>(index..tail_end, cur_state[i], state) };
                 }
             }
 
@@ -437,7 +437,7 @@ impl<'a, A: Arch, C: Combiner, const INIT: bool, const FINAL: bool>
                 result = C::finalize_sample(self.fractal_config, cur_state, result);
             }
 
-            unsafe { maybe_tail_store::<IS_TAIL>(index..tail_end, result, dst) };
+            unsafe { maybe_tail_store::<A, IS_TAIL>(index..tail_end, result, dst) };
 
             self.dif[block] += self.d_dif[block];
             self.top[block] += self.d_top[block];

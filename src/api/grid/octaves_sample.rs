@@ -46,8 +46,8 @@ impl<const D: usize, C: Combiner, G: GridGenerator<D>> GridNoise<D, C, G> {
         };
 
         let total_size: usize = grid_config.grid_size.iter().product();
-        let needed_state_size = total_size * C::State::STATE_SIZE;
-        let mut state_cache = ArenaBuffer::with_capacity(needed_state_size);
+        let needed_state_size = total_size * C::State::<A>::STATE_SIZE;
+        let mut state_cache = ArenaBuffer::<A>::with_capacity(needed_state_size);
         let mut arena = Arena::with_cache(&mut state_cache);
         let state = arena.allocate(needed_state_size);
         let state = unsafe { state.assume_init_mut() };

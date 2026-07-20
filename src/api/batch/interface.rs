@@ -10,7 +10,7 @@ pub trait DimTuple<A: Arch, const D: usize> {
     /// into a generically sized array.
     fn into_array(self) -> [Simd<f32, A>; D];
 }
-type S<A: Arch> = Simd<f32, A>;
+type S<A> = Simd<f32, A>;
 
 impl<A: Arch> DimTuple<A, 1> for S<A> {
     fn into_array(self) -> [Simd<f32, A>; 1] {

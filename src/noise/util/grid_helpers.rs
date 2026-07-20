@@ -6,7 +6,6 @@ use std::ops::Range;
 use crate::api::grid::interface::GridNoiseParams;
 use crate::noise::combiners::{Combiner, CombinerState};
 use crate::simd::Arch;
-use crate::simd::static_simd::{StaticSimd};
 use crate::simd::register::Simd;
 use crate::simd::traits::SimdElement;
 
@@ -195,15 +194,15 @@ pub fn validate_grid_size<const D: usize>(grid_size: [usize; D], slice_len: usiz
 }
 
 #[inline(always)]
-pub fn validate_state_size<C: Combiner, const D: usize>(grid_size: [usize; D], slice_len: usize) {
-    if C::State::STATE_SIZE > 0 {
+pub fn validate_state_size<C: Combiner, F: Arch, const D: usize>(grid_size: [usize; D], slice_len: usize) {
+    if C::State::<F>::STATE_SIZE > 0 {
         let total_size: usize = grid_size.iter().product();
-        let required_size = total_size * C::State::STATE_SIZE;
+        let required_size = total_size * C::State::<F>::STATE_SIZE;
         assert!(
             slice_len >= required_size,
             "Uniform grid with dimensions {:?} with {} state variables requires a state size of{required_size}, which is more than the given slice length of {slice_len}",
             required_size,
-            C::State::STATE_SIZE,
+            C::State::<F>::STATE_SIZE,
         );
     }
 }
@@ -222,13 +221,11 @@ pub(crate) unsafe fn assume_init_slice<T>(s: &[MaybeUninit<T>]) -> &[T] {
 }
 
 #[inline(always)]
-pub fn fill_grid_indices<const D: usize>(
+pub fn fill_grid_indices<A: Arch, const D: usize>(
     grid_indices: &mut [&mut [MaybeUninit<u32>]; D],
     distances: &[&mut [MaybeUninit<f32>]; D],
     distances_len: [usize; D],
 ) -> [usize; D] {
-    const LANES: usize = StaticSimd::<f32>::LANES;
-
     std::array::from_fn(|i| {
         let mut write_idx = 0usize;
         let indices_ptr = grid_indices[i].as_mut_ptr();
@@ -237,10 +234,10 @@ pub fn fill_grid_indices<const D: usize>(
         let full_block_end = last_valid - last_valid % 64;
         for base_index in (1..=full_block_end).step_by(64) {
             let mut bits = 0u64;
-            for bit_index in (0..64).step_by(LANES) {
+            for bit_index in (0..64).step_by(Simd::<f32, A>::LANES) {
                 let cur_index = base_index + bit_index;
-                let cur = unsafe { distances[i].load_simd(cur_index) };
-                let prev = unsafe { distances[i].load_simd_aligned(cur_index - 1) };
+                let cur: Simd<f32, A> = unsafe { distances[i].load_simd(cur_index) };
+                let prev: Simd<f32, A> = unsafe { distances[i].load_simd_aligned(cur_index - 1) };
 
                 let mask_bits = prev.simd_gt(cur).to_bits();
                 bits |= mask_bits << bit_index;
@@ -260,10 +257,10 @@ pub fn fill_grid_indices<const D: usize>(
 
         let tail_len = last_valid - full_block_end;
         let mut bits = 0u64;
-        for bit_index in (0..tail_len).step_by(LANES) {
+        for bit_index in (0..tail_len).step_by(Simd::<f32, A>::LANES) {
             let cur_index = bit_index + full_block_end + 1;
-            let cur = unsafe { distances[i].load_simd(cur_index) };
-            let prev = unsafe { distances[i].load_simd_aligned(cur_index - 1) };
+            let cur: Simd<f32, A> = unsafe { distances[i].load_simd(cur_index) };
+            let prev: Simd<f32, A> = unsafe { distances[i].load_simd_aligned(cur_index - 1) };
 
             let mask_bits = prev.simd_gt(cur).to_bits();
             bits |= mask_bits << bit_index;

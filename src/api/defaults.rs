@@ -1,5 +1,5 @@
 use crate::api::configs::*;
-use crate::simd::static_simd::StaticSimd;
+use crate::simd::StaticSimd;
 
 impl<const D: usize> Default for NoiseConfig<D> {
     fn default() -> Self {

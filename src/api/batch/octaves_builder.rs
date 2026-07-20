@@ -8,7 +8,6 @@ use crate::api::octave::Octave;
 use crate::api::parameters::*;
 use crate::math::random::Random;
 use crate::noise::combiners::Combiner;
-use crate::simd::static_simd::StaticSimd;
 use crate::simd::{Arch, Simd};
 use crate::{BatchGenerator, HybridMulti, PingPong, Ridged, Terrace};
 
@@ -160,7 +159,7 @@ impl<'a, const D: usize, C: Combiner, G: BatchGenerator<D>, A: Arch, I: DimIter<
     declare_fill!(self, output, {
         if self.noise_config.initialize {
             for (i, x) in self.into_iter().enumerate() {
-                x.copy_to_slice(&mut output[i * StaticSimd::<f32>::LANES..]);
+                x.copy_to_slice(&mut output[i * Simd::<f32, A>::LANES..]);
             }
         } else {
             for (i, x) in self.into_iter().enumerate() {

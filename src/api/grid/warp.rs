@@ -15,9 +15,9 @@ impl Grid<2> {
         y_iter: impl Iterator<Item = Simd<f32, A>>,
     ) -> BatchNoiseBuilder<2, C, G, A, impl DimIter<A, 2>> {
         let strength = Simd::splat(warp_strength);
-        let x_iter = zip(x_iter, self.x_iter_with_arch::<A>())
+        let x_iter = zip(x_iter, self.x_iter_for::<A>())
             .map(move |(x, grid)| x.mul_add(strength, grid));
-        let y_iter = zip(y_iter, self.y_iter_with_arch::<A>())
+        let y_iter = zip(y_iter, self.y_iter_for::<A>())
             .map(move |(y, grid)| y.mul_add(strength, grid));
 
         BatchNoiseBuilder {
@@ -39,11 +39,11 @@ impl Grid<3> {
         z_iter: impl Iterator<Item = Simd<f32, A>>,
     ) -> BatchNoiseBuilder<3, C, G, A, impl DimIter<A, 3>> {
         let strength = Simd::splat(warp_strength);
-        let x_iter = zip(x_iter, self.x_iter_with_arch::<A>())
+        let x_iter = zip(x_iter, self.x_iter_for::<A>())
             .map(move |(x, grid)| x.mul_add(strength, grid));
-        let y_iter = zip(y_iter, self.y_iter_with_arch::<A>())
+        let y_iter = zip(y_iter, self.y_iter_for::<A>())
             .map(move |(y, grid)| y.mul_add(strength, grid));
-        let z_iter = zip(z_iter, self.z_iter_with_arch::<A>())
+        let z_iter = zip(z_iter, self.z_iter_for::<A>())
             .map(move |(z, grid)| z.mul_add(strength, grid));
 
         BatchNoiseBuilder {

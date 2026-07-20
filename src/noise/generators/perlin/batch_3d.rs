@@ -32,7 +32,7 @@ impl BatchGenerator<3> for Perlin {
         // Y: A59900A5
         // Z: 90A5A500
 
-        let shuffle_indices = Simd::<u8>::from_slice(&BYTE_SHUFFLE[..]);
+        let shuffle_indices = Simd::<u8, A>::from_slice(&BYTE_SHUFFLE[..]);
         let channel_seed = Simd::splat(seed);
         let prime = Simd::splat(0x85ebca6b_u32);
 

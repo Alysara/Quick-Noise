@@ -3,7 +3,7 @@ use std::{fmt::Debug, ops::{Index, IndexMut}};
 
 use crate::simd::{SimdElement, array_trait::Array, register::Simd};
 
-pub trait Arch: Clone + Copy {
+pub trait Arch: Clone + Copy + Default {
     const SIMD_WIDTH: usize;
     const NUM_SIMD_REG: usize;
     type Block2<T: SimdElement>: Index<usize, Output = Simd<T, Self>> + IndexMut<usize> + Default;

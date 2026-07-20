@@ -140,7 +140,7 @@ let grid = Grid::<2>::new(1024, 512);
 let noise1 = grid.builder::<Fbm, Perlin>().octaves(6).seed(0).into_iter();
 let noise2 = grid.builder::<Fbm, Perlin>().octaves(6).seed(1).into_iter();
 
-grid.warp_builder::<Fbm, Perlin>(100.0, noise1, noise2)
+grid.warp_builder::<Fbm, Perlin, _>(100.0, noise1, noise2)
     .octaves(2) // Cheap two octaves for expensive batch noise call.
     .frequency(1. / 32.0)
     .into_iter()
@@ -225,7 +225,7 @@ This simd module can support most basic operations, and can be used directly to 
 
 ```rust
 use quick_noise::{Grid, BatchNoise, Ridged, Cellular};
-use quick_noise::simd::ArchSimd;
+use quick_noise::simd::Simd;
 use std::iter::zip;
 
 let grid = Grid::<2>::new(128, 128).grid_position(0, 0);
@@ -242,7 +242,7 @@ let iter_3 = zip(iter_1, iter_2).map(|(x, y)| x * y);
 ```
 
 Using these iterators can fuse operations and avoid multiple vertical passes, particularly for batch noise.
-`ArchSimd` represents a raw simd register for a given architecture. Unlike std::simd which abstracts these architecture details,
+`Simd` represents a raw simd register for a given architecture. Unlike std::simd which abstracts these architecture details,
 this simd module offers you the ability to explicitly control loops that work best for your CPU.
 
 `simd_iter` and `simd_iter_mut` are exposed by the `SimdSliceIterExt` to create these iters from slices.
@@ -254,34 +254,40 @@ They are defined once in one place and work for both grid and batch noise.
 For example, the Fbm combiner is defined as:
 
 ```rust
+use quick_noise::{Combiner, CombinerArray};
+use quick_noise::simd::{Arch, Simd};
+
 #[derive(Default, Copy, Clone, PartialEq, Debug)]
 pub struct Fbm {}
-use quick_noise::{Combiner, CombinerArray};
-use quick_noise::simd::ArchSimd;
 impl Combiner for Fbm {
     const WEIGHT_DECAY: bool = true;
-
-    // Array of values carried across octaves; unnecessary for Fbm.
-    type State = CombinerArray<0>;
+    type State<A: Arch> = CombinerArray<A, 0>;
     type Config = ();
 
     #[inline(always)]
-    fn apply_sample(
+    fn apply_sample<A: Arch>(
         _config: &(),
-        state: Self::State,
-        cur_result: ArchSimd<f32>,
-        new_sample: ArchSimd<f32>,
-    ) -> (Self::State, ArchSimd<f32>) {
+        state: Self::State<A>,
+        cur_result: Simd<f32, A>,
+        new_sample: Simd<f32, A>,
+    ) -> (Self::State<A>, Simd<f32, A>) {
         (state, cur_result + new_sample)
     }
 
     #[inline(always)]
-    fn initialize_sample(_config: &(), new_sample: ArchSimd<f32>) -> (Self::State, ArchSimd<f32>) {
-        (Self::State::default(), new_sample)
+    fn initialize_sample<A: Arch>(
+        _config: &(),
+        new_sample: Simd<f32, A>,
+    ) -> (Self::State<A>, Simd<f32, A>) {
+        (Default::default(), new_sample)
     }
 
     #[inline(always)]
-    fn finalize_sample(_config: &(), _state: Self::State, last: ArchSimd<f32>) -> ArchSimd<f32> {
+    fn finalize_sample<A: Arch>(
+        _config: &(),
+        _state: Self::State<A>,
+        last: Simd<f32, A>,
+    ) -> Simd<f32, A> {
         last
     }
 }

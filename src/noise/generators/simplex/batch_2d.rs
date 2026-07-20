@@ -40,7 +40,7 @@ impl BatchGenerator<2> for Simplex {
             1, 7, 4, 6, 5, 11, 8, 10, 9, 15, 12, 14, 13,
         ];
 
-        let shuffle_indices = Simd::<u8>::from_slice(&BYTE_SHUFFLE[..]);
+        let shuffle_indices = Simd::<u8, A>::from_slice(&BYTE_SHUFFLE[..]);
         let channel_seed = Simd::splat(seed);
         let prime = Simd::splat(0x85ebca6b_u32);
 

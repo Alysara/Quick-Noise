@@ -2,12 +2,11 @@ use std::iter::zip;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 
+use crate::simd::StaticArch;
 use crate::simd::architectures::interface::*;
 use crate::simd::array_trait::Array;
 use crate::simd::register::Simd;
-use crate::simd::static_simd::StaticSimd;
 use crate::simd::traits::*;
-use crate::simd::{ScalarArch, StaticArch};
 
 pub trait SimdSliceIterExt<T: SimdElement> {
     fn simd_iter<'a>(&'a self) -> SimdSliceIter<'a, T, StaticArch>;
@@ -186,16 +185,16 @@ impl<'a, T: SimdElement, A: Arch> ExactSizeIterator for SimdSliceIterMut<'a, T, 
 
 // Vec into iter
 
-pub trait IntoSimdIterator<T: SimdElement> {
-    fn into_simd_iter(self) -> SimdVecIntoIter<T, ScalarArch>;
+pub trait IntoSimdIterator<T: SimdElement, A: Arch = StaticArch> {
+    fn into_simd_iter(self) -> SimdVecIntoIter<T, A>;
 }
 
-impl<T: SimdElement> IntoSimdIterator<T> for Vec<T> {
-    fn into_simd_iter(self) -> SimdVecIntoIter<T, ScalarArch> {
+impl<T: SimdElement, A: Arch> IntoSimdIterator<T, A> for Vec<T> {
+    fn into_simd_iter(self) -> SimdVecIntoIter<T, A> {
         SimdVecIntoIter {
             vec: self,
             index: 0,
-            _architecture: PhantomData::<ScalarArch>,
+            _architecture: PhantomData::<A>,
         }
     }
 }
@@ -267,9 +266,9 @@ impl<T: SimdElement, A: Arch> FromIterator<Simd<T, A>> for Vec<T> {
         let iter = iter.into_iter();
         let (lower_bound, upper_bound) = iter.size_hint();
         if let Some(upper_bound) = upper_bound {
-            let mut vec = vec![T::default(); upper_bound * StaticSimd::<T>::LANES];
+            let mut vec = vec![T::default(); upper_bound * Simd::<T, A>::LANES];
             for (i, x) in iter.enumerate() {
-                x.copy_to_slice(&mut vec[i * StaticSimd::<T>::LANES..]);
+                x.copy_to_slice(&mut vec[i * Simd::<T, A>::LANES..]);
             }
             vec
         } else {
