@@ -3,10 +3,10 @@ use std::cmp::min;
 use std::fs;
 use std::path::Path;
 
-use crate::simd::arch_simd::ArchSimd;
+use crate::simd::static_simd::StaticSimd;
 
 // TODO: Add error handling here.
-pub trait NoiseImageExt: Iterator<Item = ArchSimd<f32>> + Sized {
+pub trait NoiseImageExt: Iterator<Item = StaticSimd<f32>> + Sized {
     fn to_grayscale_image(mut self, x: usize, y: usize, path: impl AsRef<Path>) {
         if let Some(parent) = path.as_ref().parent()
             && !parent.exists()
@@ -17,13 +17,13 @@ pub trait NoiseImageExt: Iterator<Item = ArchSimd<f32>> + Sized {
         let size = x * y;
         let mut pixels = vec![0; size];
 
-        const LANES: usize = ArchSimd::<f32>::LANES;
+        const LANES: usize = StaticSimd::<f32>::LANES;
         for i in (0..size).step_by(LANES) {
             let cur = self
                 .next()
                 .expect("Given iterator did not fit image dimensions!");
 
-            let adj = (cur + ArchSimd::splat(1.0)) * ArchSimd::splat(127.5);
+            let adj = (cur + StaticSimd::splat(1.0)) * StaticSimd::splat(127.5);
 
             // TODO: Equip simd to do this in register
             let slice = adj.to_array();
@@ -39,4 +39,4 @@ pub trait NoiseImageExt: Iterator<Item = ArchSimd<f32>> + Sized {
     }
 }
 
-impl<I> NoiseImageExt for I where I: Iterator<Item = ArchSimd<f32>> + Sized {}
+impl<I> NoiseImageExt for I where I: Iterator<Item = StaticSimd<f32>> + Sized {}

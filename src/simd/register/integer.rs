@@ -6,7 +6,7 @@ use crate::simd::architectures::interface::*;
 use crate::simd::register::Simd;
 use crate::simd::traits::*;
 
-impl<T: SimdInteger, F: SimdFamily> BitAnd for Simd<T, F> {
+impl<T: SimdInteger, F: Arch> BitAnd for Simd<T, F> {
     type Output = Self;
     #[inline(always)]
     fn bitand(self, rhs: Self) -> Self {
@@ -14,7 +14,7 @@ impl<T: SimdInteger, F: SimdFamily> BitAnd for Simd<T, F> {
     }
 }
 
-impl<T: SimdInteger, F: SimdFamily> BitOr for Simd<T, F> {
+impl<T: SimdInteger, F: Arch> BitOr for Simd<T, F> {
     type Output = Self;
     #[inline(always)]
     fn bitor(self, rhs: Self) -> Self {
@@ -22,7 +22,7 @@ impl<T: SimdInteger, F: SimdFamily> BitOr for Simd<T, F> {
     }
 }
 
-impl<T: SimdInteger, F: SimdFamily> BitXor for Simd<T, F> {
+impl<T: SimdInteger, F: Arch> BitXor for Simd<T, F> {
     type Output = Self;
     #[inline(always)]
     fn bitxor(self, rhs: Self) -> Self {
@@ -30,14 +30,14 @@ impl<T: SimdInteger, F: SimdFamily> BitXor for Simd<T, F> {
     }
 }
 
-impl<T: SimdInteger, F: SimdFamily> Simd<T, F> {
+impl<T: SimdInteger, F: Arch> Simd<T, F> {
     #[inline(always)]
     pub fn andnot(self, rhs: Self) -> Self {
         unsafe { Self::new(F::Vec::and_not(self.data, rhs.data)) }
     }
 }
 
-impl<T: SimdInteger, F: SimdFamily> Not for Simd<T, F> {
+impl<T: SimdInteger, F: Arch> Not for Simd<T, F> {
     type Output = Self;
     #[inline(always)]
     fn not(self) -> Self {
@@ -46,7 +46,7 @@ impl<T: SimdInteger, F: SimdFamily> Not for Simd<T, F> {
 }
 
 // === Shifts ===
-impl<T: SimdIntegerNotByte, F: SimdFamily> Shl<Simd<<T as SimdInteger>::Unsigned, F>>
+impl<T: SimdIntegerNotByte, F: Arch> Shl<Simd<<T as SimdInteger>::Unsigned, F>>
     for Simd<T, F>
 {
     type Output = Self;
@@ -63,7 +63,7 @@ impl<T: SimdIntegerNotByte, F: SimdFamily> Shl<Simd<<T as SimdInteger>::Unsigned
     }
 }
 
-impl<T: SimdIntegerNotByte, F: SimdFamily> Shr<Simd<<T as SimdInteger>::Unsigned, F>>
+impl<T: SimdIntegerNotByte, F: Arch> Shr<Simd<<T as SimdInteger>::Unsigned, F>>
     for Simd<T, F>
 {
     type Output = Self;
@@ -85,7 +85,7 @@ impl<T: SimdIntegerNotByte, F: SimdFamily> Shr<Simd<<T as SimdInteger>::Unsigned
 
 // === Scalar shifts ===
 
-impl<T: SimdIntegerNotByte, F: SimdFamily> Shl<usize> for Simd<T, F> {
+impl<T: SimdIntegerNotByte, F: Arch> Shl<usize> for Simd<T, F> {
     type Output = Self;
     #[inline(always)]
     fn shl(self, rhs: usize) -> Self {
@@ -94,7 +94,7 @@ impl<T: SimdIntegerNotByte, F: SimdFamily> Shl<usize> for Simd<T, F> {
     }
 }
 
-impl<T: SimdIntegerNotByte, F: SimdFamily> Shr<usize> for Simd<T, F> {
+impl<T: SimdIntegerNotByte, F: Arch> Shr<usize> for Simd<T, F> {
     type Output = Self;
     #[inline(always)]
     fn shr(self, rhs: usize) -> Self {
@@ -105,7 +105,7 @@ impl<T: SimdIntegerNotByte, F: SimdFamily> Shr<usize> for Simd<T, F> {
 
 // === Addition ===
 
-impl<T: SimdMulType, F: SimdFamily> Mul for Simd<T, F> {
+impl<T: SimdMulType, F: Arch> Mul for Simd<T, F> {
     type Output = Self;
     #[inline(always)]
     fn mul(self, rhs: Self) -> Self {
@@ -123,7 +123,7 @@ impl<T: SimdMulType, F: SimdFamily> Mul for Simd<T, F> {
     }
 }
 
-impl<T: SimdFloat, F: SimdFamily> Div for Simd<T, F> {
+impl<T: SimdFloat, F: Arch> Div for Simd<T, F> {
     type Output = Self;
     #[inline(always)]
     fn div(self, rhs: Self) -> Self {
@@ -161,21 +161,21 @@ impl<T: SimdFloat, F: SimdFamily> Div for Simd<T, F> {
 
 // === Casts ===
 
-impl<T: SimdInteger + HasSigned, F: SimdFamily> Simd<T, F> {
+impl<T: SimdInteger + HasSigned, F: Arch> Simd<T, F> {
     #[inline(always)]
     pub fn cast_signed(self) -> Simd<<T as SimdInteger>::Signed, F> {
         Simd::new(self.data)
     }
 }
 
-impl<T: SimdInteger + HasUnsigned, F: SimdFamily> Simd<T, F> {
+impl<T: SimdInteger + HasUnsigned, F: Arch> Simd<T, F> {
     #[inline(always)]
     pub fn cast_unsigned(self) -> Simd<<T as SimdInteger>::Unsigned, F> {
         Simd::new(self.data)
     }
 }
 
-impl<T: SimdInteger + HasFloat, F: SimdFamily> Simd<T, F> {
+impl<T: SimdInteger + HasFloat, F: Arch> Simd<T, F> {
     #[inline(always)]
     pub fn cast_float(self) -> Simd<<T as HasFloat>::Float, F> {
         unsafe { Simd::new(self.data.int_to_float()) }

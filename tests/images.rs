@@ -1,5 +1,5 @@
 use quick_noise::emit::NoiseImageExt;
-use quick_noise::simd::ArchSimd;
+use quick_noise::simd::StaticSimd;
 use quick_noise::*;
 
 #[test]
@@ -75,13 +75,13 @@ fn create_test_images_grid_2d() {
     grid_2d.builder::<Ridged, Perlin>()
         .octaves(6)
         .into_iter()
-        .map(|x| x * ArchSimd::splat(0.25) - ArchSimd::splat(1.0))
+        .map(|x| x * StaticSimd::splat(0.25) - StaticSimd::splat(1.0))
         .to_grayscale_image(1000, 1000, "test_images/grid_2d_ridged_perlin.png");
 
     grid_2d.builder::<HybridMulti, Value>()
         .octaves(6)
         .into_iter()
-        .map(|x| x * ArchSimd::splat(0.25) - ArchSimd::splat(1.0))
+        .map(|x| x * StaticSimd::splat(0.25) - StaticSimd::splat(1.0))
         .to_grayscale_image(1000, 1000, "test_images/grid_2d_hybrid_multi_value.png");
 
     grid_2d_tiled.builder::<Fbm, Perlin>()
@@ -112,7 +112,7 @@ fn create_test_images_grid_2d() {
         .octaves(6)
         .frequency(1.0 / 64.0)
         .into_iter()
-        .map(|x| x * ArchSimd::splat(0.25) - ArchSimd::splat(1.0))
+        .map(|x| x * StaticSimd::splat(0.25) - StaticSimd::splat(1.0))
         .to_grayscale_image(1024, 1024, "test_images/grid_2d_hybrid_multi_perlin_tiled.png");
 
     let grid_2d_long = Grid::<2>::new(1024, 2048);
@@ -188,12 +188,12 @@ fn create_test_images_grid_3d() {
     grid_3d.builder::<Ridged, Perlin>()
         .octaves(6)
         .into_iter()
-        .map(|x| x * ArchSimd::splat(0.25) - ArchSimd::splat(1.0))
+        .map(|x| x * StaticSimd::splat(0.25) - StaticSimd::splat(1.0))
         .to_grayscale_image(1000, 1000, "test_images/grid_3d_ridged_perlin.png");
     grid_3d.builder::<HybridMulti, Value>()
         .octaves(6)
         .into_iter()
-        .map(|x| x * ArchSimd::splat(0.25) - ArchSimd::splat(1.0))
+        .map(|x| x * StaticSimd::splat(0.25) - StaticSimd::splat(1.0))
         .to_grayscale_image(1000, 1000, "test_images/grid_3d_hybrid_multi_value.png");
     grid_3d_tiled.builder::<Fbm, Perlin>()
         .octaves(6)
@@ -219,7 +219,7 @@ fn create_test_images_grid_3d() {
         .octaves(6)
         .frequency(1.0 / 64.0)
         .into_iter()
-        .map(|x| x * ArchSimd::splat(0.25) - ArchSimd::splat(1.0))
+        .map(|x| x * StaticSimd::splat(0.25) - StaticSimd::splat(1.0))
         .to_grayscale_image(1024, 1024, "test_images/grid_3d_hybrid_multi_perlin_tiled.png");
 
     let grid_3d_full = Grid::<3>::new(1024, 1024, 32).grid_position(-50, 100, 123);
@@ -261,33 +261,33 @@ fn create_test_images_batch_2d() {
     BatchNoise::<2, Ridged, Perlin>::builder(grid_2d.x_iter(), grid_2d.y_iter())
         .octaves(6)
         .into_iter()
-        .map(|x| x * ArchSimd::splat(0.25) - ArchSimd::splat(1.0))
+        .map(|x| x * StaticSimd::splat(0.25) - StaticSimd::splat(1.0))
         .to_grayscale_image(1000, 1000, "test_images/batch_grid_2d_ridged_perlin.png");
     BatchNoise::<2, Ridged, Simplex>::builder(grid_2d.x_iter(), grid_2d.y_iter())
         .octaves(6)
         .into_iter()
-        .map(|x| x * ArchSimd::splat(0.25) - ArchSimd::splat(1.0))
+        .map(|x| x * StaticSimd::splat(0.25) - StaticSimd::splat(1.0))
         .to_grayscale_image(1000, 1000, "test_images/batch_grid_2d_ridged_simplex.png");
     BatchNoise::<2, Ridged, Cellular>::builder(grid_2d.x_iter(), grid_2d.y_iter())
         .octaves(6)
         .into_iter()
-        .map(|x| x * ArchSimd::splat(0.25) - ArchSimd::splat(1.0))
+        .map(|x| x * StaticSimd::splat(0.25) - StaticSimd::splat(1.0))
         .to_grayscale_image(1000, 1000, "test_images/batch_grid_2d_ridged_cellular.png");
 
     BatchNoise::<2, HybridMulti, Value>::builder(grid_2d.x_iter(), grid_2d.y_iter())
         .octaves(6)
         .into_iter()
-        .map(|x| x * ArchSimd::splat(0.25) - ArchSimd::splat(1.0))
+        .map(|x| x * StaticSimd::splat(0.25) - StaticSimd::splat(1.0))
         .to_grayscale_image(1000, 1000, "test_images/batch_grid_2d_hybrid_multi_value.png");
     BatchNoise::<2, HybridMulti, Simplex>::builder(grid_2d.x_iter(), grid_2d.y_iter())
         .octaves(6)
         .into_iter()
-        .map(|x| x * ArchSimd::splat(0.25) - ArchSimd::splat(1.0))
+        .map(|x| x * StaticSimd::splat(0.25) - StaticSimd::splat(1.0))
         .to_grayscale_image(1000, 1000, "test_images/batch_grid_2d_hybrid_multi_simplex.png");
     BatchNoise::<2, HybridMulti, Cellular>::builder(grid_2d.x_iter(), grid_2d.y_iter())
         .octaves(6)
         .into_iter()
-        .map(|x| x * ArchSimd::splat(0.25) - ArchSimd::splat(1.0))
+        .map(|x| x * StaticSimd::splat(0.25) - StaticSimd::splat(1.0))
         .to_grayscale_image(1000, 1000, "test_images/batch_grid_2d_hybrid_multi_cellular.png");
 
     BatchNoise::<2, Billow, Perlin>::builder(grid_2d.x_iter(), grid_2d.y_iter())
@@ -319,22 +319,22 @@ fn create_test_images_batch_2d() {
     BatchNoise::<2, Multi, Perlin>::builder(grid_2d.x_iter(), grid_2d.y_iter())
         .octaves(6)
         .into_iter()
-        .map(|x| x * ArchSimd::splat(0.5) - ArchSimd::splat(1.0))
+        .map(|x| x * StaticSimd::splat(0.5) - StaticSimd::splat(1.0))
         .to_grayscale_image(1000, 1000, "test_images/batch_grid_2d_multi_perlin.png");
     BatchNoise::<2, Multi, Value>::builder(grid_2d.x_iter(), grid_2d.y_iter())
         .octaves(6)
         .into_iter()
-        .map(|x| x * ArchSimd::splat(0.5) - ArchSimd::splat(1.0))
+        .map(|x| x * StaticSimd::splat(0.5) - StaticSimd::splat(1.0))
         .to_grayscale_image(1000, 1000, "test_images/batch_grid_2d_multi_value.png");
     BatchNoise::<2, Multi, Simplex>::builder(grid_2d.x_iter(), grid_2d.y_iter())
         .octaves(6)
         .into_iter()
-        .map(|x| x * ArchSimd::splat(0.5) - ArchSimd::splat(1.0))
+        .map(|x| x * StaticSimd::splat(0.5) - StaticSimd::splat(1.0))
         .to_grayscale_image(1000, 1000, "test_images/batch_grid_2d_multi_simplex.png");
     BatchNoise::<2, Multi, Cellular>::builder(grid_2d.x_iter(), grid_2d.y_iter())
         .octaves(6)
         .into_iter()
-        .map(|x| x * ArchSimd::splat(0.5) - ArchSimd::splat(1.0))
+        .map(|x| x * StaticSimd::splat(0.5) - StaticSimd::splat(1.0))
         .to_grayscale_image(1000, 1000, "test_images/batch_grid_2d_multi_cellular.png");
 
     BatchNoise::<2, Terrace, Perlin>::builder(grid_2d.x_iter(), grid_2d.y_iter())
@@ -388,33 +388,33 @@ fn create_test_images_batch_3d() {
     BatchNoise::<3, Ridged, Perlin>::builder(grid_3d.x_iter(), grid_3d.y_iter(), grid_3d.z_iter())
         .octaves(6)
         .into_iter()
-        .map(|x| x * ArchSimd::splat(0.25) - ArchSimd::splat(1.0))
+        .map(|x| x * StaticSimd::splat(0.25) - StaticSimd::splat(1.0))
         .to_grayscale_image(1000, 1000, "test_images/batch_grid_3d_ridged_perlin.png");
     BatchNoise::<3, Ridged, Simplex>::builder(grid_3d.x_iter(), grid_3d.y_iter(), grid_3d.z_iter())
         .octaves(6)
         .into_iter()
-        .map(|x| x * ArchSimd::splat(0.25) - ArchSimd::splat(1.0))
+        .map(|x| x * StaticSimd::splat(0.25) - StaticSimd::splat(1.0))
         .to_grayscale_image(1000, 1000, "test_images/batch_grid_3d_ridged_simplex.png");
     BatchNoise::<3, Ridged, Cellular>::builder(grid_3d.x_iter(), grid_3d.y_iter(), grid_3d.z_iter())
         .octaves(6)
         .into_iter()
-        .map(|x| x * ArchSimd::splat(0.25) - ArchSimd::splat(1.0))
+        .map(|x| x * StaticSimd::splat(0.25) - StaticSimd::splat(1.0))
         .to_grayscale_image(1000, 1000, "test_images/batch_grid_3d_ridged_cellular.png");
 
     BatchNoise::<3, HybridMulti, Value>::builder(grid_3d.x_iter(), grid_3d.y_iter(), grid_3d.z_iter())
         .octaves(6)
         .into_iter()
-        .map(|x| x * ArchSimd::splat(0.25) - ArchSimd::splat(1.0))
+        .map(|x| x * StaticSimd::splat(0.25) - StaticSimd::splat(1.0))
         .to_grayscale_image(1000, 1000, "test_images/batch_grid_3d_hybrid_multi_value.png");
     BatchNoise::<3, HybridMulti, Simplex>::builder(grid_3d.x_iter(), grid_3d.y_iter(), grid_3d.z_iter())
         .octaves(6)
         .into_iter()
-        .map(|x| x * ArchSimd::splat(0.25) - ArchSimd::splat(1.0))
+        .map(|x| x * StaticSimd::splat(0.25) - StaticSimd::splat(1.0))
         .to_grayscale_image(1000, 1000, "test_images/batch_grid_3d_hybrid_multi_simplex.png");
     BatchNoise::<3, HybridMulti, Cellular>::builder(grid_3d.x_iter(), grid_3d.y_iter(), grid_3d.z_iter())
         .octaves(6)
         .into_iter()
-        .map(|x| x * ArchSimd::splat(0.25) - ArchSimd::splat(1.0))
+        .map(|x| x * StaticSimd::splat(0.25) - StaticSimd::splat(1.0))
         .to_grayscale_image(1000, 1000, "test_images/batch_grid_3d_hybrid_multi_cellular.png");
 
     BatchNoise::<3, Billow, Perlin>::builder(grid_3d.x_iter(), grid_3d.y_iter(), grid_3d.z_iter())
@@ -446,22 +446,22 @@ fn create_test_images_batch_3d() {
     BatchNoise::<3, Multi, Perlin>::builder(grid_3d.x_iter(), grid_3d.y_iter(), grid_3d.z_iter())
         .octaves(6)
         .into_iter()
-        .map(|x| x * ArchSimd::splat(0.5) - ArchSimd::splat(1.0))
+        .map(|x| x * StaticSimd::splat(0.5) - StaticSimd::splat(1.0))
         .to_grayscale_image(1000, 1000, "test_images/batch_grid_3d_multi_perlin.png");
     BatchNoise::<3, Multi, Value>::builder(grid_3d.x_iter(), grid_3d.y_iter(), grid_3d.z_iter())
         .octaves(6)
         .into_iter()
-        .map(|x| x * ArchSimd::splat(0.5) - ArchSimd::splat(1.0))
+        .map(|x| x * StaticSimd::splat(0.5) - StaticSimd::splat(1.0))
         .to_grayscale_image(1000, 1000, "test_images/batch_grid_3d_multi_value.png");
     BatchNoise::<3, Multi, Simplex>::builder(grid_3d.x_iter(), grid_3d.y_iter(), grid_3d.z_iter())
         .octaves(6)
         .into_iter()
-        .map(|x| x * ArchSimd::splat(0.5) - ArchSimd::splat(1.0))
+        .map(|x| x * StaticSimd::splat(0.5) - StaticSimd::splat(1.0))
         .to_grayscale_image(1000, 1000, "test_images/batch_grid_3d_multi_simplex.png");
     BatchNoise::<3, Multi, Cellular>::builder(grid_3d.x_iter(), grid_3d.y_iter(), grid_3d.z_iter())
         .octaves(6)
         .into_iter()
-        .map(|x| x * ArchSimd::splat(0.5) - ArchSimd::splat(1.0))
+        .map(|x| x * StaticSimd::splat(0.5) - StaticSimd::splat(1.0))
         .to_grayscale_image(1000, 1000, "test_images/batch_grid_3d_multi_cellular.png");
 
     BatchNoise::<3, Terrace, Perlin>::builder(grid_3d.x_iter(), grid_3d.y_iter(), grid_3d.z_iter())

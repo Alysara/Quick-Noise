@@ -1,5 +1,4 @@
-use crate::simd::arch_simd::ArchSimd;
-use crate::{Combiner, CombinerArray};
+use crate::{Combiner, CombinerArray, simd::{Arch, Simd}};
 
 #[derive(Copy, Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -17,19 +16,19 @@ impl Default for RidgedConfig {
 pub struct Ridged {}
 impl Combiner for Ridged {
     const WEIGHT_DECAY: bool = false;
-    type State = CombinerArray<1>;
+    type State<A: Arch> = CombinerArray<A, 1>;
     type Config = RidgedConfig;
 
     #[inline(always)]
-    fn apply_sample(
+    fn apply_sample<A: Arch>(
         config: &RidgedConfig,
-        state: Self::State,
-        cur_result: ArchSimd<f32>,
-        new_sample: ArchSimd<f32>,
-    ) -> (Self::State, ArchSimd<f32>) {
-        let one = ArchSimd::splat(1.0);
-        let gain = ArchSimd::splat(config.gain);
-        let zero = ArchSimd::splat(0.0);
+        state: Self::State<A>,
+        cur_result: Simd<f32, A>,
+        new_sample: Simd<f32, A>,
+    ) -> (Self::State<A>, Simd<f32, A>) {
+        let one = Simd::splat(1.0);
+        let gain = Simd::splat(config.gain);
+        let zero = Simd::splat(0.0);
 
         let weight = state[0];
 
@@ -44,23 +43,23 @@ impl Combiner for Ridged {
     }
 
     #[inline(always)]
-    fn initialize_sample(
+    fn initialize_sample<A: Arch>(
         _config: &RidgedConfig,
-        new_sample: ArchSimd<f32>,
-    ) -> (Self::State, ArchSimd<f32>) {
-        let one = ArchSimd::splat(1.0);
+        new_sample: Simd<f32, A>,
+    ) -> (Self::State<A>, Simd<f32, A>) {
+        let one = Simd::splat(1.0);
 
         let signal = one - new_sample.abs();
         let signal = signal * signal;
 
-        let mut state = Self::State::default();
+        let mut state = Default::default();
         state[0] = signal;
 
         (state, signal)
     }
 
     #[inline(always)]
-    fn finalize_sample(_config: &RidgedConfig, _state: Self::State, last: ArchSimd<f32>) -> ArchSimd<f32> {
+    fn finalize_sample<A: Arch>(_config: &RidgedConfig, _state: Self::State<A>, last: Simd<f32, A>) -> Simd<f32, A> {
         last
     }
 }

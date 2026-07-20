@@ -10,12 +10,8 @@ use crate::noise::util::grid_helpers::{
     Arena, ArenaBuffer, InterpolationConfig, MaybeUninitSliceSimdExt, assume_init_slice,
     maybe_tail_load, maybe_tail_store, pad_grid_size, validate_grid_size, validate_state_size,
 };
-use crate::simd::arch_simd::{ArchSimd, NUM_SIMD_REG};
+use crate::simd::{Arch, Simd};
 use crate::{GridGenerator, Perlin};
-
-pub const NUM_BLOCKS: usize = NUM_SIMD_REG / 8;
-pub const LANES: usize = ArchSimd::<f32>::LANES;
-pub const BLOCK_LANES: usize = NUM_BLOCKS * LANES;
 
 pub const GRADIENTS_3D: [[f32; 3]; 16] = [
     [1.0, 1.0, 0.0],
@@ -92,7 +88,7 @@ impl<'a> fmt::Debug for PerlinGradients3D<'a> {
 
 const LERP: u8 = Lerp::Quintic as u8;
 impl GridGenerator<3> for Perlin {
-    fn sample_grid<C: Combiner, const INIT: bool, const FINAL: bool>(
+    fn sample_grid<A: Arch, C: Combiner, const INIT: bool, const FINAL: bool>(
         params: GridNoiseParams<3>,
         fractal_config: C::Config,
         state: &mut [f32],
@@ -112,7 +108,8 @@ impl GridGenerator<3> for Perlin {
 
         // Allocation setup.
 
-        let bilerp_config = InterpolationConfig::new(params.grid_size[0]);
+        let num_blocks = A::NUM_SIMD_REG / 8;
+        let bilerp_config = InterpolationConfig::new(num_blocks, params.grid_size[0]);
         let grid_data = GridData::new::<LERP>(&params, &mut data_arena, &padded_size);
         let mut trilerp_buffers = DottedTrilerpBuffers::new(&mut trilerp_arena, padded_size[0]);
         let mut gradients = PerlinGradients3D::new(&mut arena, padded_size[0]);
@@ -158,13 +155,14 @@ impl GridGenerator<3> for Perlin {
 }
 
 #[inline(always)]
-pub(super) fn grid_gradients_3d<'a>(
+pub(super) fn grid_gradients_3d<'a, A: Arch>(
     params: &GridNoiseParams<3>,
     grid_data: &GridData<3>,
     gradients: &mut PerlinGradients3D<'a>,
     y_it: usize,
     z_it: usize,
 ) {
+    let lanes = Simd::<f32, A>::LANES;
     let y_start = y_it as i32 + grid_data.grid_start[1];
     let z_start = z_it as i32 + grid_data.grid_start[2];
     let (z1, z2) = match grid_data.octave_tiling[2] {
@@ -179,10 +177,10 @@ pub(super) fn grid_gradients_3d<'a>(
             ((z_start + 1).rem_euclid(t as i32)) as u32,
         ),
     };
-    let z_vec = [ArchSimd::splat(z1), ArchSimd::splat(z2)];
+    let z_vec = [Simd::splat(z1), Simd::splat(z2)];
 
     let y_rem = grid_data.octave_tiling[1].map_or(y_start, |t| y_start.rem_euclid(t as i32));
-    let y_vec = ArchSimd::splat((y_rem as u32).wrapping_mul(params.seed));
+    let y_vec = Simd::splat((y_rem as u32).wrapping_mul(params.seed));
 
     const BYTE_SHUFFLE: [u8; 64] = [
         3, 0, 2, 1, 7, 4, 6, 5, 11, 8, 10, 9, 15, 12, 14, 13, 3, 0, 2, 1, 7, 4, 6, 5, 11, 8, 10, 9,
@@ -190,9 +188,9 @@ pub(super) fn grid_gradients_3d<'a>(
         5, 11, 8, 10, 9, 15, 12, 14, 13,
     ];
 
-    let shuffle_indices = ArchSimd::<u8>::from_slice(&BYTE_SHUFFLE[..]);
+    let shuffle_indices = Simd::<u8>::from_slice(&BYTE_SHUFFLE[..]);
 
-    let prime = ArchSimd::splat(0x85ebca6b_u32);
+    let prime = Simd::splat(0x85ebca6b_u32);
     let z_shuf: [_; 2] = from_fn(|i| z_vec[i].permute_8(shuffle_indices) ^ prime);
     let y_shuf = y_vec.permute_8(shuffle_indices) ^ prime;
     let zy_mix: [_; 2] = from_fn(|i| z_shuf[i] * y_shuf);
@@ -201,12 +199,12 @@ pub(super) fn grid_gradients_3d<'a>(
     let end_index = grid_data.num_loops[0] + 1;
 
     if let Some(x_tiling) = grid_data.octave_tiling[0] {
-        let x_tiling = ArchSimd::splat(x_tiling as f32);
-        let mut x_vec = ArchSimd::splat(grid_data.grid_start[0]) + ArchSimd::iota(0);
-        let x_vec_stride = ArchSimd::splat(ArchSimd::<f32>::LANES as i32);
-        let seed_vec = ArchSimd::splat(params.seed);
+        let x_tiling = Simd::splat(x_tiling as f32);
+        let mut x_vec = Simd::splat(grid_data.grid_start[0]) + Simd::iota(0);
+        let x_vec_stride = Simd::splat(lanes as i32);
+        let seed_vec = Simd::splat(params.seed);
 
-        for i in (0..end_index).step_by(ArchSimd::<f32>::LANES) {
+        for i in (0..end_index).step_by(lanes) {
             let x_floats = x_vec.cast_float();
             let x_rem = x_floats - (x_floats / x_tiling).floor() * x_tiling;
             let x_seeded = x_rem.cast_int_round().raw_cast() * seed_vec;
@@ -221,12 +219,12 @@ pub(super) fn grid_gradients_3d<'a>(
             x_vec += x_vec_stride;
         }
     } else {
-        let iota_vec = ArchSimd::iota(0) * ArchSimd::splat(params.seed);
+        let iota_vec = Simd::iota(0) * Simd::splat(params.seed);
         let x_start_seeded = (grid_data.grid_start[0] as u32).wrapping_mul(params.seed);
-        let mut x_vec = ArchSimd::splat(x_start_seeded) + iota_vec;
-        let x_vec_stride = ArchSimd::splat((LANES as u32).wrapping_mul(params.seed));
+        let mut x_vec = Simd::splat(x_start_seeded) + iota_vec;
+        let x_vec_stride = Simd::splat((lanes as u32).wrapping_mul(params.seed));
 
-        for i in (0..end_index).step_by(ArchSimd::<f32>::LANES) {
+        for i in (0..end_index).step_by(lanes) {
             let x_shuf = x_vec.permute_8(shuffle_indices) ^ prime;
             let grads: [_; 2] = from_fn(|i| (zy_mix[i] * x_shuf) >> 28);
 
@@ -241,7 +239,7 @@ pub(super) fn grid_gradients_3d<'a>(
     grid_gradients_3d_set_loop::<true>(grid_data, gradients);
     grid_gradients_3d_set_loop::<false>(grid_data, gradients);
 
-    for i in (0..params.grid_size[0]).step_by(LANES) {
+    for i in (0..params.grid_size[0]).step_by(lanes) {
         unsafe {
             let cur_dist = grid_data.distances[0].load_simd_aligned(i);
             let lf = gradients.blf[0].load_simd_aligned(i);
@@ -258,7 +256,7 @@ pub(super) fn grid_gradients_3d<'a>(
 }
 
 #[inline(always)]
-pub(super) fn grid_gradients_3d_set_loop<'a, const IS_FRONT: bool>(
+pub(super) fn grid_gradients_3d_set_loop<'a, A: Arch, const IS_FRONT: bool>(
     grid_data: &GridData<3>,
     gradients: &mut PerlinGradients3D<'a>,
 ) {
@@ -289,12 +287,12 @@ pub(super) fn grid_gradients_3d_set_loop<'a, const IS_FRONT: bool>(
             let l = GRADIENTS_3D.get_unchecked(l);
             let r = GRADIENTS_3D.get_unchecked(r);
 
-            let lx = ArchSimd::splat(l[0]);
-            let ly = ArchSimd::splat(l[1]);
-            let lz = ArchSimd::splat(l[2]);
-            let rx = ArchSimd::splat(r[0]);
-            let ry = ArchSimd::splat(r[1]);
-            let rz = ArchSimd::splat(r[2]);
+            let lx = Simd::splat(l[0]);
+            let ly = Simd::splat(l[1]);
+            let lz = Simd::splat(l[2]);
+            let rx = Simd::splat(r[0]);
+            let ry = Simd::splat(r[1]);
+            let rz = Simd::splat(r[2]);
 
             let mut index = x_cur_index as usize;
             while amount > 0 {
@@ -305,8 +303,8 @@ pub(super) fn grid_gradients_3d_set_loop<'a, const IS_FRONT: bool>(
                 right[1].write_simd(index, ry);
                 right[2].write_simd(index, rz);
 
-                amount -= LANES as isize;
-                index += LANES;
+                amount -= Simd::<f32, A>::LANES as isize;
+                index += Simd::<f32, A>::LANES;
             }
         }
 
@@ -351,31 +349,37 @@ impl<'a> DottedTrilerpBuffers<'a> {
 
 /// Handles interpolation execution state and fills
 /// the dst slice with interpolated values from gradient dot produtcts.
-pub(crate) struct DottedTrilerpExecuter<'a, C: Combiner, const INIT: bool, const FINAL: bool> {
-    config: &'a InterpolationConfig<NUM_BLOCKS>,
+pub(crate) struct DottedTrilerpExecuter<
+    'a,
+    A: Arch,
+    C: Combiner,
+    const INIT: bool,
+    const FINAL: bool,
+> {
+    config: &'a InterpolationConfig<A>,
     fractal_config: &'a C::Config,
     grid_data: &'a GridData<'a, 3>,
     gradients: &'a PerlinGradients3D<'a>,
     y_range: Range<usize>,
     z_range: Range<usize>,
-    top: [ArchSimd<f32>; NUM_BLOCKS],
-    dif: [ArchSimd<f32>; NUM_BLOCKS],
-    d_top: [ArchSimd<f32>; NUM_BLOCKS],
-    d_dif: [ArchSimd<f32>; NUM_BLOCKS],
-    weight: ArchSimd<f32>,
-    y_inc_weighted: ArchSimd<f32>,
-    y_inc_hi: ArchSimd<f32>,
-    y_inc_lo: ArchSimd<f32>,
-    z_inc_weighted: ArchSimd<f32>,
-    z_inc_hi: ArchSimd<f32>,
-    z_inc_lo: ArchSimd<f32>,
+    top: A::Block4<f32>,
+    dif: A::Block4<f32>,
+    d_top: A::Block4<f32>,
+    d_dif: A::Block4<f32>,
+    weight: Simd<f32, A>,
+    y_inc_weighted: Simd<f32, A>,
+    y_inc_hi: Simd<f32, A>,
+    y_inc_lo: Simd<f32, A>,
+    z_inc_weighted: Simd<f32, A>,
+    z_inc_hi: Simd<f32, A>,
+    z_inc_lo: Simd<f32, A>,
 }
 
 /// Fills the dst slice with interpolated dot products from gradients.
 #[inline(always)]
-pub(super) fn grid_dotted_trilerp<C: Combiner, const INIT: bool, const FINAL: bool>(
+pub(super) fn grid_dotted_trilerp<A: Arch, C: Combiner, const INIT: bool, const FINAL: bool>(
     buffers: &mut DottedTrilerpBuffers,
-    config: &InterpolationConfig<NUM_BLOCKS>,
+    config: &InterpolationConfig<A>,
     fractal_config: &C::Config,
     grid_data: &GridData<3>,
     gradients: &PerlinGradients3D,
@@ -393,7 +397,7 @@ pub(super) fn grid_dotted_trilerp<C: Combiner, const INIT: bool, const FINAL: bo
             .assume_init()
     };
 
-    let mut executer = DottedTrilerpExecuter::<C, INIT, FINAL> {
+    let mut executer = DottedTrilerpExecuter::<A, C, INIT, FINAL> {
         config,
         fractal_config,
         grid_data,
@@ -404,13 +408,13 @@ pub(super) fn grid_dotted_trilerp<C: Combiner, const INIT: bool, const FINAL: bo
         dif: Default::default(),
         d_top: Default::default(),
         d_dif: Default::default(),
-        weight: ArchSimd::splat(grid_data.weight),
-        y_inc_weighted: ArchSimd::splat(grid_data.increment[1] * grid_data.weight),
-        y_inc_hi: ArchSimd::splat(y_frac_start),
-        y_inc_lo: ArchSimd::splat(y_frac_start - 1.0),
-        z_inc_weighted: ArchSimd::splat(grid_data.increment[2] * grid_data.weight),
-        z_inc_hi: ArchSimd::splat(z_frac_start),
-        z_inc_lo: ArchSimd::splat(z_frac_start - 1.0),
+        weight: Simd::splat(grid_data.weight),
+        y_inc_weighted: Simd::splat(grid_data.increment[1] * grid_data.weight),
+        y_inc_hi: Simd::splat(y_frac_start),
+        y_inc_lo: Simd::splat(y_frac_start - 1.0),
+        z_inc_weighted: Simd::splat(grid_data.increment[2] * grid_data.weight),
+        z_inc_hi: Simd::splat(z_frac_start),
+        z_inc_lo: Simd::splat(z_frac_start - 1.0),
     };
 
     executer.initialize_trilerp_buffers(buffers);
@@ -426,8 +430,8 @@ pub(super) fn grid_dotted_trilerp<C: Combiner, const INIT: bool, const FINAL: bo
     }
 }
 
-impl<'a, C: Combiner, const INIT: bool, const FINAL: bool>
-    DottedTrilerpExecuter<'a, C, INIT, FINAL>
+impl<'a, A: Arch, C: Combiner, const INIT: bool, const FINAL: bool>
+    DottedTrilerpExecuter<'a, A, C, INIT, FINAL>
 {
     #[inline(always)]
     pub fn interpolate<const IS_TAIL: bool>(
@@ -442,15 +446,15 @@ impl<'a, C: Combiner, const INIT: bool, const FINAL: bool>
             0..self.config.block_tail_start
         };
 
-        let mut z_cur = ArchSimd::splat(0.0);
+        let mut z_cur = Simd::splat(0.0);
         let z_hop = self.grid_data.grid_size[0] * self.grid_data.grid_size[1];
         let y_hop = self.grid_data.grid_size[0];
         for z in self.z_range.start..self.z_range.end {
             let z_lerp = unsafe { self.grid_data.fade_factors[2].get_unchecked(z) };
             let z_lerp = unsafe { z_lerp.assume_init() };
-            let z_lerp = ArchSimd::splat(z_lerp);
+            let z_lerp = Simd::splat(z_lerp);
 
-            for x in range.clone().step_by(BLOCK_LANES) {
+            for x in range.clone().step_by(self.config.block_lanes) {
                 self.intialize_factors::<IS_TAIL>(buffers, x, z_cur, z_lerp);
 
                 let index = z * z_hop + x;
@@ -469,13 +473,13 @@ impl<'a, C: Combiner, const INIT: bool, const FINAL: bool>
                     }
                 }
             }
-            z_cur += ArchSimd::splat(1.0);
+            z_cur += Simd::splat(1.0);
         }
     }
 
     #[inline(always)]
     fn initialize_trilerp_buffers(&mut self, buffers: &mut DottedTrilerpBuffers) {
-        for x in (0..self.grid_data.grid_size[0]).step_by(LANES) {
+        for x in (0..self.grid_data.grid_size[0]).step_by(Simd::<f32, A>::LANES) {
             unsafe {
                 let x_lerp = self.grid_data.fade_factors[0].load_simd_aligned(x);
 
@@ -506,7 +510,7 @@ impl<'a, C: Combiner, const INIT: bool, const FINAL: bool>
                 let z_blb = self.gradients.blb[2].load_simd_aligned(x);
                 let z_brb = self.gradients.brb[2].load_simd_aligned(x);
 
-                let calc_prod_sum = |z_inc: ArchSimd<f32>, y_inc: ArchSimd<f32>, z, y, x| {
+                let calc_prod_sum = |z_inc: Simd<f32>, y_inc: Simd<f32>, z, y, x| {
                     z_inc.mul_add(z, y_inc.mul_add(y, x))
                 };
 
@@ -575,20 +579,20 @@ impl<'a, C: Combiner, const INIT: bool, const FINAL: bool>
         &mut self,
         buffers: &DottedTrilerpBuffers,
         x: usize,
-        z_vec: ArchSimd<f32>,
-        z_lerp: ArchSimd<f32>,
+        z_vec: Simd<f32, A>,
+        z_lerp: Simd<f32, A>,
     ) {
         let num_blocks = if IS_TAIL {
             self.config.block_tail_size
         } else {
-            NUM_BLOCKS
+            self.config.num_blocks
         };
 
         // These blocked loops will get entirely unrolled by the compiler.
         for block in 0..num_blocks {
             // Load gradients into registers.
             unsafe {
-                let index = x + LANES * block;
+                let index = x + Simd::<f32, A>::LANES * block;
 
                 let z_tf_offset = buffers.z_tf_offset.load_simd_aligned(index);
                 let z_bf_offset = buffers.z_bf_offset.load_simd_aligned(index);
@@ -631,7 +635,7 @@ impl<'a, C: Combiner, const INIT: bool, const FINAL: bool>
         state: &mut [f32],
         dst: &mut [f32],
     ) {
-        let y_lerp = ArchSimd::splat(unsafe {
+        let y_lerp = Simd::splat(unsafe {
             self.grid_data.fade_factors[1]
                 .get_unchecked(y)
                 .assume_init()
@@ -640,12 +644,12 @@ impl<'a, C: Combiner, const INIT: bool, const FINAL: bool>
         let range = if IS_TAIL {
             0..self.config.block_tail_size
         } else {
-            0..NUM_BLOCKS
+            0..self.config.num_blocks
         };
 
         let tail_end = index + self.config.tail_size;
         for block in range {
-            let index = index + block * LANES;
+            let index = index + block * Simd::<f32, A>::LANES;
             let output = y_lerp.mul_add(self.dif[block], self.top[block]);
 
             let (cur_state, mut result) = if INIT {

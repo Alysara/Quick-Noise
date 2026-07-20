@@ -1,12 +1,12 @@
 use std::marker::PhantomData;
 use std::ops::*;
 
-use crate::simd::architectures::interface::{SimdAllBitsImpl, SimdFamily, *};
+use crate::simd::architectures::interface::{SimdAllBitsImpl, Arch, *};
 use crate::simd::mask::Mask;
 use crate::simd::register::Simd;
 use crate::simd::traits::*;
 
-impl<T: SimdElement, F: SimdFamily> Mask<T, F> {
+impl<T: SimdElement, F: Arch> Mask<T, F> {
     #[inline(always)]
     pub(crate) fn new(data: F::Mask) -> Self {
         Self {
@@ -41,7 +41,7 @@ impl<T: SimdElement, F: SimdFamily> Mask<T, F> {
     }
 }
 
-impl<T: SimdElement, F: SimdFamily> BitAnd for Mask<T, F> {
+impl<T: SimdElement, F: Arch> BitAnd for Mask<T, F> {
     type Output = Self;
     #[inline(always)]
     fn bitand(self, rhs: Self) -> Self {
@@ -49,7 +49,7 @@ impl<T: SimdElement, F: SimdFamily> BitAnd for Mask<T, F> {
     }
 }
 
-impl<T: SimdElement, F: SimdFamily> BitOr for Mask<T, F> {
+impl<T: SimdElement, F: Arch> BitOr for Mask<T, F> {
     type Output = Self;
     #[inline(always)]
     fn bitor(self, rhs: Self) -> Self {
@@ -57,7 +57,7 @@ impl<T: SimdElement, F: SimdFamily> BitOr for Mask<T, F> {
     }
 }
 
-impl<T: SimdElement, F: SimdFamily> BitXor for Mask<T, F> {
+impl<T: SimdElement, F: Arch> BitXor for Mask<T, F> {
     type Output = Self;
     #[inline(always)]
     fn bitxor(self, rhs: Self) -> Self {
@@ -65,7 +65,7 @@ impl<T: SimdElement, F: SimdFamily> BitXor for Mask<T, F> {
     }
 }
 
-impl<T: SimdElement, F: SimdFamily> Not for Mask<T, F> {
+impl<T: SimdElement, F: Arch> Not for Mask<T, F> {
     type Output = Self;
     #[inline(always)]
     fn not(self) -> Self {
@@ -73,7 +73,7 @@ impl<T: SimdElement, F: SimdFamily> Not for Mask<T, F> {
     }
 }
 
-impl<T: SimdElement, F: SimdFamily> Mask<T, F> {
+impl<T: SimdElement, F: Arch> Mask<T, F> {
     #[inline(always)]
     pub fn andnot(self, rhs: Self) -> Self {
         unsafe { Self::new(self.data.and_not(rhs.data)) }
@@ -98,7 +98,7 @@ impl<T: SimdElement, F: SimdFamily> Mask<T, F> {
     }
 }
 
-impl<T: SimdElement, F: SimdFamily> Mask<T, F> {
+impl<T: SimdElement, F: Arch> Mask<T, F> {
     pub fn to_bits(self) -> u64 {
         unsafe {
             match T::BIT_SIZE {

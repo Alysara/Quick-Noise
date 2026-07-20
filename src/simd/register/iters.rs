@@ -2,44 +2,45 @@ use std::iter::zip;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 
-use crate::simd::arch_simd::{ArchFamily, ArchSimd};
 use crate::simd::architectures::interface::*;
 use crate::simd::array_trait::Array;
 use crate::simd::register::Simd;
+use crate::simd::static_simd::StaticSimd;
 use crate::simd::traits::*;
+use crate::simd::{ScalarArch, StaticArch};
 
 pub trait SimdSliceIterExt<T: SimdElement> {
-    fn simd_iter<'a>(&'a self) -> SimdSliceIter<'a, T, ArchFamily>;
-    fn simd_iter_mut<'a>(&'a mut self) -> SimdSliceIterMut<'a, T, ArchFamily>;
+    fn simd_iter<'a>(&'a self) -> SimdSliceIter<'a, T, StaticArch>;
+    fn simd_iter_mut<'a>(&'a mut self) -> SimdSliceIterMut<'a, T, StaticArch>;
 }
 
 impl<T: SimdElement> SimdSliceIterExt<T> for [T] {
     /// Creates an iterator of simd chunks.
-    fn simd_iter<'a>(&'a self) -> SimdSliceIter<'a, T, ArchFamily> {
+    fn simd_iter<'a>(&'a self) -> SimdSliceIter<'a, T, StaticArch> {
         SimdSliceIter {
             slice: self,
             index: 0,
-            _architecture: PhantomData::<ArchFamily>,
+            _architecture: PhantomData::<StaticArch>,
         }
     }
 
     /// Creates an iterator of mutable simd chunks.
-    fn simd_iter_mut<'a>(&'a mut self) -> SimdSliceIterMut<'a, T, ArchFamily> {
+    fn simd_iter_mut<'a>(&'a mut self) -> SimdSliceIterMut<'a, T, StaticArch> {
         SimdSliceIterMut {
             slice: self,
-            _architecture: PhantomData::<ArchFamily>,
+            _architecture: PhantomData::<StaticArch>,
         }
     }
 }
 
-pub struct SimdSliceIter<'a, T: SimdElement, F: SimdFamily> {
+pub struct SimdSliceIter<'a, T: SimdElement, A: Arch> {
     slice: &'a [T],
     index: usize,
-    _architecture: PhantomData<F>,
+    _architecture: PhantomData<A>,
 }
 
-impl<'a, T: SimdElement, F: SimdFamily> Iterator for SimdSliceIter<'a, T, F> {
-    type Item = Simd<T, F>;
+impl<'a, T: SimdElement, A: Arch> Iterator for SimdSliceIter<'a, T, A> {
+    type Item = Simd<T, A>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.index == self.slice.len() {
@@ -80,36 +81,36 @@ impl<'a, T: SimdElement, F: SimdFamily> Iterator for SimdSliceIter<'a, T, F> {
         (rem_chunks, Some(rem_chunks))
     }
 }
-impl<'a, T: SimdElement, F: SimdFamily> ExactSizeIterator for SimdSliceIter<'a, T, F> {}
+impl<'a, T: SimdElement, A: Arch> ExactSizeIterator for SimdSliceIter<'a, T, A> {}
 
-pub struct SimdSliceChunk<'a, T: SimdElement, F: SimdFamily> {
-    simd: Simd<T, F>,
+pub struct SimdSliceChunk<'a, T: SimdElement, A: Arch> {
+    simd: Simd<T, A>,
     slice: &'a mut [T],
 }
 
-impl<'a, T: SimdElement, F: SimdFamily> SimdSliceChunk<'a, T, F> {
-    pub fn new(simd: Simd<T, F>, slice: &'a mut [T]) -> Self {
+impl<'a, T: SimdElement, A: Arch> SimdSliceChunk<'a, T, A> {
+    pub fn new(simd: Simd<T, A>, slice: &'a mut [T]) -> Self {
         Self { simd, slice }
     }
 }
 
-impl<'a, T: SimdElement, F: SimdFamily> Deref for SimdSliceChunk<'a, T, F> {
-    type Target = Simd<T, F>;
+impl<'a, T: SimdElement, A: Arch> Deref for SimdSliceChunk<'a, T, A> {
+    type Target = Simd<T, A>;
     fn deref(&self) -> &Self::Target {
         &self.simd
     }
 }
 
-impl<'a, T: SimdElement, F: SimdFamily> DerefMut for SimdSliceChunk<'a, T, F> {
+impl<'a, T: SimdElement, A: Arch> DerefMut for SimdSliceChunk<'a, T, A> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.simd
     }
 }
 
-impl<'a, T: SimdElement, F: SimdFamily> Drop for SimdSliceChunk<'a, T, F> {
+impl<'a, T: SimdElement, A: Arch> Drop for SimdSliceChunk<'a, T, A> {
     #[inline(always)]
     fn drop(&mut self) {
-        if self.slice.len() >= Simd::<T, F>::LANES {
+        if self.slice.len() >= Simd::<T, A>::LANES {
             // Regular case.
             unsafe { self.simd.copy_to_slice_unchecked(self.slice) };
         } else {
@@ -123,13 +124,13 @@ impl<'a, T: SimdElement, F: SimdFamily> Drop for SimdSliceChunk<'a, T, F> {
     }
 }
 
-pub struct SimdSliceIterMut<'a, T: SimdElement, F: SimdFamily> {
+pub struct SimdSliceIterMut<'a, T: SimdElement, A: Arch> {
     slice: &'a mut [T],
-    _architecture: PhantomData<F>,
+    _architecture: PhantomData<A>,
 }
 
-impl<'a, T: SimdElement, F: SimdFamily> Iterator for SimdSliceIterMut<'a, T, F> {
-    type Item = SimdSliceChunk<'a, T, F>;
+impl<'a, T: SimdElement, A: Arch> Iterator for SimdSliceIterMut<'a, T, A> {
+    type Item = SimdSliceChunk<'a, T, A>;
 
     #[inline(always)]
     fn next(&mut self) -> Option<Self::Item> {
@@ -141,12 +142,12 @@ impl<'a, T: SimdElement, F: SimdFamily> Iterator for SimdSliceIterMut<'a, T, F> 
         let slice = std::mem::take(&mut self.slice);
 
         // Scalar + Tail case.
-        if slice_len < Simd::<T, F>::LANES {
-            let mut array = Simd::<T, F>::zero().to_array();
+        if slice_len < Simd::<T, A>::LANES {
+            let mut array = Simd::<T, A>::zero().to_array();
             for i in 0..slice_len {
                 array[i] = slice[i];
             }
-            let simd = unsafe { Simd::<T, F>::from_slice_unchecked(array.as_mut_slice()) };
+            let simd = unsafe { Simd::<T, A>::from_slice_unchecked(array.as_mut_slice()) };
             let chunk = SimdSliceChunk::new(simd, slice);
             return Some(chunk);
 
@@ -168,7 +169,7 @@ impl<'a, T: SimdElement, F: SimdFamily> Iterator for SimdSliceIterMut<'a, T, F> 
         // }
 
         // Regular case.
-        let (cur_slice, rem_slice) = slice.split_at_mut(Simd::<T, F>::LANES);
+        let (cur_slice, rem_slice) = slice.split_at_mut(Simd::<T, A>::LANES);
         self.slice = rem_slice;
 
         let next_simd = unsafe { Simd::from_slice_unchecked(cur_slice) };
@@ -177,35 +178,35 @@ impl<'a, T: SimdElement, F: SimdFamily> Iterator for SimdSliceIterMut<'a, T, F> 
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let rem_chunks = self.slice.len().div_ceil(Simd::<T, F>::LANES);
+        let rem_chunks = self.slice.len().div_ceil(Simd::<T, A>::LANES);
         (rem_chunks, Some(rem_chunks))
     }
 }
-impl<'a, T: SimdElement, F: SimdFamily> ExactSizeIterator for SimdSliceIterMut<'a, T, F> {}
+impl<'a, T: SimdElement, A: Arch> ExactSizeIterator for SimdSliceIterMut<'a, T, A> {}
 
 // Vec into iter
 
 pub trait IntoSimdIterator<T: SimdElement> {
-    fn into_simd_iter(self) -> SimdVecIntoIter<T, ArchFamily>;
+    fn into_simd_iter(self) -> SimdVecIntoIter<T, ScalarArch>;
 }
 
 impl<T: SimdElement> IntoSimdIterator<T> for Vec<T> {
-    fn into_simd_iter(self) -> SimdVecIntoIter<T, ArchFamily> {
+    fn into_simd_iter(self) -> SimdVecIntoIter<T, ScalarArch> {
         SimdVecIntoIter {
             vec: self,
             index: 0,
-            _architecture: PhantomData::<ArchFamily>,
+            _architecture: PhantomData::<ScalarArch>,
         }
     }
 }
-pub struct SimdVecIntoIter<T: SimdElement, F: SimdFamily> {
+pub struct SimdVecIntoIter<T: SimdElement, A: Arch> {
     vec: Vec<T>,
     index: usize,
-    _architecture: PhantomData<F>,
+    _architecture: PhantomData<A>,
 }
 
-impl<T: SimdElement, F: SimdFamily> Iterator for SimdVecIntoIter<T, F> {
-    type Item = Simd<T, F>;
+impl<T: SimdElement, A: Arch> Iterator for SimdVecIntoIter<T, A> {
+    type Item = Simd<T, A>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.index >= self.vec.len() {
@@ -246,13 +247,13 @@ impl<T: SimdElement, F: SimdFamily> Iterator for SimdVecIntoIter<T, F> {
         (rem_chunks, Some(rem_chunks))
     }
 }
-impl<T: SimdElement, F: SimdFamily> ExactSizeIterator for SimdVecIntoIter<T, F> {}
+impl<T: SimdElement, A: Arch> ExactSizeIterator for SimdVecIntoIter<T, A> {}
 
-impl<T: SimdElement, F: SimdFamily, const N: usize> FromIterator<Simd<T, F>> for [T; N] {
-    fn from_iter<I: IntoIterator<Item = Simd<T, F>>>(iter: I) -> Self {
+impl<T: SimdElement, A: Arch, const N: usize> FromIterator<Simd<T, A>> for [T; N] {
+    fn from_iter<I: IntoIterator<Item = Simd<T, A>>>(iter: I) -> Self {
         let mut array = [T::default(); N];
 
-        let lane_iter = (0..N).step_by(Simd::<T, F>::LANES);
+        let lane_iter = (0..N).step_by(Simd::<T, A>::LANES);
         for (i, x) in zip(lane_iter, iter) {
             x.copy_to_slice(&mut array[i..]);
         }
@@ -261,14 +262,14 @@ impl<T: SimdElement, F: SimdFamily, const N: usize> FromIterator<Simd<T, F>> for
     }
 }
 
-impl<T: SimdElement, F: SimdFamily> FromIterator<Simd<T, F>> for Vec<T> {
-    fn from_iter<I: IntoIterator<Item = Simd<T, F>>>(iter: I) -> Self {
+impl<T: SimdElement, A: Arch> FromIterator<Simd<T, A>> for Vec<T> {
+    fn from_iter<I: IntoIterator<Item = Simd<T, A>>>(iter: I) -> Self {
         let iter = iter.into_iter();
         let (lower_bound, upper_bound) = iter.size_hint();
         if let Some(upper_bound) = upper_bound {
-            let mut vec = vec![T::default(); upper_bound * ArchSimd::<T>::LANES];
+            let mut vec = vec![T::default(); upper_bound * StaticSimd::<T>::LANES];
             for (i, x) in iter.enumerate() {
-                x.copy_to_slice(&mut vec[i * ArchSimd::<T>::LANES..]);
+                x.copy_to_slice(&mut vec[i * StaticSimd::<T>::LANES..]);
             }
             vec
         } else {

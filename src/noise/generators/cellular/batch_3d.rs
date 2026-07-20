@@ -1,19 +1,19 @@
 use crate::api::batch::interface::BatchGenerator;
 use crate::noise::generators::Cellular;
-use crate::simd::arch_simd::ArchSimd;
+use crate::simd::{Arch, Simd};
 
 impl BatchGenerator<3> for Cellular {
-    fn sample_batch(
+    fn sample_batch<A: Arch>(
         seed: u32,
-        input: [ArchSimd<f32>; 3],
-        freq: [ArchSimd<f32>; 3],
-    ) -> ArchSimd<f32> {
+        input: [Simd<f32, A>; 3],
+        freq: [Simd<f32, A>; 3],
+    ) -> Simd<f32, A> {
         // Constants.
-        let three_halves: ArchSimd<f32> = ArchSimd::splat(1.5);
-        let one: ArchSimd<f32> = ArchSimd::splat(1.0);
+        let three_halves: Simd<f32, A> = Simd::splat(1.5);
+        let one: Simd<f32, A> = Simd::splat(1.0);
 
-        let hash_mask: ArchSimd<u32> = ArchSimd::splat(0x007FFFFF);
-        let exp_bits: ArchSimd<u32> = ArchSimd::splat(0x3F800000);
+        let hash_mask: Simd<u32, A> = Simd::splat(0x007FFFFF);
+        let exp_bits: Simd<u32, A> = Simd::splat(0x3F800000);
 
         // Hash constants.
         const BYTE_SHUFFLE: [u8; 64] = [
@@ -22,9 +22,9 @@ impl BatchGenerator<3> for Cellular {
             1, 7, 4, 6, 5, 11, 8, 10, 9, 15, 12, 14, 13,
         ];
 
-        let shuffle_indices = ArchSimd::<u8>::from_slice(&BYTE_SHUFFLE[..]);
-        let channel_seed = ArchSimd::splat(seed);
-        let prime = ArchSimd::splat(0x85ebca6b_u32);
+        let shuffle_indices = Simd::<u8>::from_slice(&BYTE_SHUFFLE[..]);
+        let channel_seed = Simd::splat(seed);
+        let prime = Simd::splat(0x85ebca6b_u32);
 
         // Scale: 3
         let x_scaled = input[0] * freq[0];
@@ -44,15 +44,15 @@ impl BatchGenerator<3> for Cellular {
         let z_dist_hi = one - z_dist_lo;
 
         // Threshold: 8
-        let close_edge_lo = x_dist_lo.min(y_dist_lo).min(z_dist_lo) + ArchSimd::splat(2.0);
+        let close_edge_lo = x_dist_lo.min(y_dist_lo).min(z_dist_lo) + Simd::splat(2.0);
         let close_edge_hi = x_dist_hi.min(y_dist_hi).min(z_dist_hi) - one;
         let closest_edge_dist = close_edge_lo.min(close_edge_hi);
         let threshold = closest_edge_dist * closest_edge_dist;
 
         // Hash: 37
-        let x1: ArchSimd<u32> = x_grid_lo.cast_int_trunc().raw_cast() * channel_seed;
-        let y1: ArchSimd<u32> = y_grid_lo.cast_int_trunc().raw_cast() * channel_seed;
-        let z1: ArchSimd<u32> = z_grid_lo.cast_int_trunc().raw_cast() * channel_seed;
+        let x1: Simd<u32, A> = x_grid_lo.cast_int_trunc().raw_cast() * channel_seed;
+        let y1: Simd<u32, A> = y_grid_lo.cast_int_trunc().raw_cast() * channel_seed;
+        let z1: Simd<u32, A> = z_grid_lo.cast_int_trunc().raw_cast() * channel_seed;
         let x2 = x1 + channel_seed;
         let y2 = y1 + channel_seed;
         let z2 = z1 + channel_seed;

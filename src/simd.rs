@@ -1,9 +1,15 @@
-pub mod arch_simd;
+pub mod static_simd;
 pub mod architectures;
 pub mod array_trait;
 pub mod mask;
 pub mod register;
 pub mod traits;
+pub mod dispatch;
 
-pub use arch_simd::{ArchSimd, ArchMask, ArchFamily, NUM_SIMD_REG};
+pub use traits::{SimdElement, SimdFloat, SimdInteger};
+pub use architectures::interface::Arch;
+pub use static_simd::*;
+pub use register::Simd;
+pub use mask::Mask;
 pub use register::iters::SimdSliceIterExt;
+// pub use dispatch::{Architecture, detect_architecture, dispatch};

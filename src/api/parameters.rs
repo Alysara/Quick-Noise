@@ -23,11 +23,11 @@ macro_rules! declare_build {
 pub(crate) use declare_build;
 
 macro_rules! declare_into_iter {
-    ($self:ident, $body:tt) => {
+    ($arch:ident, $self:ident, $body:tt) => {
         /// Returns an iterator containing chunks of the noise output.
         /// Ideal for managing streams of noise without unnecessary read/writes.
         #[allow(clippy::should_implement_trait)]
-        pub fn into_iter($self) -> impl Iterator<Item = ArchSimd<f32>> $body
+        pub fn into_iter($self) -> impl Iterator<Item = crate::simd::Simd<f32, $arch>> $body
     };
 }
 pub(crate) use declare_into_iter;

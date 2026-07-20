@@ -10,7 +10,7 @@ use crate::simd::mask::Mask;
 use crate::simd::register::Simd;
 use crate::simd::traits::*;
 
-impl<T: SimdElement, F: SimdFamily> Simd<T, F> {
+impl<T: SimdElement, F: Arch> Simd<T, F> {
     #[inline(always)]
     pub(crate) fn new(data: F::Vec) -> Self {
         Self {
@@ -141,7 +141,7 @@ impl<T: SimdElement, F: SimdFamily> Simd<T, F> {
     }
 }
 
-impl<T: SimdElement, F: SimdFamily> fmt::Debug for Simd<T, F> {
+impl<T: SimdElement, F: Arch> fmt::Debug for Simd<T, F> {
     #[inline(always)]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let buf = self.to_array();
@@ -150,7 +150,7 @@ impl<T: SimdElement, F: SimdFamily> fmt::Debug for Simd<T, F> {
 }
 
 // === Assign operations ===
-impl<T: SimdElement, F: SimdFamily> AddAssign for Simd<T, F>
+impl<T: SimdElement, F: Arch> AddAssign for Simd<T, F>
 where
     Self: Add<Output = Self> + Copy,
 {
@@ -160,7 +160,7 @@ where
     }
 }
 
-impl<T: SimdElement, F: SimdFamily> SubAssign for Simd<T, F>
+impl<T: SimdElement, F: Arch> SubAssign for Simd<T, F>
 where
     Self: Sub<Output = Self> + Copy,
 {
@@ -170,7 +170,7 @@ where
     }
 }
 
-impl<T: SimdElement, F: SimdFamily> MulAssign for Simd<T, F>
+impl<T: SimdElement, F: Arch> MulAssign for Simd<T, F>
 where
     Self: Mul<Output = Self> + Copy,
 {
@@ -180,7 +180,7 @@ where
     }
 }
 
-impl<T: SimdElement, F: SimdFamily> DivAssign for Simd<T, F>
+impl<T: SimdElement, F: Arch> DivAssign for Simd<T, F>
 where
     Self: Div<Output = Self> + Copy,
 {
@@ -190,7 +190,7 @@ where
     }
 }
 
-impl<T: SimdElement, F: SimdFamily> RemAssign for Simd<T, F>
+impl<T: SimdElement, F: Arch> RemAssign for Simd<T, F>
 where
     Self: Rem<Output = Self> + Copy,
 {
@@ -200,7 +200,7 @@ where
     }
 }
 
-impl<T: SimdElement, F: SimdFamily> BitAndAssign for Simd<T, F>
+impl<T: SimdElement, F: Arch> BitAndAssign for Simd<T, F>
 where
     Self: BitAnd<Output = Self> + Copy,
 {
@@ -210,7 +210,7 @@ where
     }
 }
 
-impl<T: SimdElement, F: SimdFamily> BitOrAssign for Simd<T, F>
+impl<T: SimdElement, F: Arch> BitOrAssign for Simd<T, F>
 where
     Self: BitOr<Output = Self> + Copy,
 {
@@ -220,7 +220,7 @@ where
     }
 }
 
-impl<T: SimdElement, F: SimdFamily> BitXorAssign for Simd<T, F>
+impl<T: SimdElement, F: Arch> BitXorAssign for Simd<T, F>
 where
     Self: BitXor<Output = Self> + Copy,
 {
@@ -230,7 +230,7 @@ where
     }
 }
 
-impl<T: SimdElement, F: SimdFamily> Neg for Simd<T, F> {
+impl<T: SimdElement, F: Arch> Neg for Simd<T, F> {
     type Output = Self;
     #[inline(always)]
     fn neg(self) -> Self {
@@ -238,21 +238,21 @@ impl<T: SimdElement, F: SimdFamily> Neg for Simd<T, F> {
     }
 }
 
-impl<T: SimdElement, F: SimdFamily> Simd<T, F> {
+impl<T: SimdElement, F: Arch> Simd<T, F> {
     #[inline(always)]
     pub fn raw_cast<S: SimdElement>(self) -> Simd<S, F> {
         Simd::new(self.data)
     }
 }
 
-impl<T: SimdElement, F: SimdFamily> Default for Simd<T, F> {
+impl<T: SimdElement, F: Arch> Default for Simd<T, F> {
     #[inline(always)]
     fn default() -> Self {
         Self::splat(<T as NumCast>::from(T::default()).unwrap())
     }
 }
 
-impl<T: SimdElement, F: SimdFamily> Add for Simd<T, F> {
+impl<T: SimdElement, F: Arch> Add for Simd<T, F> {
     type Output = Self;
     #[inline(always)]
     fn add(self, rhs: Self) -> Self {
@@ -273,7 +273,7 @@ impl<T: SimdElement, F: SimdFamily> Add for Simd<T, F> {
     }
 }
 
-impl<T: SimdElement, F: SimdFamily> Sub for Simd<T, F> {
+impl<T: SimdElement, F: Arch> Sub for Simd<T, F> {
     type Output = Self;
     #[inline(always)]
     fn sub(self, rhs: Self) -> Self {
@@ -295,7 +295,7 @@ impl<T: SimdElement, F: SimdFamily> Sub for Simd<T, F> {
 }
 
 
-impl<T: SimdElement, F: SimdFamily> Simd<T, F> {
+impl<T: SimdElement, F: Arch> Simd<T, F> {
     /// Clamps the values in a register between two bounds, inclusive.
     ///
     /// # Parameters:
@@ -331,7 +331,7 @@ impl<T: SimdElement, F: SimdFamily> Simd<T, F> {
     }
 }
 
-impl<T: SimdElement, F: SimdFamily> Simd<T, F> {
+impl<T: SimdElement, F: Arch> Simd<T, F> {
     /// Broadcasts a value across the entire register.
     #[inline(always)]
     pub fn splat(val: T) -> Self {
@@ -548,14 +548,14 @@ impl<T: SimdElement, F: SimdFamily> Simd<T, F> {
     }
 }
 
-impl<T: SimdElement + SimdElement<BitWidthType = B32>, F: SimdFamily> Simd<T, F> {
+impl<T: SimdElement + SimdElement<BitWidthType = B32>, F: Arch> Simd<T, F> {
     #[inline(always)]
     pub fn permute_32(self, indices: Simd<u32, F>) -> Self {
         unsafe { Self::new(self.data.permute_32(indices.data)) }
     }
 }
 
-impl<T: SimdElement, F: SimdFamily> Simd<T, F> {
+impl<T: SimdElement, F: Arch> Simd<T, F> {
     #[inline(always)]
     pub fn permute_8(self, indices: Simd<u8, F>) -> Self {
         unsafe { Self::new(self.data.permute_8(indices.data)) }
@@ -570,7 +570,7 @@ impl<T: SimdElement, F: SimdFamily> Simd<T, F> {
 }
 
 // TODO: Super early version gather.
-impl<F: SimdFamily> Simd<u32, F> {
+impl<F: Arch> Simd<u32, F> {
     pub fn gather<S: SimdElement + SimdElement<BitWidthType = B32>, const N: usize>(
         self,
         slice: &[S; N],
@@ -584,7 +584,7 @@ impl<F: SimdFamily> Simd<u32, F> {
     }
 }
 
-impl<F: SimdFamily> Simd<u64, F> {
+impl<F: Arch> Simd<u64, F> {
     pub fn gather<S: SimdElement + SimdElement<BitWidthType = B64>, const N: usize>(
         self,
         slice: &[S; N],
@@ -594,7 +594,7 @@ impl<F: SimdFamily> Simd<u64, F> {
 }
 
 // TODO: Add other types of lane shifts.
-impl<T: SimdElement, F: SimdFamily> Simd<T, F> {
+impl<T: SimdElement, F: Arch> Simd<T, F> {
     pub fn left_lane_shift(self, n: u32) -> Self {
         match T::BIT_SIZE {
             BitSize::Size32 => unsafe { Self::new(self.data.left_lane_shift_32(n)) },

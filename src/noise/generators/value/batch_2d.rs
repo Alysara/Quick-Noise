@@ -1,15 +1,19 @@
 use crate::api::batch::interface::BatchGenerator;
-use crate::simd::arch_simd::ArchSimd;
 use crate::noise::generators::Value;
+use crate::simd::{Arch, Simd};
 
 impl BatchGenerator<2> for Value {
-    fn sample_batch(seed: u32, input: [ArchSimd<f32>; 2], freq: [ArchSimd<f32>; 2]) -> ArchSimd<f32> {
+    fn sample_batch<A: Arch>(
+        seed: u32,
+        input: [Simd<f32, A>; 2],
+        freq: [Simd<f32, A>; 2],
+    ) -> Simd<f32, A> {
         // Constants.
-        let neg_two: ArchSimd<f32> = ArchSimd::splat(-2.0);
-        let three: ArchSimd<f32> = ArchSimd::splat(3.0);
+        let neg_two: Simd<f32, A> = Simd::splat(-2.0);
+        let three: Simd<f32, A> = Simd::splat(3.0);
 
-        let hash_mask: ArchSimd<u32> = ArchSimd::splat(0x007FFFFF);
-        let exp_bits: ArchSimd<u32> = ArchSimd::splat(0x40000000);
+        let hash_mask: Simd<u32, A> = Simd::splat(0x007FFFFF);
+        let exp_bits: Simd<u32, A> = Simd::splat(0x40000000);
 
         // Hash constants.
         const BYTE_SHUFFLE: [u8; 64] = [
@@ -18,9 +22,9 @@ impl BatchGenerator<2> for Value {
             1, 7, 4, 6, 5, 11, 8, 10, 9, 15, 12, 14, 13,
         ];
 
-        let shuffle_indices = ArchSimd::<u8>::from_slice(&BYTE_SHUFFLE[..]);
-        let channel_seed = ArchSimd::splat(seed);
-        let prime = ArchSimd::splat(0x85ebca6b);
+        let shuffle_indices = Simd::<u8>::from_slice(&BYTE_SHUFFLE[..]);
+        let channel_seed = Simd::splat(seed);
+        let prime = Simd::splat(0x85ebca6b);
 
         // Scale: 4
         let x_scaled = input[0] * freq[0];
@@ -43,8 +47,8 @@ impl BatchGenerator<2> for Value {
         let y_lerp = s * s * s.mul_add(neg_two, three);
 
         // Hash: 20
-        let x1: ArchSimd<u32> = x_grid_lo.raw_cast() * channel_seed;
-        let y1: ArchSimd<u32> = y_grid_lo.raw_cast() * channel_seed;
+        let x1: Simd<u32, A> = x_grid_lo.raw_cast() * channel_seed;
+        let y1: Simd<u32, A> = y_grid_lo.raw_cast() * channel_seed;
         let x2 = x1 + channel_seed;
         let y2 = y1 + channel_seed;
 
@@ -71,4 +75,3 @@ impl BatchGenerator<2> for Value {
         x_lerp.mul_add(bottom_lerp - top_lerp, top_lerp)
     }
 }
-

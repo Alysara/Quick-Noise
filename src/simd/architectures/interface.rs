@@ -1,10 +1,14 @@
 #![allow(clippy::missing_safety_doc)]
-use std::fmt::Debug;
+use std::{fmt::Debug, ops::{Index, IndexMut}};
 
-use crate::simd::array_trait::Array;
+use crate::simd::{SimdElement, array_trait::Array, register::Simd};
 
-pub trait SimdFamily: Clone + Copy {
+pub trait Arch: Clone + Copy {
     const SIMD_WIDTH: usize;
+    const NUM_SIMD_REG: usize;
+    type Block2<T: SimdElement>: Index<usize, Output = Simd<T, Self>> + IndexMut<usize> + Default;
+    type Block4<T: SimdElement>: Index<usize, Output = Simd<T, Self>> + IndexMut<usize> + Default;
+
     type Vec: SimdArch
         + Copy
         + Clone
@@ -12,13 +16,14 @@ pub trait SimdFamily: Clone + Copy {
         + SimdStoreImpl<MaskType = Self::Mask>
         + SimdPartialOrdImpl<MaskType = Self::Mask>;
     type Mask: MaskArch + Copy + Clone + SimdVariableBlendImpl<VecType = Self::Vec>;
-    type ScalarFamily: SimdFamily;
+    type ScalarArch: Arch;
 
     type Array64<T: Debug + Copy>: Debug + Copy + Array<T>;
     type Array32<T: Debug + Copy>: Debug + Copy + Array<T>;
     type Array16<T: Debug + Copy>: Debug + Copy + Array<T>;
     type Array8<T: Debug + Copy>: Debug + Copy + Array<T>;
 }
+
 pub trait SimdArch:
     Copy +
     Clone +

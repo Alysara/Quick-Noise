@@ -1,5 +1,5 @@
 use quick_noise::emit::NoiseImageExt;
-use quick_noise::simd::arch_simd::ArchSimd;
+use quick_noise::simd::static_simd::StaticSimd;
 use quick_noise::{
     BatchNoise, Cellular, Fbm, Grid, HybridMulti, Octave, Perlin, PingPong, Ridged, Simplex, Value,
 };
@@ -35,7 +35,7 @@ fn main() {
         .octaves(6)
         .frequency(1.0 / 512.0)
         .into_iter()
-        .map(|x| ArchSimd::splat(0.25) * x - ArchSimd::splat(1.0))
+        .map(|x| StaticSimd::splat(0.25) * x - StaticSimd::splat(1.0))
         .to_grayscale_image(2048, 2048, "noise_images/warped.png");
 
     // Cellular batch noise.
@@ -44,7 +44,7 @@ fn main() {
         .frequency(1.0 / 512.0)
         .gain(1.5)
         .into_iter()
-        .map(|x| ArchSimd::splat(0.4) * x - ArchSimd::splat(1.0))
+        .map(|x| StaticSimd::splat(0.4) * x - StaticSimd::splat(1.0))
         .to_grayscale_image(2048, 2048, "noise_images/ridged_cellular.png");
 
     // 3D grid + Custom octaves

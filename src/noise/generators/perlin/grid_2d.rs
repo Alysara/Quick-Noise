@@ -10,12 +10,9 @@ use crate::noise::util::grid_helpers::{
     Arena, ArenaBuffer, InterpolationConfig, MaybeUninitSliceSimdExt, assume_init_slice,
     maybe_tail_load, maybe_tail_store, pad_grid_size, validate_grid_size, validate_state_size,
 };
-use crate::simd::arch_simd::{ArchSimd, NUM_SIMD_REG};
+use crate::simd::Arch;
+use crate::simd::register::Simd;
 use crate::{GridGenerator, Perlin};
-
-pub const NUM_BLOCKS: usize = NUM_SIMD_REG / 8;
-pub const LANES: usize = ArchSimd::<f32>::LANES;
-pub const BLOCK_LANES: usize = NUM_BLOCKS * LANES;
 
 pub const GRADIENTS_2D: [[f32; 2]; 8] = [
     [SQRT_2, 0.0],
@@ -72,7 +69,7 @@ impl<'a> fmt::Debug for PerlinGradients2D<'a> {
 
 const LERP: u8 = Lerp::Quintic as u8;
 impl GridGenerator<2> for Perlin {
-    fn sample_grid<C: Combiner, const INIT: bool, const FINAL: bool>(
+    fn sample_grid<A: Arch, C: Combiner, const INIT: bool, const FINAL: bool>(
         params: GridNoiseParams<2>,
         fractal_config: C::Config,
         state: &mut [f32],
@@ -80,18 +77,19 @@ impl GridGenerator<2> for Perlin {
     ) {
         validate_grid_size(params.grid_size, dst.len());
         validate_state_size::<C, _>(params.grid_size, state.len());
-        let padded_size = pad_grid_size(params.grid_size);
+        let padded_size = pad_grid_size::<A, _>(params.grid_size);
 
         let required_cache = padded_size[1] * 3 + padded_size[0] * 12;
-        let mut cache = ArenaBuffer::with_capacity(required_cache);
+        let mut cache = ArenaBuffer::<A>::with_capacity(required_cache);
         let mut arena = Arena::with_cache(&mut cache);
 
         // SIMD Slice constants.
-        let bilerp_config = InterpolationConfig::new(params.grid_size[0]);
+        let num_blocks = A::NUM_SIMD_REG / 8;
+        let bilerp_config = InterpolationConfig::<A>::new(num_blocks, params.grid_size[0]);
 
         let mut sub_arena = arena.allocate_arena(padded_size[0] * 3 + padded_size[1] * 3);
 
-        let mut grid_data = GridData::new::<LERP>(&params, &mut sub_arena, &padded_size);
+        let mut grid_data = GridData::new::<A, LERP>(&params, &mut sub_arena, &padded_size);
 
         // Allocate scratch buffer for gradients.
         let grad_scratch = arena.allocate(padded_size[0]);
@@ -100,7 +98,7 @@ impl GridGenerator<2> for Perlin {
         let mut gradients = PerlinGradients2D::new(&mut arena, padded_size[0]);
 
         // Set the top gradients.
-        grid_gradients_2d(
+        grid_gradients_2d::<A>(
             &params,
             &mut grid_data,
             grad_scratch,
@@ -116,7 +114,7 @@ impl GridGenerator<2> for Perlin {
                 unsafe { grid_data.grid_indices[1].get_unchecked(y_it).assume_init() as usize };
 
             // Set bottom gradients.
-            grid_gradients_2d(
+            grid_gradients_2d::<A>(
                 &params,
                 &mut grid_data,
                 grad_scratch,
@@ -126,7 +124,7 @@ impl GridGenerator<2> for Perlin {
             );
 
             let y_range = y_cur_index..y_next_index;
-            grid_dotted_bilerp::<C, INIT, FINAL>(
+            grid_dotted_bilerp::<A, C, INIT, FINAL>(
                 &bilerp_config,
                 &fractal_config,
                 &grid_data,
@@ -144,7 +142,7 @@ impl GridGenerator<2> for Perlin {
 }
 
 #[inline(always)]
-pub(super) fn grid_gradients_2d<'a>(
+pub(super) fn grid_gradients_2d<'a, A: Arch>(
     params: &GridNoiseParams<2>,
     grid_data: &mut GridData<2>,
     grad_buffer: &mut [MaybeUninit<u32>],
@@ -152,47 +150,49 @@ pub(super) fn grid_gradients_2d<'a>(
     right: &mut [&'a mut [MaybeUninit<f32>]; 2],
     y_it: usize,
 ) {
+    let lanes = Simd::<f32, A>::LANES;
     let y_start = grid_data.grid_start[1] + y_it as i32;
     let y_rem = grid_data.octave_tiling[1].map_or(y_start, |t| y_start.rem_euclid(t as i32));
-    let y_vec = ArchSimd::splat((y_rem as u32).wrapping_mul(params.seed));
+    let y_vec = Simd::<u32, A>::splat((y_rem as u32).wrapping_mul(params.seed));
 
-    let prime = ArchSimd::splat(0x85ebca6b_u32);
+    let prime = Simd::<u32, A>::splat(0x85ebca6b_u32);
     const BYTE_SHUFFLE: [u8; 64] = [
         3, 0, 2, 1, 7, 4, 6, 5, 11, 8, 10, 9, 15, 12, 14, 13, 3, 0, 2, 1, 7, 4, 6, 5, 11, 8, 10, 9,
         15, 12, 14, 13, 3, 0, 2, 1, 7, 4, 6, 5, 11, 8, 10, 9, 15, 12, 14, 13, 3, 0, 2, 1, 7, 4, 6,
         5, 11, 8, 10, 9, 15, 12, 14, 13,
     ];
-    let shuffle_indices = unsafe { ArchSimd::<u8>::from_slice_unchecked(&BYTE_SHUFFLE[..]) };
+    let shuffle_indices = unsafe { Simd::<u8, A>::from_slice_unchecked(&BYTE_SHUFFLE[..]) };
     let y_shuf = y_vec.permute_8(shuffle_indices) ^ prime;
 
     if let Some(x_tiling) = grid_data.octave_tiling[0] {
-        let x_tiling = ArchSimd::splat(x_tiling as f32);
-        let mut x_vec = ArchSimd::splat(grid_data.grid_start[0]) + ArchSimd::iota(0);
-        let x_vec_stride = ArchSimd::splat(LANES as i32);
-        let seed_vec = ArchSimd::splat(params.seed);
+        let x_tiling = Simd::<f32, A>::splat(x_tiling as f32);
+        let mut x_vec = Simd::<_, A>::splat(grid_data.grid_start[0]) + Simd::<_, A>::iota(0);
+        let x_vec_stride = Simd::<_, A>::splat(lanes as i32);
+        let seed_vec = Simd::<_, A>::splat(params.seed);
 
         let end_index = grid_data.num_loops[0] + 1;
-        for i in (0..end_index).step_by(LANES) {
+        for i in (0..end_index).step_by(lanes) {
             let x_floats = x_vec.cast_float();
             let x_rem = x_floats - (x_floats / x_tiling).floor() * x_tiling;
             let x_seeded = x_rem.cast_int_round().raw_cast() * seed_vec;
 
             let x_shuf = x_seeded.permute_8(shuffle_indices) ^ prime;
-            let indices: ArchSimd<u32> = (y_shuf * x_shuf) >> 29;
+            let indices: Simd<u32, A> = (y_shuf * x_shuf) >> 29;
             unsafe { grad_buffer.write_simd_aligned(i, indices) };
             x_vec += x_vec_stride;
         }
     } else {
-        let iota_vec = ArchSimd::iota(0) * ArchSimd::splat(params.seed);
+        let iota_vec = Simd::<u32, A>::iota(0) * Simd::<u32, A>::splat(params.seed);
         let mut x_vec =
-            ArchSimd::splat((grid_data.grid_start[0] as u32).wrapping_mul(params.seed)) + iota_vec;
-        let x_vec_stride = ArchSimd::splat((LANES as u32).wrapping_mul(params.seed));
+            Simd::<u32, A>::splat((grid_data.grid_start[0] as u32).wrapping_mul(params.seed))
+                + iota_vec;
+        let x_vec_stride = Simd::<u32, A>::splat((lanes as u32).wrapping_mul(params.seed));
 
         // Main vectorized bit mixing loop.
         let end_index = grid_data.num_loops[0] + 1;
-        for i in (0..end_index).step_by(LANES) {
+        for i in (0..end_index).step_by(lanes) {
             let x_shuf = x_vec.permute_8(shuffle_indices) ^ prime;
-            let indices: ArchSimd<u32> = (y_shuf * x_shuf) >> 29;
+            let indices: Simd<u32, A> = (y_shuf * x_shuf) >> 29;
             unsafe { grad_buffer.write_simd_aligned(i, indices) };
             x_vec += x_vec_stride;
         }
@@ -209,10 +209,10 @@ pub(super) fn grid_gradients_2d<'a>(
             let l = grad_buffer.get_unchecked(x_it).assume_init() as usize;
             let r = grad_buffer.get_unchecked(x_it + 1).assume_init() as usize;
 
-            let ly = ArchSimd::splat(GRADIENTS_2D.get_unchecked(l)[1]);
-            let lx = ArchSimd::splat(GRADIENTS_2D.get_unchecked(l)[0]);
-            let ry = ArchSimd::splat(GRADIENTS_2D.get_unchecked(r)[1]);
-            let rx = ArchSimd::splat(GRADIENTS_2D.get_unchecked(r)[0]);
+            let ly = Simd::<f32, A>::splat(GRADIENTS_2D.get_unchecked(l)[1]);
+            let lx = Simd::<f32, A>::splat(GRADIENTS_2D.get_unchecked(l)[0]);
+            let ry = Simd::<f32, A>::splat(GRADIENTS_2D.get_unchecked(r)[1]);
+            let rx = Simd::<f32, A>::splat(GRADIENTS_2D.get_unchecked(r)[0]);
 
             let mut index = x_cur_index as usize;
             while amount > 0 {
@@ -221,8 +221,8 @@ pub(super) fn grid_gradients_2d<'a>(
                 right[1].write_simd(index, ry);
                 right[0].write_simd(index, rx);
 
-                amount -= LANES as isize;
-                index += LANES;
+                amount -= lanes as isize;
+                index += lanes;
             }
         }
 
@@ -230,9 +230,9 @@ pub(super) fn grid_gradients_2d<'a>(
     }
 
     // Compute x dot products (Better to do here since these dot products get reused and operate per element).
-    for i in (0..params.grid_size[0]).step_by(LANES) {
+    for i in (0..params.grid_size[0]).step_by(lanes) {
         unsafe {
-            let cur_dist = grid_data.distances[0].load_simd_aligned(i);
+            let cur_dist: Simd<f32, A> = grid_data.distances[0].load_simd_aligned(i);
             let cur_left = left[0].load_simd_aligned(i);
             let cur_right = right[0].load_simd_aligned(i);
 
@@ -244,26 +244,32 @@ pub(super) fn grid_gradients_2d<'a>(
 
 /// Handles interpolation execution state and fills
 /// the dst slice with interpolated values from gradient dot produtcts.
-pub(crate) struct DottedBilerpExecuter<'a, C: Combiner, const INIT: bool, const FINAL: bool> {
-    config: &'a InterpolationConfig<NUM_BLOCKS>,
+pub(crate) struct DottedBilerpExecuter<
+    'a,
+    A: Arch,
+    C: Combiner,
+    const INIT: bool,
+    const FINAL: bool,
+> {
+    config: &'a InterpolationConfig<A>,
     fractal_config: &'a C::Config,
     grid_data: &'a GridData<'a, 2>,
     gradients: &'a PerlinGradients2D<'a>,
     y_range: Range<usize>,
-    top: [ArchSimd<f32>; NUM_BLOCKS],
-    dif: [ArchSimd<f32>; NUM_BLOCKS],
-    d_top: [ArchSimd<f32>; NUM_BLOCKS],
-    d_dif: [ArchSimd<f32>; NUM_BLOCKS],
-    weight_vec: ArchSimd<f32>,
-    y_weighted_increment: ArchSimd<f32>,
-    y_upper_increment: ArchSimd<f32>,
-    y_lower_increment: ArchSimd<f32>,
+    top: A::Block2<f32>,
+    dif: A::Block2<f32>,
+    d_top: A::Block2<f32>,
+    d_dif: A::Block2<f32>,
+    weight_vec: Simd<f32, A>,
+    y_weighted_increment: Simd<f32, A>,
+    y_upper_increment: Simd<f32, A>,
+    y_lower_increment: Simd<f32, A>,
 }
 
 /// Fills the dst slice with interpolated dot products from gradients.
 #[inline(always)]
-pub(super) fn grid_dotted_bilerp<C: Combiner, const INIT: bool, const FINAL: bool>(
-    config: &InterpolationConfig<NUM_BLOCKS>,
+pub(super) fn grid_dotted_bilerp<A: Arch, C: Combiner, const INIT: bool, const FINAL: bool>(
+    config: &InterpolationConfig<A>,
     fractal_config: &C::Config,
     grid_data: &GridData<2>,
     gradients: &PerlinGradients2D,
@@ -276,7 +282,7 @@ pub(super) fn grid_dotted_bilerp<C: Combiner, const INIT: bool, const FINAL: boo
             .assume_init()
     };
 
-    let mut executer = DottedBilerpExecuter::<C, INIT, FINAL> {
+    let mut executer = DottedBilerpExecuter::<A, C, INIT, FINAL> {
         config,
         fractal_config,
         grid_data,
@@ -286,10 +292,10 @@ pub(super) fn grid_dotted_bilerp<C: Combiner, const INIT: bool, const FINAL: boo
         dif: Default::default(),
         d_top: Default::default(),
         d_dif: Default::default(),
-        weight_vec: ArchSimd::splat(grid_data.weight),
-        y_weighted_increment: ArchSimd::splat(grid_data.increment[1] * grid_data.weight),
-        y_upper_increment: ArchSimd::splat(y_frac_start),
-        y_lower_increment: ArchSimd::splat(y_frac_start - 1.0),
+        weight_vec: Simd::splat(grid_data.weight),
+        y_weighted_increment: Simd::splat(grid_data.increment[1] * grid_data.weight),
+        y_upper_increment: Simd::splat(y_frac_start),
+        y_lower_increment: Simd::splat(y_frac_start - 1.0),
     };
 
     let (state, dst) = output;
@@ -303,8 +309,8 @@ pub(super) fn grid_dotted_bilerp<C: Combiner, const INIT: bool, const FINAL: boo
     }
 }
 
-impl<'a, C: Combiner, const INIT: bool, const FINAL: bool>
-    DottedBilerpExecuter<'a, C, INIT, FINAL>
+impl<'a, A: Arch, C: Combiner, const INIT: bool, const FINAL: bool>
+    DottedBilerpExecuter<'a, A, C, INIT, FINAL>
 {
     #[inline(always)]
     pub fn interpolate<const IS_TAIL: bool>(&mut self, state: &mut [f32], dst: &mut [f32]) {
@@ -314,7 +320,7 @@ impl<'a, C: Combiner, const INIT: bool, const FINAL: bool>
             0..self.config.block_tail_start
         };
 
-        for x in range.step_by(BLOCK_LANES) {
+        for x in range.step_by(self.config.block_lanes) {
             self.initialize_factors::<IS_TAIL>(x);
 
             let mut y = self.y_range.start;
@@ -338,13 +344,13 @@ impl<'a, C: Combiner, const INIT: bool, const FINAL: bool>
         let num_blocks = if IS_TAIL {
             self.config.block_tail_size
         } else {
-            NUM_BLOCKS
+            self.config.num_blocks
         };
 
         // These blocked loops will get entirely unrolled by the compiler.
         for block in 0..num_blocks {
             // Load gradients into registers.
-            let index = x + LANES * block;
+            let index = x + Simd::<f32, A>::LANES * block;
 
             let x_lerp = unsafe { self.grid_data.fade_factors[0].load_simd_aligned(index) };
             let x_tl = unsafe { self.gradients.tl[0].load_simd_aligned(index) };
@@ -385,7 +391,7 @@ impl<'a, C: Combiner, const INIT: bool, const FINAL: bool>
         state: &mut [f32],
         dst: &mut [f32],
     ) {
-        let y_lerp = ArchSimd::splat(unsafe {
+        let y_lerp = Simd::splat(unsafe {
             self.grid_data.fade_factors[1]
                 .get_unchecked(y)
                 .assume_init()
@@ -394,19 +400,19 @@ impl<'a, C: Combiner, const INIT: bool, const FINAL: bool>
         let range = if IS_TAIL {
             0..self.config.block_tail_size
         } else {
-            0..NUM_BLOCKS
+            0..self.config.num_blocks
         };
 
         let index = y * self.grid_data.grid_size[0] + x;
         let tail_end = index + self.config.tail_size;
         for block in range {
-            let index = index + block * LANES;
+            let index = index + block * Simd::<f32, A>::LANES;
             let output = y_lerp.mul_add(self.dif[block], self.top[block]);
 
             let (cur_state, mut result) = if INIT {
                 C::initialize_sample(self.fractal_config, output)
             } else {
-                let mut cur_state = C::State::default();
+                let mut cur_state = C::State::<A>::default();
                 for i in 0..C::State::STATE_SIZE {
                     let offset = i * self.grid_data.total_size;
                     let index = index + offset;

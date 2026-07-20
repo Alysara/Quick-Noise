@@ -1,4 +1,6 @@
-use crate::simd::architectures::interface::SimdFamily;
+#[cfg(target_arch = "x86_64")]
+use crate::simd::SimdElement;
+use crate::simd::architectures::interface::Arch;
 
 #[cfg(target_arch = "x86_64")]
 use crate::simd::architectures::intrinsics::avx2::Avx2Reg;
@@ -10,17 +12,23 @@ use crate::simd::architectures::intrinsics::sse::SseReg;
 use crate::simd::architectures::intrinsics::neon::NeonReg;
 
 use crate::simd::architectures::intrinsics::scalar::{ScalarReg, ScalarMask};
+#[cfg(target_arch = "x86_64")]
+use crate::simd::register::Simd;
 use std::fmt::Debug;
 
 #[derive(Copy, Clone)]
 #[cfg(target_arch = "x86_64")]
 pub struct Sse;
 #[cfg(target_arch = "x86_64")]
-impl SimdFamily for Sse {
+impl Arch for Sse {
     const SIMD_WIDTH: usize = 16;
+    const NUM_SIMD_REG: usize = 16;
+    type Block2<T: SimdElement> = [Simd<T, Self>; 4];
+    type Block4<T: SimdElement> = [Simd<T, Self>; 2];
+
     type Vec = SseReg;
     type Mask = SseReg;
-    type ScalarFamily = Scalar128;
+    type ScalarArch = Scalar128;
 
     type Array64<T: Debug + Copy> = [T; 2];
     type Array32<T: Debug + Copy> = [T; 4];
@@ -32,11 +40,15 @@ impl SimdFamily for Sse {
 #[derive(Copy, Clone)]
 pub struct Avx2;
 #[cfg(target_arch = "x86_64")]
-impl SimdFamily for Avx2 {
+impl Arch for Avx2 {
     const SIMD_WIDTH: usize = 32;
+    const NUM_SIMD_REG: usize = 16;
+    type Block2<T: SimdElement> = [Simd<T, Self>; 4];
+    type Block4<T: SimdElement> = [Simd<T, Self>; 2];
+
     type Vec = Avx2Reg;
     type Mask = Avx2Reg;
-    type ScalarFamily = Scalar256;
+    type ScalarArch = Scalar256;
 
     type Array64<T: Debug + Copy> = [T; 4];
     type Array32<T: Debug + Copy> = [T; 8];
@@ -48,11 +60,15 @@ impl SimdFamily for Avx2 {
 #[derive(Copy, Clone)]
 pub struct Avx512;
 #[cfg(target_arch = "x86_64")]
-impl SimdFamily for Avx512 {
+impl Arch for Avx512 {
     const SIMD_WIDTH: usize = 64;
+    const NUM_SIMD_REG: usize = 32;
+    type Block2<T: SimdElement> = [Simd<T, Self>; 8];
+    type Block4<T: SimdElement> = [Simd<T, Self>; 4];
+
     type Vec = Avx512Reg;
     type Mask = Avx512Mask;
-    type ScalarFamily = Scalar512;
+    type ScalarArch = Scalar512;
 
     type Array64<T: Debug + Copy> = [T; 8];
     type Array32<T: Debug + Copy> = [T; 16];
@@ -64,11 +80,15 @@ impl SimdFamily for Avx512 {
 #[derive(Copy, Clone)]
 pub struct Neon;
 #[cfg(target_arch = "aarch64")]
-impl SimdFamily for Neon {
+impl Arch for Neon {
     const SIMD_WIDTH: usize = 16;
+    const NUM_SIMD_REG: usize = 32;
+    type Block2<T: SimdElement> = [Simd<T, Self>; 8];
+    type Block4<T: SimdElement> = [Simd<T, Self>; 4];
+
     type Vec = NeonReg;
     type Mask = NeonReg;
-    type ScalarFamily = Scalar128;
+    type ScalarArch = Scalar128;
 
     type Array64<T: Debug + Copy> = [T; 2];
     type Array32<T: Debug + Copy> = [T; 4];
@@ -78,11 +98,15 @@ impl SimdFamily for Neon {
 
 #[derive(Copy, Clone)]
 pub struct Scalar128;
-impl SimdFamily for Scalar128 {
+impl Arch for Scalar128 {
     const SIMD_WIDTH: usize = 16;
+    const NUM_SIMD_REG: usize = 16;
+    type Block2<T: SimdElement> = [Simd<T, Self>; 4];
+    type Block4<T: SimdElement> = [Simd<T, Self>; 2];
+
     type Vec = ScalarReg<16>;
     type Mask = ScalarMask<16>;
-    type ScalarFamily = Self;
+    type ScalarArch = Self;
 
     type Array64<T: Debug + Copy> = [T; 2];
     type Array32<T: Debug + Copy> = [T; 4];
@@ -92,11 +116,15 @@ impl SimdFamily for Scalar128 {
 
 #[derive(Copy, Clone)]
 pub struct Scalar256;
-impl SimdFamily for Scalar256 {
+impl Arch for Scalar256 {
     const SIMD_WIDTH: usize = 32;
+    const NUM_SIMD_REG: usize = 16;
+    type Block2<T: SimdElement> = [Simd<T, Self>; 4];
+    type Block4<T: SimdElement> = [Simd<T, Self>; 2];
+
     type Vec = ScalarReg<32>;
     type Mask = ScalarMask<32>;
-    type ScalarFamily = Self;
+    type ScalarArch = Self;
 
     type Array64<T: Debug + Copy> = [T; 4];
     type Array32<T: Debug + Copy> = [T; 8];
@@ -106,11 +134,15 @@ impl SimdFamily for Scalar256 {
 
 #[derive(Copy, Clone)]
 pub struct Scalar512;
-impl SimdFamily for Scalar512 {
+impl Arch for Scalar512 {
     const SIMD_WIDTH: usize = 64;
+    const NUM_SIMD_REG: usize = 16;
+    type Block2<T: SimdElement> = [Simd<T, Self>; 4];
+    type Block4<T: SimdElement> = [Simd<T, Self>; 2];
+
     type Vec = ScalarReg<64>;
     type Mask = ScalarMask<64>;
-    type ScalarFamily = Self;
+    type ScalarArch = Self;
 
     type Array64<T: Debug + Copy> = [T; 8];
     type Array32<T: Debug + Copy> = [T; 16];

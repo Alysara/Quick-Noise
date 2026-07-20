@@ -1,10 +1,10 @@
 use std::marker::PhantomData;
 
 use crate::api::configs::*;
-use crate::api::grid::interface::{GridNoise, GridGenerator};
+use crate::api::grid::interface::{GridGenerator, GridNoise};
 use crate::api::parameters::*;
 use crate::math::random::Random;
-use crate::simd::arch_simd::ArchSimd;
+use crate::simd::StaticArch;
 use crate::simd::register::iters::IntoSimdIterator;
 use crate::{Combiner, HybridMulti, PingPong, Ridged, Terrace};
 
@@ -40,7 +40,7 @@ impl<const D: usize, C: Combiner, G: GridGenerator<D>> GridNoiseBuilder<D, C, G>
     declare_build!(self, {
         let size = self.grid_config.grid_size.iter().product();
         let mut result = vec![0.0; size];
-        GridNoise::<D, C, G>::sample(
+        GridNoise::<D, C, G>::sample::<StaticArch>(
             &self.grid_config,
             &self.noise_config,
             &self.combiner_config,
@@ -50,7 +50,7 @@ impl<const D: usize, C: Combiner, G: GridGenerator<D>> GridNoiseBuilder<D, C, G>
     });
 
     declare_fill!(self, result, {
-        GridNoise::<D, C, G>::sample(
+        GridNoise::<D, C, G>::sample::<StaticArch>(
             &self.grid_config,
             &self.noise_config,
             &self.combiner_config,
@@ -58,5 +58,5 @@ impl<const D: usize, C: Combiner, G: GridGenerator<D>> GridNoiseBuilder<D, C, G>
         );
     });
 
-    declare_into_iter!(self, { self.build().into_simd_iter() });
+    declare_into_iter!(StaticArch, self, { self.build().into_simd_iter() });
 }

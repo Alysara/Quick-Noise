@@ -3,7 +3,7 @@ pub mod simd_utils {
     pub mod macros;
 }
 
-use quick_noise::simd::arch_simd::{ArchSimd, ArchFamily, ScalarFamily, ScalarSimd};
+use quick_noise::simd::static_simd::{StaticSimd, ArchFamily, ScalarFamily, ScalarSimd};
 use quick_noise::simd::architectures::interface::*;
 use quick_noise::simd::array_trait::Array;
 use quick_noise::simd::register::Simd;

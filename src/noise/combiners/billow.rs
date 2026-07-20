@@ -1,4 +1,5 @@
-use crate::simd::arch_simd::ArchSimd;
+use crate::simd::Arch;
+use crate::simd::Simd;
 use crate::{Combiner, CombinerArray};
 
 #[derive(Default, Copy, Clone, PartialEq, Debug)]
@@ -6,26 +7,33 @@ pub struct Billow {}
 
 impl Combiner for Billow {
     const WEIGHT_DECAY: bool = true;
-    type State = CombinerArray<0>;
+    type State<A: Arch> = CombinerArray<A, 0>;
     type Config = ();
 
     #[inline(always)]
-    fn apply_sample(
+    fn apply_sample<A: Arch>(
         _config: &(),
-        state: Self::State,
-        cur_result: ArchSimd<f32>,
-        new_sample: ArchSimd<f32>,
-    ) -> (Self::State, ArchSimd<f32>) {
+        state: Self::State<A>,
+        cur_result: Simd<f32, A>,
+        new_sample: Simd<f32, A>,
+    ) -> (Self::State<A>, Simd<f32, A>) {
         (state, cur_result + new_sample.abs())
     }
 
     #[inline(always)]
-    fn initialize_sample(_config: &(), new_sample: ArchSimd<f32>) -> (Self::State, ArchSimd<f32>) {
+    fn initialize_sample<A: Arch>(
+        _config: &(),
+        new_sample: Simd<f32, A>,
+    ) -> (Self::State<A>, Simd<f32, A>) {
         (Self::State::default(), new_sample.abs())
     }
 
     #[inline(always)]
-    fn finalize_sample(_config: &(), _state: Self::State, last: ArchSimd<f32>) -> ArchSimd<f32> {
+    fn finalize_sample<A: Arch>(
+        _config: &(),
+        _state: Self::State<A>,
+        last: Simd<f32, A>,
+    ) -> Simd<f32, A> {
         last
     }
 }

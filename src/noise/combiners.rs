@@ -1,6 +1,7 @@
 use std::ops::{Index, IndexMut};
 
-use crate::simd::arch_simd::ArchSimd;
+use crate::simd::Arch;
+use crate::simd::register::Simd;
 
 pub mod billow;
 pub mod fbm;
@@ -12,26 +13,26 @@ pub mod terrace;
 
 pub use billow::Billow;
 pub use fbm::Fbm;
-pub use multi::Multi;
 pub use hybrid_multi::HybridMulti;
+pub use multi::Multi;
 pub use ping_pong::PingPong;
 pub use ridged::Ridged;
 pub use terrace::Terrace;
 
-pub trait CombinerState:
-    Copy + Index<usize, Output = ArchSimd<f32>> + IndexMut<usize> + Default
+pub trait CombinerState<A: Arch>:
+    Copy + Index<usize, Output = Simd<f32, A>> + IndexMut<usize> + Default
 {
     const STATE_SIZE: usize;
 }
 
-impl<const N: usize> CombinerState for [ArchSimd<f32>; N]
+impl<A: Arch, const N: usize> CombinerState<A> for [Simd<f32, A>; N]
 where
-    [ArchSimd<f32>; N]: Default,
+    [Simd<f32, A>; N]: Default,
 {
     const STATE_SIZE: usize = N;
 }
 
-pub type CombinerArray<const N: usize> = [ArchSimd<f32>; N];
+pub type CombinerArray<A: Arch, const N: usize> = [Simd<f32, A>; N];
 
 pub trait Combiner: Default + Copy + Clone {
     /// Determines whether or not octave weight parameters are ignored.
@@ -45,7 +46,7 @@ pub trait Combiner: Default + Copy + Clone {
     ///
     /// Each additional variable tracked across samples has a signifcant performance
     /// penalty when computing grid noise. The impact is minimal for batch noise.
-    type State: CombinerState;
+    type State<A: Arch>: CombinerState<A>;
 
     /// The config struct that is passed through noise calls to the Fractal's usage.
     /// This is used for storing new parameters specific to a custom Fractal type.
@@ -56,12 +57,12 @@ pub trait Combiner: Default + Copy + Clone {
     /// # Parameters
     /// - `current`: Existing noise value from previous samples
     /// - `output`: New sample output from the current noise pass
-    fn apply_sample(
+    fn apply_sample<A: Arch>(
         config: &Self::Config,
-        state: Self::State,
-        cur_result: ArchSimd<f32>,
-        new_sample: ArchSimd<f32>,
-    ) -> (Self::State, ArchSimd<f32>);
+        state: Self::State<A>,
+        cur_result: Simd<f32, A>,
+        new_sample: Simd<f32, A>,
+    ) -> (Self::State<A>, Simd<f32, A>);
 
     /// Determines how the first sample is initialized.
     ///
@@ -73,10 +74,10 @@ pub trait Combiner: Default + Copy + Clone {
     /// - `current`: Existing noise value from previous samples
     /// - `output`: New sample output from the current noise pass
     #[inline(always)]
-    fn initialize_sample(
+    fn initialize_sample<A: Arch>(
         config: &Self::Config,
-        new_sample: ArchSimd<f32>,
-    ) -> (Self::State, ArchSimd<f32>) {
+        new_sample: Simd<f32, A>,
+    ) -> (Self::State<A>, Simd<f32, A>) {
         Self::apply_sample(config, Default::default(), Default::default(), new_sample)
     }
 
@@ -87,11 +88,11 @@ pub trait Combiner: Default + Copy + Clone {
     /// # Parameters
     /// - `last`: The final noise sample after prior fractal processing
     #[inline(always)]
-    fn finalize_sample(
+    fn finalize_sample<A: Arch>(
         _config: &Self::Config,
-        _state: Self::State,
-        last: ArchSimd<f32>,
-    ) -> ArchSimd<f32> {
+        _state: Self::State<A>,
+        last: Simd<f32, A>,
+    ) -> Simd<f32, A> {
         last
     }
 }

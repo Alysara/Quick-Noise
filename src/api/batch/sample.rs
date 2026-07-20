@@ -4,17 +4,17 @@ use crate::noise::combiners::Combiner;
 use crate::api::batch::interface::{BatchNoise, BatchGenerator, DimIter, DimTuple};
 use crate::api::configs::*;
 use crate::api::seed::gen_octave_seed;
-use crate::simd::arch_simd::ArchSimd;
+use crate::simd::{Arch, Simd};
 
 const MAX_FBM_OCTAVES: usize = 32;
 
 impl<const D: usize, C: Combiner, G: BatchGenerator<D>> BatchNoise<D, C, G> {
     #[inline(always)]
-    pub fn sample<I: DimIter<D>>(
+    pub fn sample<A: Arch, I: DimIter<A, D>>(
         noise_config: NoiseConfig<D>,
         combiner_config: C::Config,
         iters: I,
-    ) -> impl Iterator<Item = ArchSimd<f32>> {
+    ) -> impl Iterator<Item = Simd<f32, A>> {
         let octaves = noise_config.octaves;
 
         let frequency: [_; D] = from_fn(|i| noise_config.scaling[i] * noise_config.frequency);
@@ -33,19 +33,19 @@ impl<const D: usize, C: Combiner, G: BatchGenerator<D>> BatchNoise<D, C, G> {
                 .for_each(|x| *x *= noise_config.lacunarity);
         }
 
-        let lacunarity = ArchSimd::splat(noise_config.lacunarity);
-        let persistence = ArchSimd::splat(noise_config.persistence);
+        let lacunarity = Simd::splat(noise_config.lacunarity);
+        let persistence = Simd::splat(noise_config.persistence);
 
         iters.map(move |x| {
             let inputs = x.into_array();
             if octaves == 0 {
-                return ArchSimd::zero();
+                return Simd::zero();
             }
-            let (mut state, mut sample): (C::State, ArchSimd<f32>) = Default::default();
+            let (mut state, mut sample): (C::State<A>, Simd<f32, A>) = Default::default();
 
             let seed = seeds[0];
-            let mut weight = ArchSimd::splat(weight);
-            let mut freq = from_fn(|i| ArchSimd::splat(frequency[i]));
+            let mut weight = Simd::splat(weight);
+            let mut freq = from_fn(|i| Simd::splat(frequency[i]));
             let new_sample = G::sample_batch(seed, inputs, freq) * weight;
             
             if noise_config.initialize {

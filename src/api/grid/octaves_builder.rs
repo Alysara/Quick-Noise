@@ -1,13 +1,13 @@
 use std::marker::PhantomData;
 
-use crate::{Combiner, GridGenerator, HybridMulti, PingPong, Ridged, Terrace};
 use crate::api::configs::*;
 use crate::api::grid::interface::GridNoise;
 use crate::api::octave::Octave;
 use crate::api::parameters::*;
-use crate::simd::arch_simd::ArchSimd;
-use crate::simd::register::iters::IntoSimdIterator;
 use crate::math::random::Random;
+use crate::simd::StaticArch;
+use crate::simd::register::iters::IntoSimdIterator;
+use crate::{Combiner, GridGenerator, HybridMulti, PingPong, Ridged, Terrace};
 
 /// A struct for creating 2D Perlin noise set on a uniform grid with
 /// a custom list of octaves. Uses the performant perlin algorithm.
@@ -41,7 +41,7 @@ impl<'a, const D: usize, C: Combiner, G: GridGenerator<D>> OctaveGridNoiseBuilde
     declare_build!(self, {
         let size = self.grid_config.grid_size.iter().product();
         let mut result = vec![0.0; size];
-        GridNoise::<D, C, G>::sample_with_octaves(
+        GridNoise::<D, C, G>::sample_with_octaves::<StaticArch>(
             &self.grid_config,
             &self.noise_config,
             &self.combiner_config,
@@ -52,7 +52,7 @@ impl<'a, const D: usize, C: Combiner, G: GridGenerator<D>> OctaveGridNoiseBuilde
     });
 
     declare_fill!(self, result, {
-        GridNoise::<D, C, G>::sample_with_octaves(
+        GridNoise::<D, C, G>::sample_with_octaves::<StaticArch>(
             &self.grid_config,
             &self.noise_config,
             &self.combiner_config,
@@ -61,5 +61,5 @@ impl<'a, const D: usize, C: Combiner, G: GridGenerator<D>> OctaveGridNoiseBuilde
         );
     });
 
-    declare_into_iter!(self, { self.build().into_simd_iter() });
+    declare_into_iter!(StaticArch, self, { self.build().into_simd_iter() });
 }

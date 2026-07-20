@@ -1,16 +1,16 @@
 use std::f32::consts::SQRT_2;
 
 use crate::api::batch::interface::BatchGenerator;
-use crate::simd::arch_simd::ArchSimd;
 use crate::noise::generators::Perlin;
+use crate::simd::{Arch, Simd};
 
 pub const X_GRADIENTS_2D: [f32; 8] = [
     SQRT_2,
     1.0000000000000000,
     0.0000000000000000,
-   -1.0000000000000000,
-   -SQRT_2,
-   -1.0000000000000000,
+    -1.0000000000000000,
+    -SQRT_2,
+    -1.0000000000000000,
     0.0000000000000000,
     1.0000000000000000,
 ];
@@ -21,18 +21,22 @@ pub const Y_GRADIENTS_2D: [f32; 8] = [
     SQRT_2,
     1.0000000000000000,
     0.0000000000000000,
-   -1.0000000000000000,
-   -SQRT_2,
-   -1.0000000000000000,
+    -1.0000000000000000,
+    -SQRT_2,
+    -1.0000000000000000,
 ];
 
 impl BatchGenerator<2> for Perlin {
-    fn sample_batch(seed: u32, input: [ArchSimd<f32>; 2], freq: [ArchSimd<f32>; 2]) -> ArchSimd<f32> {
+    fn sample_batch<A: Arch>(
+        seed: u32,
+        input: [Simd<f32, A>; 2],
+        freq: [Simd<f32, A>; 2],
+    ) -> Simd<f32, A> {
         // Constants.
-        let six: ArchSimd<f32> = ArchSimd::splat(6.0);
-        let ten: ArchSimd<f32> = ArchSimd::splat(10.0);
-        let fifteen: ArchSimd<f32> = ArchSimd::splat(15.0);
-        let one: ArchSimd<f32> = ArchSimd::splat(1.0);
+        let six: Simd<f32, A> = Simd::splat(6.0);
+        let ten: Simd<f32, A> = Simd::splat(10.0);
+        let fifteen: Simd<f32, A> = Simd::splat(15.0);
+        let one: Simd<f32, A> = Simd::splat(1.0);
 
         // Hash constants.
         const BYTE_SHUFFLE: [u8; 64] = [
@@ -41,9 +45,9 @@ impl BatchGenerator<2> for Perlin {
             1, 7, 4, 6, 5, 11, 8, 10, 9, 15, 12, 14, 13,
         ];
 
-        let shuffle_indices = ArchSimd::<u8>::from_slice(&BYTE_SHUFFLE[..]);
-        let channel_seed = ArchSimd::splat(seed);
-        let prime = ArchSimd::splat(0x85ebca6b_u32);
+        let shuffle_indices = Simd::<u8>::from_slice(&BYTE_SHUFFLE[..]);
+        let channel_seed = Simd::splat(seed);
+        let prime = Simd::splat(0x85ebca6b_u32);
 
         // Scale: 2
         let x_scaled = input[0] * freq[0];
@@ -68,8 +72,8 @@ impl BatchGenerator<2> for Perlin {
         let y_lerp = s * s * s * s.mul_add(s.mul_sub(six, fifteen), ten);
 
         // Hash: 16
-        let x1: ArchSimd<u32> = x_grid_lo.raw_cast() * channel_seed;
-        let y1: ArchSimd<u32> = y_grid_lo.raw_cast() * channel_seed;
+        let x1: Simd<u32, A> = x_grid_lo.raw_cast() * channel_seed;
+        let y1: Simd<u32, A> = y_grid_lo.raw_cast() * channel_seed;
         let x2 = x1 + channel_seed;
         let y2 = y1 + channel_seed;
 

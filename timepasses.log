@@ -1,0 +1,136 @@
+   Compiling quick-noise v0.1.1 (/home/alysara/Documents/Programming/Personal/quick-noise)
+time:   0.000; rss:   37MB ->   38MB (   +1MB)	parse_crate
+time:   0.001; rss:   39MB ->   40MB (   +0MB)	incr_comp_prepare_session_directory
+time:   0.001; rss:   40MB ->   40MB (   +0MB)	incr_comp_garbage_collect_session_directories
+time:   0.000; rss:   44MB ->   44MB (   +0MB)	crate_injection
+time:   0.043; rss:   44MB ->   98MB (  +54MB)	expand_crate
+time:   0.043; rss:   44MB ->   98MB (  +54MB)	macro_expand_crate
+time:   0.001; rss:   98MB ->   98MB (   +0MB)	AST_validation
+error[E0432]: unresolved import `crate::simd::architectures::interface::Static`
+ --> src/simd/static_simd.rs:1:5
+  |
+1 | use crate::simd::architectures::interface::Static;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^------
+  |                                            |
+  |                                            no `Static` in `simd::architectures::interface`
+
+error[E0432]: unresolved import `crate::simd::static_simd::SIMD_WIDTH`
+ --> src/noise/util/grid_helpers.rs:9:44
+  |
+9 | use crate::simd::static_simd::{StaticSimd, SIMD_WIDTH};
+  |                                            ^^^^^^^^^^ no `SIMD_WIDTH` in `simd::static_simd`
+
+error[E0432]: unresolved import `crate::simd::static_simd::ArchFamily`
+ --> src/simd/register/iters.rs:5:32
+  |
+5 | use crate::simd::static_simd::{ArchFamily, StaticSimd};
+  |                                ^^^^^^^^^^ no `ArchFamily` in `simd::static_simd`
+
+time:   0.021; rss:   98MB ->  118MB (  +20MB)	finalize_imports
+time:   0.001; rss:  118MB ->  118MB (   +0MB)	compute_effective_visibilities
+time:   0.018; rss:  118MB ->  128MB (  +10MB)	late_resolve_crate
+time:   0.000; rss:  128MB ->  128MB (   +0MB)	resolve_check_unused
+error[E0405]: cannot find trait `Arch` in this scope
+  --> src/simd/static_simd.rs:39:38
+   |
+39 | pub type ScalarArch = <StaticArch as Arch>::ScalarFamily;
+   |                                      ^^^^ not found in this scope
+   |
+help: consider importing this trait through its public re-export
+   |
+ 1 + use crate::simd::Arch;
+   |
+
+time:   0.001; rss:  128MB ->  128MB (   +0MB)	resolve_report_errors
+time:   0.042; rss:   98MB ->  128MB (  +30MB)	resolve_crate
+time:   0.001; rss:  128MB ->  129MB (   +0MB)	write_dep_info
+time:   0.000; rss:  129MB ->  129MB (   +0MB)	complete_gated_feature_checking
+warning: unused import: `StaticArch`
+  --> src/api/batch/builder.rs:10:31
+   |
+10 | use crate::simd::{Arch, Simd, StaticArch, StaticSimd};
+   |                               ^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `StaticSimd`
+ --> src/api/grid/builder.rs:7:31
+  |
+7 | use crate::simd::{StaticArch, StaticSimd};
+  |                               ^^^^^^^^^^
+
+time:   0.000; rss:  133MB ->  133MB (   +0MB)	check_externally_implementable_items
+time:   0.000; rss:  133MB ->  133MB (   +0MB)	unused_lib_feature_checking
+time:   0.012; rss:  133MB ->  133MB (   +0MB)	misc_checking_1
+error[E0107]: struct takes 5 generic arguments but 4 generic arguments were supplied
+  --> src/api/grid/warp.rs:40:10
+   |
+40 |     ) -> BatchNoiseBuilder<3, C, G, impl DimIter<3>> {
+   |          ^^^^^^^^^^^^^^^^^ -  -  -  --------------- supplied 4 generic arguments
+   |          |
+   |          expected 5 generic arguments
+   |
+note: struct defined here, with 5 generic parameters: `D`, `C`, `G`, `A`, `I`
+  --> src/api/batch/builder.rs:13:12
+   |
+13 | pub struct BatchNoiseBuilder<
+   |            ^^^^^^^^^^^^^^^^^
+14 |     const D: usize,
+   |     --------------
+15 |     C: Combiner,
+   |     -
+16 |     G: BatchGenerator<D>,
+   |     -
+17 |     A: Arch,
+   |     -
+18 |     I: DimIter<A, D>,
+   |     -
+help: add missing generic argument
+   |
+40 |     ) -> BatchNoiseBuilder<3, C, G, impl DimIter<3>, I> {
+   |                                                    +++
+
+error[E0107]: trait takes 2 generic arguments but 1 generic argument was supplied
+  --> src/api/grid/warp.rs:40:42
+   |
+40 |     ) -> BatchNoiseBuilder<3, C, G, impl DimIter<3>> {
+   |                                          ^^^^^^^ - supplied 1 generic argument
+   |                                          |
+   |                                          expected 2 generic arguments
+   |
+note: trait defined here, with 2 generic parameters: `A`, `D`
+  --> src/api/batch/interface.rs:45:11
+   |
+45 | pub trait DimIter<A: Arch, const D: usize>: Iterator<Item: DimTuple<A, D>> {}
+   |           ^^^^^^^ -        --------------
+help: add missing generic argument
+   |
+40 |     ) -> BatchNoiseBuilder<3, C, G, impl DimIter<3, D>> {
+   |                                                   +++
+
+error[E0308]: mismatched types
+  --> src/api/grid/warp.rs:21:90
+   |
+12 | ...hGenerator<2>, A: Arch>(
+   |                   - expected this type parameter
+...
+21 | ...()).map(move |(y, grid)| y.mul_add(strength, grid));
+   |                               -------           ^^^^ expected `Simd<f32, A>`, found `Simd<f32, Scalar128>`
+   |                               |
+   |                               arguments to this method are incorrect
+   |
+   = note: expected struct `register::Simd<_, A>`
+              found struct `register::Simd<_, Scalar128>`
+note: method defined here
+  --> src/simd/register/float.rs:47:12
+   |
+47 |     pub fn mul_add(self, mult: Self, add: Self) -> Self {
+   |            ^^^^^^^                   ---------
+
+error[E0063]: missing field `_arch` in initializer of `BatchNoiseBuilder<_, _, _, _, _>`
+  --> src/api/grid/warp.rs:46:9
+   |
+46 |         BatchNoiseBuilder {
+   |         ^^^^^^^^^^^^^^^^^ missing `_arch`
+
+time:   0.102; rss:  133MB ->  190MB (  +57MB)	coherence_checking

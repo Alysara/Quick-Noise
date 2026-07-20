@@ -4,7 +4,7 @@ use crate::simd::architectures::interface::*;
 use crate::simd::register::Simd;
 use crate::simd::traits::*;
 
-impl<T: SimdFloat, F: SimdFamily> Simd<T, F> {
+impl<T: SimdFloat, F: Arch> Simd<T, F> {
     #[inline(always)]
     pub fn floor(self) -> Self {
         unsafe {

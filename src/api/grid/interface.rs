@@ -4,6 +4,7 @@ use crate::api::configs::GridConfig;
 use crate::api::grid::builder::GridNoiseBuilder;
 use crate::api::grid::octaves_builder::OctaveGridNoiseBuilder;
 use crate::math::random::Random;
+use crate::simd::Arch;
 use crate::{Combiner, Octave};
 
 /// Handles raw parameters for grid noise generators
@@ -36,7 +37,7 @@ pub trait GridGenerator<const D: usize>: Default + Copy + Clone + PartialEq {
     /// - `combiner_config`: Config specifying combiner parameters
     /// - `state`: Buffer containing sample information across octaves
     /// - `dst`: Buffer to insert the results into
-    fn sample_grid<C: Combiner, const INIT: bool, const FINAL: bool>(
+    fn sample_grid<F: Arch, C: Combiner, const INIT: bool, const FINAL: bool>(
         params: GridNoiseParams<D>,
         combiner_config: C::Config,
         state: &mut [f32],
@@ -45,8 +46,8 @@ pub trait GridGenerator<const D: usize>: Default + Copy + Clone + PartialEq {
 }
 
 /// Static struct for sampling grid noise.
-pub struct GridNoise<const D: usize, F: Combiner, S: GridGenerator<D>> {
-    _fractal: PhantomData<F>,
+pub struct GridNoise<const D: usize, C: Combiner, S: GridGenerator<D>> {
+    _fractal: PhantomData<C>,
     _sampler: PhantomData<S>,
 }
 

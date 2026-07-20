@@ -6,7 +6,7 @@ use crate::api::configs::*;
 use crate::api::octave::Octave;
 use crate::api::seed::gen_octave_seed;
 use crate::noise::combiners::Combiner;
-use crate::simd::arch_simd::ArchSimd;
+use crate::simd::{Arch, Simd};
 
 const MAX_CUSTOM_OCTAVES: usize = 32;
 
@@ -17,12 +17,12 @@ fn get_max<const D: usize>(array: [f32; D]) -> f32 {
 /// Helper static function for custom noise.
 impl<const D: usize, C: Combiner, G: BatchGenerator<D>> BatchNoise<D, C, G> {
     #[inline(always)]
-    pub fn sample_with_octaves<I: DimIter<D>>(
+    pub fn sample_with_octaves<A: Arch, I: DimIter<A, D>>(
         noise_config: OctaveNoiseConfig<D>,
         combiner_config: C::Config,
         octave_list: &[Octave<D>],
         iters: I,
-    ) -> impl Iterator<Item = ArchSimd<f32>> {
+    ) -> impl Iterator<Item = Simd<f32, A>> {
         let octaves = octave_list.len();
 
         let total_weight = octave_list
@@ -41,18 +41,18 @@ impl<const D: usize, C: Combiner, G: BatchGenerator<D>> BatchNoise<D, C, G> {
             seeds[i] = gen_octave_seed(octave.frequency, noise_config.seed);
         }
 
-        let weight_coef = ArchSimd::splat(weight_coef);
+        let weight_coef = Simd::splat(weight_coef);
         iters.map(move |x| {
             let inputs = x.into_array();
             if octaves == 0 {
-                return ArchSimd::zero();
+                return Simd::zero();
             }
 
-            let (mut state, mut sample): (C::State, ArchSimd<f32>) = Default::default();
+            let (mut state, mut sample): (C::State<A>, Simd<f32, A>) = Default::default();
 
-            let freq = from_fn(|i| ArchSimd::splat(octave_list[0].frequency[i]));
+            let freq = from_fn(|i| Simd::splat(octave_list[0].frequency[i]));
             let seed = seeds[0];
-            let weight = ArchSimd::splat(octave_list[0].weight) * weight_coef;
+            let weight = Simd::splat(octave_list[0].weight) * weight_coef;
             let new_sample = G::sample_batch(seed, inputs, freq) * weight;
             if noise_config.initialize {
                 (state, sample) = C::initialize_sample(&combiner_config, new_sample);
@@ -66,9 +66,9 @@ impl<const D: usize, C: Combiner, G: BatchGenerator<D>> BatchNoise<D, C, G> {
                 .skip(1)
                 .take(octaves.saturating_sub(2))
             {
-                let freq = from_fn(|i| ArchSimd::splat(octave.frequency[i]));
+                let freq = from_fn(|i| Simd::splat(octave.frequency[i]));
                 let seed = seeds[i];
-                let weight = ArchSimd::splat(octave_list[0].weight) * weight_coef;
+                let weight = Simd::splat(octave_list[0].weight) * weight_coef;
                 let new_sample = G::sample_batch(seed, inputs, freq) * weight;
                 (state, sample) = C::apply_sample(&combiner_config, state, sample, new_sample);
             }

@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use num_traits::{NumCast, NumOps};
 
-use crate::simd::architectures::interface::SimdFamily;
+use crate::simd::architectures::interface::Arch;
 use crate::simd::array_trait::Array;
 
 mod private {
@@ -171,7 +171,7 @@ pub trait SimdElement:
     const PRIMITIVE_TYPE: PrimitiveType;
     const TYPE: SimdType;
     type BitWidthType: BitWidth;
-    type Array<F: SimdFamily>: Debug + Copy + Array<Self>; // Array wrapper to get around const generics limitations.
+    type Array<F: Arch>: Debug + Copy + Array<Self>; // Array wrapper to get around const generics limitations.
     type UType: SimdElement;
 }
 
@@ -180,7 +180,7 @@ impl SimdElement for f64 {
     const PRIMITIVE_TYPE: PrimitiveType = PrimitiveType::Float;
     const TYPE: SimdType = SimdType::F64;
     type BitWidthType = B64;
-    type Array<F: SimdFamily> = F::Array64<f64>;
+    type Array<F: Arch> = F::Array64<f64>;
     type UType = u64;
 }
 impl SimdElement for f32 {
@@ -188,7 +188,7 @@ impl SimdElement for f32 {
     const PRIMITIVE_TYPE: PrimitiveType = PrimitiveType::Float;
     const TYPE: SimdType = SimdType::F32;
     type BitWidthType = B32;
-    type Array<F: SimdFamily> = F::Array32<f32>;
+    type Array<F: Arch> = F::Array32<f32>;
     type UType = u32;
 }
 impl SimdElement for i64 {
@@ -196,7 +196,7 @@ impl SimdElement for i64 {
     const PRIMITIVE_TYPE: PrimitiveType = PrimitiveType::SignedInt;
     const TYPE: SimdType = SimdType::I64;
     type BitWidthType = B64;
-    type Array<F: SimdFamily> = F::Array64<i64>;
+    type Array<F: Arch> = F::Array64<i64>;
     type UType = u64;
 }
 impl SimdElement for i32 {
@@ -204,7 +204,7 @@ impl SimdElement for i32 {
     const PRIMITIVE_TYPE: PrimitiveType = PrimitiveType::SignedInt;
     const TYPE: SimdType = SimdType::I32;
     type BitWidthType = B32;
-    type Array<F: SimdFamily> = F::Array32<i32>;
+    type Array<F: Arch> = F::Array32<i32>;
     type UType = u32;
 }
 impl SimdElement for i16 {
@@ -212,7 +212,7 @@ impl SimdElement for i16 {
     const PRIMITIVE_TYPE: PrimitiveType = PrimitiveType::SignedInt;
     const TYPE: SimdType = SimdType::I16;
     type BitWidthType = B16;
-    type Array<F: SimdFamily> = F::Array16<i16>;
+    type Array<F: Arch> = F::Array16<i16>;
     type UType = u16;
 }
 impl SimdElement for i8 {
@@ -220,7 +220,7 @@ impl SimdElement for i8 {
     const PRIMITIVE_TYPE: PrimitiveType = PrimitiveType::SignedInt;
     const TYPE: SimdType = SimdType::I8;
     type BitWidthType = B8;
-    type Array<F: SimdFamily> = F::Array8<i8>;
+    type Array<F: Arch> = F::Array8<i8>;
     type UType = u8;
 }
 impl SimdElement for u64 {
@@ -228,7 +228,7 @@ impl SimdElement for u64 {
     const PRIMITIVE_TYPE: PrimitiveType = PrimitiveType::UnsignedInt;
     const TYPE: SimdType = SimdType::U64;
     type BitWidthType = B64;
-    type Array<F: SimdFamily> = F::Array64<u64>;
+    type Array<F: Arch> = F::Array64<u64>;
     type UType = u64;
 }
 impl SimdElement for u32 {
@@ -236,7 +236,7 @@ impl SimdElement for u32 {
     const PRIMITIVE_TYPE: PrimitiveType = PrimitiveType::UnsignedInt;
     const TYPE: SimdType = SimdType::U32;
     type BitWidthType = B32;
-    type Array<F: SimdFamily> = F::Array32<u32>;
+    type Array<F: Arch> = F::Array32<u32>;
     type UType = u32;
 }
 impl SimdElement for u16 {
@@ -244,7 +244,7 @@ impl SimdElement for u16 {
     const PRIMITIVE_TYPE: PrimitiveType = PrimitiveType::UnsignedInt;
     const TYPE: SimdType = SimdType::U16;
     type BitWidthType = B16;
-    type Array<F: SimdFamily> = F::Array16<u16>;
+    type Array<F: Arch> = F::Array16<u16>;
     type UType = u16;
 }
 impl SimdElement for u8 {
@@ -252,7 +252,7 @@ impl SimdElement for u8 {
     const PRIMITIVE_TYPE: PrimitiveType = PrimitiveType::UnsignedInt;
     const TYPE: SimdType = SimdType::U8;
     type BitWidthType = B8;
-    type Array<F: SimdFamily> = F::Array8<u8>;
+    type Array<F: Arch> = F::Array8<u8>;
     type UType = u8;
 }
 
