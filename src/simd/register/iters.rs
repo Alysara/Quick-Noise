@@ -9,13 +9,16 @@ use crate::simd::register::Simd;
 use crate::simd::traits::*;
 
 pub trait SimdSliceIterExt<T: SimdElement> {
-    fn simd_iter<'a>(&'a self) -> SimdSliceIter<'a, T, StaticArch>;
-    fn simd_iter_mut<'a>(&'a mut self) -> SimdSliceIterMut<'a, T, StaticArch>;
+    fn simd_iter_static<'a>(&'a self) -> SimdSliceIter<'a, T, StaticArch>;
+    fn simd_iter_mut_static<'a>(&'a mut self) -> SimdSliceIterMut<'a, T, StaticArch>;
+
+    fn simd_iter<'a, A: Arch>(&'a self) -> SimdSliceIter<'a, T, A>;
+    fn simd_iter_mut<'a, A: Arch>(&'a mut self) -> SimdSliceIterMut<'a, T, A>;
 }
 
 impl<T: SimdElement> SimdSliceIterExt<T> for [T] {
-    /// Creates an iterator of simd chunks.
-    fn simd_iter<'a>(&'a self) -> SimdSliceIter<'a, T, StaticArch> {
+    /// Creates an iterator of simd chunks using the statically dispatched simd feature set.
+    fn simd_iter_static<'a>(&'a self) -> SimdSliceIter<'a, T, StaticArch> {
         SimdSliceIter {
             slice: self,
             index: 0,
@@ -23,11 +26,28 @@ impl<T: SimdElement> SimdSliceIterExt<T> for [T] {
         }
     }
 
-    /// Creates an iterator of mutable simd chunks.
-    fn simd_iter_mut<'a>(&'a mut self) -> SimdSliceIterMut<'a, T, StaticArch> {
+    /// Creates an iterator of mutable simd chunks using the statically dispatched simd feature set..
+    fn simd_iter_mut_static<'a>(&'a mut self) -> SimdSliceIterMut<'a, T, StaticArch> {
         SimdSliceIterMut {
             slice: self,
             _architecture: PhantomData::<StaticArch>,
+        }
+    }
+
+    /// Creates an iterator of simd chunks with a specified simd feature set.
+    fn simd_iter<'a, A: Arch>(&'a self) -> SimdSliceIter<'a, T, A> {
+        SimdSliceIter {
+            slice: self,
+            index: 0,
+            _architecture: PhantomData::<A>,
+        }
+    }
+
+    /// Creates an iterator of mutable simd chunks with a specified simd architecture.
+    fn simd_iter_mut<'a, A: Arch>(&'a mut self) -> SimdSliceIterMut<'a, T, A> {
+        SimdSliceIterMut {
+            slice: self,
+            _architecture: PhantomData::<A>,
         }
     }
 }
