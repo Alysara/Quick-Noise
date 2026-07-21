@@ -214,7 +214,7 @@ This simd module can support most basic operations, and can be used directly to 
 
 ```rust
 use quick_noise::{Grid, BatchNoise, Ridged, Cellular};
-use quick_noise::simd::Simd;
+use quick_noise::simd::StaticSimd;
 use std::iter::zip;
 
 let grid = Grid::<2>::new(128, 128).grid_position(0, 0);
@@ -228,6 +228,9 @@ let iter_2 = BatchNoise::<2, Ridged, Cellular>::builder(grid.x_iter(), grid.y_it
     .into_iter();
 
 let iter_3 = zip(iter_1, iter_2).map(|(x, y)| x * y);
+
+// You also get access to simd registers directly.
+let simd = StaticSimd::<f32>::splat(1.0);
 ```
 
 Using these iterators can fuse operations and avoid multiple vertical passes, particularly for batch noise.
@@ -238,9 +241,12 @@ this simd module offers you the ability to explicitly control loops that work be
 
 The examples shown so far use static dispatch, which identifies which simd feature set to use at compile time.
 This requires compiler flags up-front and reduces the portability of your program. However, quick-noise allows you
-to compile for multiple targets identify which target to use at runtime.
+to compile for multiple targets identify which target to use at runtime. The primary method is with
+the attribute macro `dispatch_simd`:
 
 ```rust
+use quick_noise::{Grid, Fbm, Perlin, BatchNoise};
+use quick_noise::simd::{Simd, dispatch_simd};
 
 #[dispatch_simd(A)]
 pub fn generate_noise() {
@@ -253,10 +259,13 @@ pub fn generate_noise() {
     let noise = grid.builder::<Fbm, Perlin>().build();
 
     // Batch noise will infer that it's using the specified architecture.
-    result = BatchNoise::<2, Fbm, Perlin>::builder(x_iter, y_iter).into_iter();
+    let result = BatchNoise::<2, Fbm, Perlin>::builder(x_iter, y_iter).into_iter();
+
+    // You can use simd registers dynamically as well.
+    let simd = Simd::<f32, A>::splat(1.0);
 }
 
-fn main {
+fn main() {
     // Function can be called like normal.
     generate_noise()
 }
@@ -266,6 +275,7 @@ Since the dispatch requires branching, it is best to do this outside of hot loop
 Repeated dispatching should be avoided as well:
 
 ```rust
+use quick_noise::simd::{Arch, dispatch_simd};
 
 #[dispatch_simd(A)]
 pub fn simd_entry() {
@@ -289,23 +299,25 @@ These require the architecture to be known. For static dispatch, `simd_iter_stat
 mut be used.
 
 ```rust
+use quick_noise::{Fbm, Perlin, BatchNoise};
+use quick_noise::simd::{SimdSliceIterExt, dispatch_simd};
 
-#[dispatch_simd_arch(A)]
+#[dispatch_simd(A)]
 pub fn generate_noise() {
     // Say we have buffers of arbitrary inputs we want to query noise results.
     let x_buffer: [f32; 1024] = std::array::from_fn(|i| i as f32);
     let y_buffer: [f32; 1024] = std::array::from_fn(|i| i as f32);
-    let result: [f32; 1024] = Default::default();
+    let mut result: [f32; 1024] = [0.0; 1024];
 
     // We can use the statically dispatched simd feature set, which does not require
     // dynamic dispatch.
-    let x_iter = x_buffer.simd_iter_static();
-    let y_iter = y_buffer.simd_iter_static();
+    let x_iter = x_buffer.as_slice().simd_iter_static();
+    let y_iter = y_buffer.as_slice().simd_iter_static();
     BatchNoise::<2, Fbm, Perlin>::builder(x_iter, y_iter).fill(result.as_mut_slice());
 
     // We can also use dynamic dispatch.
-    let x_iter = x_buffer.simd_iter::<A>();
-    let y_iter = y_buffer.simd_iter::<A>();
+    let x_iter = x_buffer.as_slice().simd_iter::<A>();
+    let y_iter = y_buffer.as_slice().simd_iter::<A>();
     BatchNoise::<2, Fbm, Perlin>::builder(x_iter, y_iter).fill(result.as_mut_slice());
 
     // BatchNoise is the same in both cases.

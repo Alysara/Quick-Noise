@@ -12,4 +12,5 @@ pub use static_simd::*;
 pub use register::Simd;
 pub use mask::Mask;
 pub use register::iters::SimdSliceIterExt;
+pub use quick_noise_macros::dispatch_simd;
 // pub use dispatch::{Architecture, detect_architecture, dispatch};

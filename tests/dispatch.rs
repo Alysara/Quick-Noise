@@ -4,7 +4,7 @@
 //! a wide variety of conditions. Runtime behavior is not
 //! the focus.
 
-#![allow(dead_code, unused_variables, unused_mut)]
+#![allow(dead_code, unused_variables, unused_mut, clippy::extra_unused_type_parameters)]
 
 use std::ops::Index;
 
