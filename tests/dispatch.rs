@@ -4,9 +4,20 @@
 //! a wide variety of conditions. Runtime behavior is not
 //! the focus.
 
-#![allow(dead_code, unused_variables, unused_mut, clippy::extra_unused_type_parameters)]
+#![allow(
+    dead_code,
+    unused_variables,
+    unused_mut,
+    clippy::extra_unused_type_parameters,
+    clippy::extra_unused_lifetimes,
+    unused_parens,
+    unused_braces,
+    clippy::needless_lifetimes,
+    unused_assignments
+)]
 
-use std::ops::Index;
+use std::iter::Zip;
+use std::ops::{Index, Mul};
 
 use quick_noise_macros::dispatch_simd;
 
@@ -243,7 +254,7 @@ fn ret_reference<'a>(val: &'a str) -> &'a str {
 }
 
 // ============================================================
-// Body edge cases 
+// Body edge cases
 // ============================================================
 
 #[dispatch_simd(A)]
@@ -294,21 +305,97 @@ fn with_other_attribute_before(val: usize) {}
 fn with_other_attribute_after(val: usize) {}
 
 // TODO: Work for methods with self.
-// struct Kernel;
+struct Kernel;
 
-// impl Kernel {
-//     #[dispatch_simd(A)]
-//     fn method_ref_self(&self, val: usize) -> usize { val }
-//
-//     #[dispatch_simd(A)]
-//     fn method_mut_self(&mut self, val: usize) { }
-//
-//     #[dispatch_simd(A)]
-//     fn method_owned_self(self, val: usize) -> usize { val }
-//
-//     #[dispatch_simd(A)]
-//     fn assoc_fn_no_self(val: usize) -> usize { val } // no self at all — associated fn
-// }
+impl Kernel {
+    #[dispatch_simd(A)]
+    fn method_ref_self(&self, val: usize) -> usize {
+        val
+    }
+
+    #[dispatch_simd(A)]
+    fn method_mut_self(&mut self, val: usize) {}
+
+    #[dispatch_simd(A)]
+    fn method_owned_self(self, val: usize) -> usize {
+        val
+    }
+
+    #[dispatch_simd(A)]
+    fn assoc_fn_no_self(val: usize) -> usize {
+        val
+    }
+}
+
+struct ComplexKernel<
+    'a,
+    'b,
+    const N: usize,
+    T: Clone + Iterator<Item = (f32, f32, (u32, usize))>,
+    U,
+> where
+    U: Clone + Default + Mul<Output = Self>,
+{
+    ref_a: &'a f32,
+    ref_b: &'b f32,
+    it: T,
+    val: U,
+}
+
+#[repr(C)]
+struct ArrayWrapper<const N: usize> {
+    array: [f32; N],
+}
+
+impl<const N: usize> ArrayWrapper<N> {
+    #[dispatch_simd(A)]
+    pub fn new(val: f32) -> Self {
+        Self { array: [val; N] }
+    }
+}
+
+impl<'a, 'b, const N: usize, T: Clone + Iterator<Item = (f32, f32, (u32, usize))>, U>
+    ComplexKernel<'a, 'b, N, T, U>
+where
+    U: Clone + Default + Mul<Output = Self>,
+{
+    #[dispatch_simd(A)]
+    pub(crate) unsafe fn simple(val: usize, vec: Vec<(f32, u32)>) -> (((f32))) {
+        1.0
+    }
+
+    #[dispatch_simd(A)]
+    pub(crate) unsafe extern "C" fn extern_example(&self, val: usize) -> ArrayWrapper<{ 6 }> {
+        ArrayWrapper { array: [0.0; 6] }
+    }
+
+    #[dispatch_simd(A)]
+    async fn async_generics<'c, 'd, 'e, L: Clone + Default, M>(
+        mut self,
+        a: L,
+        b: M,
+    ) -> Vec<Box<(u32, f32)>>
+    where
+        M: Mul<Output = Self>,
+        Zip<L, M>: Default,
+    {
+        Vec::new()
+    }
+
+    #[dispatch_simd(A, associated)]
+    fn impl_gen_ret() -> U {
+        U::default()
+    }
+}
+
+fn deeply_nested<T>(val: Option<Result<Vec<Vec<T>>, ()>>) {}
+
+#[dispatch_simd(A)]
+fn higher_ranked<F>(f: F)
+where
+    F: for<'a> Fn(&'a str) -> &'a str,
+{
+}
 
 fn main() {
     baseline(1);

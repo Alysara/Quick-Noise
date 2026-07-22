@@ -5,7 +5,6 @@ pub use crate::simd::architectures::arch::Neon;
 pub use crate::simd::architectures::arch::Scalar128;
 #[cfg(target_arch = "x86_64")]
 pub use crate::simd::architectures::arch::{Avx2, Avx512, Sse};
-pub use crate::simd::architectures::interface::Arch;
 
 pub static DETECTED_ARCH: LazyLock<Architecture> = LazyLock::new(detect_architecture);
 
@@ -18,7 +17,7 @@ pub enum Architecture {
     Avx512,
     #[cfg(target_arch = "aarch64")]
     Neon,
-    Scalar,
+    Scalar128,
 }
 
 pub fn detect_architecture() -> Architecture {
@@ -46,36 +45,64 @@ pub fn detect_architecture() -> Architecture {
         }
     }
 
-    Architecture::Scalar
+    Architecture::Scalar128
 }
 
 #[macro_export]
 macro_rules! dispatch {
     ($func:ident($($args:expr),*$(,)?)) => {
-        match *$crate::simd::dispatch::DETECTED_ARCH {
+        match *$crate::simd::DETECTED_ARCH {
             #[cfg(target_arch = "x86_64")]
-            $crate::simd::dispatch::Architecture::Sse => $func::<$crate::simd::dispatch::Sse>($($args),*),
+            $crate::simd::Architecture::Sse => $func::<$crate::simd::Sse>($($args),*),
             #[cfg(target_arch = "x86_64")]
-            $crate::simd::dispatch::Architecture::Avx2 => $func::<$crate::simd::dispatch::Avx2>($($args),*),
+            $crate::simd::Architecture::Avx2 => $func::<$crate::simd::Avx2>($($args),*),
             #[cfg(target_arch = "x86_64")]
-            $crate::simd::dispatch::Architecture::Avx512 => $func::<$crate::simd::dispatch::Avx512>($($args),*),
+            $crate::simd::Architecture::Avx512 => $func::<$crate::simd::Avx512>($($args),*),
             #[cfg(target_arch = "aarch64")]
-            $crate::simd::dispatch::Architecture::Neon => $func::<$crate::simd::dispatch::Neon>($($args),*),
-            $crate::simd::dispatch::Architecture::Scalar => $func::<$crate::simd::dispatch::Scalar128>($($args),*)
+            $crate::simd::Architecture::Neon => $func::<$crate::simd::Neon>($($args),*),
+            $crate::simd::Architecture::Scalar => $func::<$crate::simd::Scalar128>($($args),*)
         }
     };
 
     ($func:ident::<$($generics:ident),+$(,)?>($($args:expr),*$(,)?)) => {
-        match *$crate::simd::dispatch::DETECTED_ARCH {
+        match *$crate::simd::DETECTED_ARCH {
             #[cfg(target_arch = "x86_64")]
-            $crate::simd::dispatch::Architecture::Sse => $func::<$crate::simd::dispatch::Sse, $($generics),+>($($args),*),
+            $crate::simd::Architecture::Sse => $func::<$crate::simd::Sse, $($generics),+>($($args),*),
             #[cfg(target_arch = "x86_64")]
-            $crate::simd::dispatch::Architecture::Avx2 => $func::<$crate::simd::dispatch::Avx2, $($generics),+>($($args),*),
+            $crate::simd::Architecture::Avx2 => $func::<$crate::simd::Avx2, $($generics),+>($($args),*),
             #[cfg(target_arch = "x86_64")]
-            $crate::simd::dispatch::Architecture::Avx512 => $func::<$crate::simd::dispatch::Avx512, $($generics),+>($($args),*),
+            $crate::simd::Architecture::Avx512 => $func::<$crate::simd::Avx512, $($generics),+>($($args),*),
             #[cfg(target_arch = "aarch64")]
-            $crate::simd::dispatch::Architecture::Neon => $func::<$crate::simd::dispatch::Neon, $($generics),+>($($args),*),
-            $crate::simd::dispatch::Architecture::Scalar => $func::<$crate::simd::dispatch::Scalar128, $($generics),+>($($args),*)
+            $crate::simd::Architecture::Neon => $func::<$crate::simd::Neon, $($generics),+>($($args),*),
+            $crate::simd::Architecture::Scalar => $func::<$crate::simd::Scalar128, $($generics),+>($($args),*)
+        }
+    };
+
+    (Self::$func:ident($($args:expr),*$(,)?)) => {
+        match *$crate::simd::DETECTED_ARCH {
+            #[cfg(target_arch = "x86_64")]
+            $crate::simd::Architecture::Sse => Self::$func::<$crate::simd::Sse>($($args),*),
+            #[cfg(target_arch = "x86_64")]
+            $crate::simd::Architecture::Avx2 => Self::$func::<$crate::simd::Avx2>($($args),*),
+            #[cfg(target_arch = "x86_64")]
+            $crate::simd::Architecture::Avx512 => Self::$func::<$crate::simd::Avx512>($($args),*),
+            #[cfg(target_arch = "aarch64")]
+            $crate::simd::Architecture::Neon => Self::$func::<$crate::simd::Neon>($($args),*),
+            $crate::simd::Architecture::Scalar => Self::$func::<$crate::simd::Scalar128>($($args),*)
+        }
+    };
+
+    (Self::$func:ident::<$($generics:ident),+$(,)?>($($args:expr),*$(,)?)) => {
+        match *$crate::simd::DETECTED_ARCH {
+            #[cfg(target_arch = "x86_64")]
+            $crate::simd::Architecture::Sse => Self::$func::<$crate::simd::Sse, $($generics),+>($($args),*),
+            #[cfg(target_arch = "x86_64")]
+            $crate::simd::Architecture::Avx2 => Self::$func::<$crate::simd::Avx2, $($generics),+>($($args),*),
+            #[cfg(target_arch = "x86_64")]
+            $crate::simd::Architecture::Avx512 => Self::$func::<$crate::simd::Avx512, $($generics),+>($($args),*),
+            #[cfg(target_arch = "aarch64")]
+            $crate::simd::Architecture::Neon => Self::$func::<$crate::simd::Neon, $($generics),+>($($args),*),
+            $crate::simd::Architecture::Scalar => Self::$func::<$crate::simd::Scalar128, $($generics),+>($($args),*)
         }
     };
 }
@@ -84,30 +111,58 @@ pub use dispatch;
 #[macro_export]
 macro_rules! dispatch_async {
     ($func:ident($($args:expr),*$(,)?)) => {
-        match *$crate::simd::dispatch::DETECTED_ARCH {
+        match *$crate::simd::DETECTED_ARCH {
             #[cfg(target_arch = "x86_64")]
-            $crate::simd::dispatch::Architecture::Sse => $func::<$crate::simd::dispatch::Sse>($($args),*).await,
+            $crate::simd::Architecture::Sse => $func::<$crate::simd::Sse>($($args),*).await,
             #[cfg(target_arch = "x86_64")]
-            $crate::simd::dispatch::Architecture::Avx2 => $func::<$crate::simd::dispatch::Avx2>($($args),*).await,
+            $crate::simd::Architecture::Avx2 => $func::<$crate::simd::Avx2>($($args),*).await,
             #[cfg(target_arch = "x86_64")]
-            $crate::simd::dispatch::Architecture::Avx512 => $func::<$crate::simd::dispatch::Avx512>($($args),*).await,
+            $crate::simd::Architecture::Avx512 => $func::<$crate::simd::Avx512>($($args),*).await,
             #[cfg(target_arch = "aarch64")]
-            $crate::simd::dispatch::Architecture::Neon => $func::<$crate::simd::dispatch::Neon>($($args),*).await,
-            $crate::simd::dispatch::Architecture::Scalar => $func::<$crate::simd::dispatch::Scalar128>($($args),*).await
+            $crate::simd::Architecture::Neon => $func::<$crate::simd::Neon>($($args),*).await,
+            $crate::simd::Architecture::Scalar => $func::<$crate::simd::Scalar128>($($args),*).await
         }
     };
 
     ($func:ident::<$($generics:ident),+$(,)?>($($args:expr),*$(,)?)) => {
-        match *$crate::simd::dispatch::DETECTED_ARCH {
+        match *$crate::simd::DETECTED_ARCH {
             #[cfg(target_arch = "x86_64")]
-            $crate::simd::dispatch::Architecture::Sse => $func::<$crate::simd::dispatch::Sse, $($generics),+>($($args),*).await,
+            $crate::simd::Architecture::Sse => $func::<$crate::simd::Sse, $($generics),+>($($args),*).await,
             #[cfg(target_arch = "x86_64")]
-            $crate::simd::dispatch::Architecture::Avx2 => $func::<$crate::simd::dispatch::Avx2, $($generics),+>($($args),*).await,
+            $crate::simd::Architecture::Avx2 => $func::<$crate::simd::Avx2, $($generics),+>($($args),*).await,
             #[cfg(target_arch = "x86_64")]
-            $crate::simd::dispatch::Architecture::Avx512 => $func::<$crate::simd::dispatch::Avx512, $($generics),+>($($args),*).await,
+            $crate::simd::Architecture::Avx512 => $func::<$crate::simd::Avx512, $($generics),+>($($args),*).await,
             #[cfg(target_arch = "aarch64")]
-            $crate::simd::dispatch::Architecture::Neon => $func::<$crate::simd::dispatch::Neon, $($generics),+>($($args),*).await,
-            $crate::simd::dispatch::Architecture::Scalar => $func::<$crate::simd::dispatch::Scalar128, $($generics),+>($($args),*).await
+            $crate::simd::Architecture::Neon => $func::<$crate::simd::Neon, $($generics),+>($($args),*).await,
+            $crate::simd::Architecture::Scalar => $func::<$crate::simd::Scalar128, $($generics),+>($($args),*).await
+        }
+    };
+
+    (Self::$func:ident($($args:expr),*$(,)?)) => {
+        match *$crate::simd::DETECTED_ARCH {
+            #[cfg(target_arch = "x86_64")]
+            $crate::simd::Architecture::Sse => Self::$func::<$crate::simd::Sse>($($args),*).await,
+            #[cfg(target_arch = "x86_64")]
+            $crate::simd::Architecture::Avx2 => Self::$func::<$crate::simd::Avx2>($($args),*).await,
+            #[cfg(target_arch = "x86_64")]
+            $crate::simd::Architecture::Avx512 => Self::$func::<$crate::simd::Avx512>($($args),*).await,
+            #[cfg(target_arch = "aarch64")]
+            $crate::simd::Architecture::Neon => Self::$func::<$crate::simd::Neon>($($args),*).await,
+            $crate::simd::Architecture::Scalar => Self::$func::<$crate::simd::Scalar128>($($args),*).await
+        }
+    };
+
+    (Self::$func:ident::<$($generics:ident),+$(,)?>($($args:expr),*$(,)?)) => {
+        match *$crate::simd::DETECTED_ARCH {
+            #[cfg(target_arch = "x86_64")]
+            $crate::simd::Architecture::Sse => Self::$func::<$crate::simd::Sse, $($generics),+>($($args),*).await,
+            #[cfg(target_arch = "x86_64")]
+            $crate::simd::Architecture::Avx2 => Self::$func::<$crate::simd::Avx2, $($generics),+>($($args),*).await,
+            #[cfg(target_arch = "x86_64")]
+            $crate::simd::Architecture::Avx512 => Self::$func::<$crate::simd::Avx512, $($generics),+>($($args),*).await,
+            #[cfg(target_arch = "aarch64")]
+            $crate::simd::Architecture::Neon => Self::$func::<$crate::simd::Neon, $($generics),+>($($args),*).await,
+            $crate::simd::Architecture::Scalar => Self::$func::<$crate::simd::Scalar128, $($generics),+>($($args),*).await
         }
     };
 }

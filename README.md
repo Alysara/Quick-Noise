@@ -241,7 +241,7 @@ this simd module offers you the ability to explicitly control loops that work be
 
 The examples shown so far use static dispatch, which identifies which simd feature set to use at compile time.
 This requires compiler flags up-front and reduces the portability of your program. However, quick-noise allows you
-to compile for multiple targets identify which target to use at runtime. The primary method is with
+to compile for multiple targets and identify which target to use at runtime. The primary method is with
 the attribute macro `dispatch_simd`:
 
 ```rust
@@ -290,6 +290,26 @@ pub fn simd_work<A: Arch>() {
     // ...
 }
 
+```
+
+If `#[dispatch_simd(A)]` is applied to an associated function using generic
+parameters from its impl block, the macro will not have enough information to tell it's an
+associated function and requires an additional flag: `#[dispatch_simd(A, associated)]`.
+For the majority of cases, this flag can be omitted.
+
+An alternative is using the `dispatch!()` macro, which requires a function to have
+the first type of `A: Arch`.
+
+```rust
+use quick_noise::simd::{Arch, dispatch};
+
+fn main() {
+    dispatch!(simd_work())
+}
+
+pub fn simd_work<A: Arch>() {
+    // ...
+}
 ```
 
 ## Loading Simd

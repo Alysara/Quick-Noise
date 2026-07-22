@@ -1,32 +1,46 @@
-use quick_noise::Fbm;
-use quick_noise::Grid;
-use quick_noise::Perlin;
-use quick_noise::simd::StaticSimd;
-use quick_noise::simd::dispatch::*;
-use quick_noise::simd::register::Simd;
+use std::hint::black_box;
+
 use quick_noise::emit::NoiseImageExt;
-use quick_noise_macros::dispatch_simd;
+use quick_noise::simd::array_trait::Array;
+use quick_noise::simd::register::Simd;
+use quick_noise::simd::{Arch, StaticSimd};
+use quick_noise::{Fbm, Grid, Perlin};
+use quick_noise_macros::{dispatch_simd, enable_targets};
 
 #[cfg(feature = "image")]
 fn main() {
-    simd_work(10);
+    simd_work(100);
 }
 
 #[dispatch_simd(A)]
 fn simd_work(val: usize) {
-    let array: [f32; 1024] = std::array::from_fn(|i| i as f32);
+    let mut sum = 0.0;
+    for _ in 0..1000 {
+        sum += simd_work_inner::<A>(123, val);
+    }
 
-    let dyn_simd = Simd::<f32, A>::from_slice(array.as_slice());
-    println!("dynamic dispatch: {:?}", dyn_simd);
+    black_box(&sum);
 
-    let simd = StaticSimd::<f32>::from_slice(array.as_slice());
-    println!("static dispatch: {:?}", simd);
+}
 
-    let grid = Grid::<2, A>::new(1024, 1024);
-    
-    grid.builder::<Fbm, Perlin>()
-        .frequency(1.0 / 32.0)
-        .octaves(6)
-        .into_iter()
-        .to_grayscale_image(1024, 1024, "noise_images/dispatch.png");
+#[enable_targets(A)]
+fn simd_work_inner<A: Arch>(val: usize, depth: usize) -> f32 {
+    let simd = Simd::<f32, A>::splat(val as f32);
+    let doubled = simd + simd;
+    let scaled = doubled * Simd::<f32, A>::splat(1.0001);
+    let reduced = scaled.to_array().iter().sum();
+
+    black_box(&simd);
+
+    if depth == 0 {
+        return reduced;
+    }
+
+    let next = if (reduced as usize).is_multiple_of(2) {
+        simd_work_inner::<A>(val.wrapping_add(1), depth - 1)
+    } else {
+        simd_work_inner::<A>(val.wrapping_mul(3).wrapping_add(1), depth - 1)
+    };
+
+    black_box(next) + reduced
 }

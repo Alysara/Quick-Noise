@@ -3,6 +3,8 @@ use std::fmt;
 use std::mem::MaybeUninit;
 use std::ops::Range;
 
+use quick_noise_macros::enable_targets;
+
 use crate::api::grid::interface::GridNoiseParams;
 use crate::noise::combiners::{Combiner, CombinerState};
 use crate::noise::util::grid_data::{GridData, Lerp};
