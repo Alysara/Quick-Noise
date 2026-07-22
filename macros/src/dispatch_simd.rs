@@ -2,7 +2,11 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
 use syn::parse::{Parse, ParseStream};
-use syn::{FnArg, Ident, ItemFn, PatType, Token, parse_macro_input};
+use syn::{
+    FnArg, GenericParam, Ident, ImplItem, ItemFn, ItemImpl, PatType, Token, parse_macro_input,
+};
+
+use crate::FEATURES;
 
 struct DispatchArgs {
     arch: Ident,
@@ -30,9 +34,39 @@ impl Parse for DispatchArgs {
     }
 }
 
-pub fn dispatch_simd_impl(args: TokenStream, item: TokenStream) -> TokenStream {
-    let DispatchArgs { arch, mut is_impl } = parse_macro_input!(args as DispatchArgs);
+/// Bare identifier for a type/const generic param (no bounds) -- for call-site turbofishes.
+/// Caller must have already filtered out lifetimes.
+fn bare_ident(p: &GenericParam) -> TokenStream2 {
+    match p {
+        GenericParam::Type(t) => {
+            let i = &t.ident;
+            quote! { #i }
+        }
+        GenericParam::Const(c) => {
+            let i = &c.ident;
+            quote! { #i }
+        }
+        GenericParam::Lifetime(_) => unreachable!("lifetimes must be filtered out first"),
+    }
+}
 
+/// Standard entry point: try to route based on whether the item is a function or an
+/// impl block. Wire this up as the actual `#[proc_macro_attribute]` in place of
+/// whichever of the two below it currently calls directly.
+pub fn dispatch_simd_entry(args: TokenStream, item: TokenStream) -> TokenStream {
+    if syn::parse::<ItemImpl>(item.clone()).is_ok() {
+        dispatch_simd_impl(args, item)
+    } else {
+        dispatch_simd_fn(args, item)
+    }
+}
+
+// =====================================================================================
+// Function 1 -- unchanged. Handles a single free function or an already-standalone
+// associated function (i.e. this macro is applied directly to one `fn`, not an `impl`).
+// =====================================================================================
+pub fn dispatch_simd_fn(args: TokenStream, item: TokenStream) -> TokenStream {
+    let DispatchArgs { arch, mut is_impl } = parse_macro_input!(args as DispatchArgs);
     let mut func = parse_macro_input!(item as ItemFn);
 
     if func.sig.constness.is_some() {
@@ -45,17 +79,13 @@ pub fn dispatch_simd_impl(args: TokenStream, item: TokenStream) -> TokenStream {
         .into();
     }
 
-    // Check if self is a parameter.
     is_impl |= func
         .sig
         .inputs
         .iter()
         .any(|a| matches!(a, FnArg::Receiver(_)));
-
-    // Check if Self is the return type.
-    is_impl |= matches!(&func.sig.output, syn::ReturnType::Type(_, ty) if quote::quote!(#ty).to_string()
-        .split_whitespace()
-        .any(|t| t == "Self"));
+    is_impl |= matches!(&func.sig.output, syn::ReturnType::Type(_, ty)
+        if quote!(#ty).to_string().split_whitespace().any(|t| t == "Self"));
 
     let fn_name = func.sig.ident.clone();
     let unsafety = func.sig.safety.clone();
@@ -64,56 +94,28 @@ pub fn dispatch_simd_impl(args: TokenStream, item: TokenStream) -> TokenStream {
     let inputs = func.sig.inputs.clone();
     let body = func.block.clone();
     let (impl_generics, _, where_clause) = func.sig.generics.split_for_impl();
-    let ty_full: Vec<TokenStream2> = func
-        .sig
-        .generics
-        .params
-        .iter()
-        .filter(|l| !matches!(l, syn::GenericParam::Lifetime(_)))
-        .map(|p| quote! { #p })
-        .collect();
 
-    let lifetimes: Vec<TokenStream2> = func
+    // Split once: lifetimes only ever appear in __impl's own declaration (never at call
+    // sites -- Rust infers them there). Everything else needs two representations: with
+    // bounds (declaration) and as a bare ident (call-site turbofish).
+    let (lifetimes, non_lifetimes): (Vec<_>, Vec<_>) = func
         .sig
         .generics
         .params
         .iter()
-        .filter_map(|p| match p {
-            syn::GenericParam::Lifetime(l) => {
-                let lt = &l.lifetime;
-                Some(quote! { #lt })
-            }
-            _ => None,
-        })
-        .collect();
+        .partition(|p| matches!(p, GenericParam::Lifetime(_)));
 
-    let ty_generics: Vec<TokenStream2> = func
-        .sig
-        .generics
-        .params
-        .iter()
-        .filter(|p| !matches!(p, syn::GenericParam::Lifetime(_)))
-        .map(|p| match p {
-            syn::GenericParam::Type(t) => {
-                let i = &t.ident;
-                quote! { #i }
-            }
-            syn::GenericParam::Const(c) => {
-                let i = &c.ident;
-                quote! { #i }
-            }
-            syn::GenericParam::Lifetime(_) => unreachable!("filtered out above"),
-        })
-        .collect();
+    let ty_full: Vec<TokenStream2> = non_lifetimes.iter().map(|p| quote! { #p }).collect();
+    let ty_generics: Vec<TokenStream2> = non_lifetimes.iter().map(|p| bare_ident(p)).collect();
 
     let call_args: Vec<TokenStream2> = inputs
         .iter()
         .map(|arg| match arg {
             FnArg::Receiver(_) => quote! { self },
             FnArg::Typed(PatType { pat, .. }) => match &**pat {
-                syn::Pat::Ident(pat_ident) => {
-                    let ident = &pat_ident.ident;
-                    quote! { #ident }
+                syn::Pat::Ident(pi) => {
+                    let i = &pi.ident;
+                    quote! { #i }
                 }
                 _ => quote! { #pat },
             },
@@ -122,50 +124,29 @@ pub fn dispatch_simd_impl(args: TokenStream, item: TokenStream) -> TokenStream {
 
     let impl_name = format_ident!("__{}_impl", fn_name);
 
-    let features: &[(&str, &str, &str)] = if cfg!(target_arch = "x86_64") {
-        &[
-            ("Avx512", "avx512", "avx512f,fma"),
-            ("Avx2", "avx2", "avx2,fma"),
-            ("Sse", "sse4", "sse4.2"),
-            ("Scalar128", "scalar", ""),
-        ]
-    } else if cfg!(target_arch = "aarch64") {
-        &[("Neon", "neon", "neon"), ("Scalar128", "scalar", "")]
-    } else {
-        &[("Scalar128", "scalar", "")]
-    };
-
-    // Generic function over Arch.
+    // Shared generic body: original generics plus an injected `Arch`-bounded param.
     let impl_fn = quote! {
         #[inline(always)]
-        #unsafety #asyncness fn #impl_name<#(#lifetimes, )* #arch: quick_noise::simd::Arch #(,#ty_full)*>(#inputs) #output
+        #unsafety #asyncness fn #impl_name<#(#lifetimes,)* #arch: quick_noise::simd::Arch #(, #ty_full)*>(#inputs) #output
             #where_clause
         {
             #body
         }
     };
 
+    // Loop-invariant pieces, computed once instead of once per feature.
+    let self_prefix = is_impl.then(|| quote! { Self:: });
+    let await_suffix = asyncness.is_some().then(|| quote! { .await });
+    let turbofish = (!ty_generics.is_empty()).then(|| quote! { ::<#(#ty_generics),*> });
+
     let mut variant_fns = Vec::new();
     let mut match_arms = Vec::new();
 
-    let await_suffix = asyncness.is_some().then(|| {
-        quote! { .await }
-    });
-
-    for (variant, label, flags) in features {
+    for (variant, label, flags) in FEATURES {
         let variant_ident = format_ident!("{variant}");
         let wrapper_name = format_ident!("__{fn_name}_{label}");
-        let flags: Option<TokenStream2> = (!flags.is_empty()).then(|| {
-            quote! { #[target_feature(enable = #flags)] }
-        });
-
-        let turbofish = if ty_generics.is_empty() {
-            quote! {}
-        } else {
-            quote! { ::<#(#ty_generics, )*> }
-        };
-
-        let self_prefix = is_impl.then(|| quote!(Self::));
+        let flags: Option<TokenStream2> = (!flags.is_empty())
+            .then(|| quote! { #[target_feature(enable = #flags)] });
 
         variant_fns.push(quote! {
             #flags
@@ -193,30 +174,193 @@ pub fn dispatch_simd_impl(args: TokenStream, item: TokenStream) -> TokenStream {
     let result: TokenStream = if is_impl {
         func.block =
             syn::parse2(quote! { { #dispatch_call } }).expect("expected valid dispatch body");
-
-        quote! {
-            #impl_fn
-            #(#variant_fns)*
-            #func
-        }
-        .into()
+        quote! { #impl_fn #(#variant_fns)* #func }.into()
     } else {
-        func.block = syn::parse2(quote! {
+        func.block = syn::parse2(quote! { { #impl_fn #(#variant_fns)* #dispatch_call } })
+            .expect("expected valid dispatch body");
+        quote! { #func }.into()
+    };
+
+    result
+}
+
+// =====================================================================================
+// Function 2 -- new. Handles `#[dispatch_simd(A)]` applied to an `impl` block.
+//
+// Mode A: `A` is one of the impl block's own generic params (e.g. `impl<A: Arch> Foo<A>`).
+//         Every method in the block is transformed.
+// Mode B: `A` is NOT one of the impl block's generics. Only methods that themselves
+//         declare `A` as their own generic (e.g. `fn bar<A: Arch>(&self, ...)`) are
+//         transformed; everything else in the block is left untouched.
+//
+// In both modes, each transformed method's body becomes a runtime dispatch match that
+// calls into newly generated associated functions. Those generated functions (the shared
+// `__impl` plus one wrapper per architecture) are NOT added inline to the original impl
+// block -- they're collected and emitted in a single appended, separate impl block with
+// the same generics/Self type as the original, minus the trait if the original was a
+// trait impl (`impl Trait for T` -> appended block is a plain `impl T`).
+// =====================================================================================
+pub fn dispatch_simd_impl(args: TokenStream, item: TokenStream) -> TokenStream {
+    let DispatchArgs { arch, .. } = parse_macro_input!(args as DispatchArgs);
+    let mut item_impl = parse_macro_input!(item as ItemImpl);
+
+    let arch_on_impl = item_impl
+        .generics
+        .params
+        .iter()
+        .any(|p| matches!(p, GenericParam::Type(t) if t.ident == arch));
+
+    let mut appended_items: Vec<TokenStream2> = Vec::new();
+
+    for entry in item_impl.items.iter_mut() {
+        let ImplItem::Fn(method) = entry else {
+            continue;
+        };
+
+        let method_has_arch = method
+            .sig
+            .generics
+            .params
+            .iter()
+            .any(|p| matches!(p, GenericParam::Type(t) if t.ident == arch));
+
+        // Mode B: skip anything that doesn't declare the generic itself.
+        // Mode A: never skips (arch_on_impl is true, so this check is always false).
+        if !arch_on_impl && !method_has_arch {
+            continue;
+        }
+
+        if method.sig.constness.is_some() {
+            // Same restriction as the free-function macro; silently leave `const fn`
+            // methods untouched rather than aborting the whole impl block.
+            continue;
+        }
+
+        let fn_name = method.sig.ident.clone();
+        let unsafety = method.sig.safety.clone();
+        let asyncness = method.sig.asyncness;
+        let output = method.sig.output.clone();
+        let inputs = method.sig.inputs.clone();
+        let body = method.block.clone();
+        let where_clause = method.sig.generics.where_clause.clone();
+
+        // Method's own generics, split into lifetimes / others, with `arch` excluded
+        // from the "others" lists (it's erased here whether it came from the method
+        // itself, in mode B, or wasn't present at all, in mode A).
+        let (lifetimes, other_full, other_bare): (Vec<TokenStream2>, Vec<TokenStream2>, Vec<TokenStream2>) = {
+            let mut lifetimes = Vec::new();
+            let mut full = Vec::new();
+            let mut bare = Vec::new();
+            for p in method.sig.generics.params.iter() {
+                match p {
+                    GenericParam::Lifetime(l) => {
+                        let lt = &l.lifetime;
+                        lifetimes.push(quote! { #lt });
+                    }
+                    GenericParam::Type(t) if t.ident == arch => {}
+                    _ => {
+                        full.push(quote! { #p });
+                        bare.push(bare_ident(p));
+                    }
+                }
+            }
+            (lifetimes, full, bare)
+        };
+
+        let call_args: Vec<TokenStream2> = inputs
+            .iter()
+            .map(|a| match a {
+                FnArg::Receiver(_) => quote! { self },
+                FnArg::Typed(PatType { pat, .. }) => match &**pat {
+                    syn::Pat::Ident(pi) => {
+                        let i = &pi.ident;
+                        quote! { #i }
+                    }
+                    _ => quote! { #pat },
+                },
+            })
+            .collect();
+
+        let impl_name = format_ident!("__{}_impl", fn_name);
+
+        // __impl always freshly injects `arch` as its own generic param -- regardless of
+        // whether it came from the impl block (mode A) or the method (mode B), it's
+        // erased everywhere else and only re-appears here, concretely, per variant below.
+        appended_items.push(quote! {
+            #[inline(always)]
+            #unsafety #asyncness fn #impl_name<#(#lifetimes,)* #arch: quick_noise::simd::Arch #(, #other_full)*>(#inputs) #output
+                #where_clause
             {
-                #impl_fn
-                #(#variant_fns)*
-                #dispatch_call
+                #body
+            }
+        });
+
+        let await_suffix = asyncness.is_some().then(|| quote! { .await });
+
+        // Wrapper functions never declare `arch` themselves -- each is pinned to one
+        // concrete architecture internally.
+        let wrapper_generics = if lifetimes.is_empty() && other_full.is_empty() {
+            quote! {}
+        } else {
+            quote! { <#(#lifetimes,)* #(#other_full),*> }
+        };
+        let turbofish = if other_bare.is_empty() {
+            quote! {}
+        } else {
+            quote! { ::<#(#other_bare),*> }
+        };
+
+        let mut match_arms = Vec::new();
+
+        for (variant, label, flags) in FEATURES {
+            let variant_ident = format_ident!("{variant}");
+            let wrapper_name = format_ident!("__{fn_name}_{label}");
+            let flags: Option<TokenStream2> = (!flags.is_empty())
+                .then(|| quote! { #[target_feature(enable = #flags)] });
+
+            appended_items.push(quote! {
+                #flags
+                #unsafety #asyncness fn #wrapper_name #wrapper_generics (#inputs) #output #where_clause {
+                    Self::#impl_name::<#(#lifetimes,)* quick_noise::simd::#variant_ident #(, #other_bare)*>(#(#call_args),*) #await_suffix
+                }
+            });
+
+            match_arms.push(quote! {
+                quick_noise::simd::Architecture::#variant_ident => {
+                    std::hint::cold_path();
+                    Self::#wrapper_name #turbofish (#(#call_args),*) #await_suffix
+                },
+            });
+        }
+
+        method.block = syn::parse2(quote! {
+            {
+                unsafe {
+                    match *quick_noise::simd::DETECTED_ARCH {
+                        #(#match_arms)*
+                    }
+                }
             }
         })
         .expect("expected valid dispatch body");
+    }
 
+    let self_ty = &item_impl.self_ty;
+    let (impl_g, _, where_c) = item_impl.generics.split_for_impl();
+
+    let appended_block = if appended_items.is_empty() {
+        quote! {}
+    } else {
         quote! {
-            #func
+            impl #impl_g #self_ty #where_c {
+                #(#appended_items)*
+            }
         }
-        .into()
     };
 
-    // panic!("{}", result);
-
-    result
+    quote! {
+        #item_impl
+        #appended_block
+    }
+    .into()
 }

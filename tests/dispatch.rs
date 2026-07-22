@@ -333,6 +333,7 @@ struct ComplexKernel<
     const N: usize,
     T: Clone + Iterator<Item = (f32, f32, (u32, usize))>,
     U,
+    const M: usize,
 > where
     U: Clone + Default + Mul<Output = Self>,
 {
@@ -355,7 +356,7 @@ impl<const N: usize> ArrayWrapper<N> {
 }
 
 impl<'a, 'b, const N: usize, T: Clone + Iterator<Item = (f32, f32, (u32, usize))>, U>
-    ComplexKernel<'a, 'b, N, T, U>
+    ComplexKernel<'a, 'b, N, T, U, 0>
 where
     U: Clone + Default + Mul<Output = Self>,
 {
@@ -383,6 +384,37 @@ where
     }
 
     #[dispatch_simd(A, associated)]
+    fn impl_gen_ret() -> U {
+        U::default()
+    }
+}
+
+#[dispatch_simd(A)]
+impl<'a, 'b, const N: usize, T: Clone + Iterator<Item = (f32, f32, (u32, usize))>, U>
+    ComplexKernel<'a, 'b, N, T, U, 1>
+where
+    U: Clone + Default + Mul<Output = Self>,
+{
+    pub(crate) unsafe fn simple(val: usize, vec: Vec<(f32, u32)>) -> (((f32))) {
+        N as f32
+    }
+
+    pub(crate) unsafe extern "C" fn extern_example(&self, val: usize) -> ArrayWrapper<{ 6 }> {
+        ArrayWrapper { array: [0.0; 6] }
+    }
+
+    async fn async_generics<'c, 'd, 'e, L: Clone + Default, M>(
+        mut self,
+        a: L,
+        b: M,
+    ) -> Vec<Box<(u32, f32)>>
+    where
+        M: Mul<Output = Self>,
+        Zip<L, M>: Default,
+    {
+        Vec::new()
+    }
+
     fn impl_gen_ret() -> U {
         U::default()
     }

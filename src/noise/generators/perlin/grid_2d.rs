@@ -70,6 +70,7 @@ impl<'a> fmt::Debug for PerlinGradients2D<'a> {
 }
 
 const LERP: u8 = Lerp::Quintic as u8;
+#[enable_targets(A)]
 impl GridGenerator<2> for Perlin {
     fn sample_grid<A: Arch, C: Combiner, const INIT: bool, const FINAL: bool>(
         params: GridNoiseParams<2>,

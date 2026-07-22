@@ -14,33 +14,32 @@ fn main() {
 
 #[dispatch_simd(A)]
 fn simd_work(val: usize) {
-    let mut sum = 0.0;
-    for _ in 0..1000 {
-        sum += simd_work_inner::<A>(123, val);
-    }
+    let grid = Grid::<2, A>::new(1024, 1024);
 
-    black_box(&sum);
-
+    grid.builder::<Fbm, Perlin>()
+        .octaves(6)
+        .into_iter()
+        .to_grayscale_image(1024, 1024, "noise_images/dispatch.png");
 }
 
-#[enable_targets(A)]
-fn simd_work_inner<A: Arch>(val: usize, depth: usize) -> f32 {
-    let simd = Simd::<f32, A>::splat(val as f32);
-    let doubled = simd + simd;
-    let scaled = doubled * Simd::<f32, A>::splat(1.0001);
-    let reduced = scaled.to_array().iter().sum();
-
-    black_box(&simd);
-
-    if depth == 0 {
-        return reduced;
-    }
-
-    let next = if (reduced as usize).is_multiple_of(2) {
-        simd_work_inner::<A>(val.wrapping_add(1), depth - 1)
-    } else {
-        simd_work_inner::<A>(val.wrapping_mul(3).wrapping_add(1), depth - 1)
-    };
-
-    black_box(next) + reduced
-}
+// #[enable_targets(A)]
+// fn simd_work_inner<A: Arch>(val: usize, depth: usize) -> f32 {
+//     let simd = Simd::<f32, A>::splat(val as f32);
+//     let doubled = simd + simd;
+//     let scaled = doubled * Simd::<f32, A>::splat(1.0001);
+//     let reduced = scaled.to_array().iter().sum();
+//
+//     black_box(&simd);
+//
+//     if depth == 0 {
+//         return reduced;
+//     }
+//
+//     let next = if (reduced as usize).is_multiple_of(2) {
+//         simd_work_inner::<A>(val.wrapping_add(1), depth - 1)
+//     } else {
+//         simd_work_inner::<A>(val.wrapping_mul(3).wrapping_add(1), depth - 1)
+//     };
+//
+//     black_box(next) + reduced
+// }

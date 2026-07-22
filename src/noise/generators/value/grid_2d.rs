@@ -2,6 +2,8 @@ use std::fmt;
 use std::mem::MaybeUninit;
 use std::ops::Range;
 
+use quick_noise_macros::enable_targets;
+
 use crate::GridGenerator;
 use crate::api::grid::interface::GridNoiseParams;
 use crate::generators::Value;
@@ -53,7 +55,6 @@ impl<'a> fmt::Debug for ValueGradients2D<'a> {
 
 const LERP: u8 = Lerp::Cubic as u8;
 impl GridGenerator<2> for Value {
-    #[inline(always)]
     fn sample_grid<A: Arch, C: Combiner, const INIT: bool, const FINAL: bool>(
         params: GridNoiseParams<2>,
         fractal_config: C::Config,

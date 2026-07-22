@@ -2,6 +2,8 @@ use std::array::from_fn;
 use std::mem::MaybeUninit;
 use std::ops::Range;
 
+use quick_noise_macros::enable_targets;
+
 use crate::GridGenerator;
 use crate::api::grid::interface::GridNoiseParams;
 use crate::generators::Value;
@@ -51,6 +53,7 @@ impl<'a> ValueGradients3D<'a> {
 }
 
 const LERP: u8 = Lerp::Quintic as u8;
+// #[enable_targets(A)]
 impl GridGenerator<3> for Value {
     fn sample_grid<A: Arch, C: Combiner, const INIT: bool, const FINAL: bool>(
         params: GridNoiseParams<3>,
