@@ -145,11 +145,12 @@ impl<const D: usize, F: Combiner, S: BatchGenerator<D>, A: Arch, I: DimIter<A, D
                 x.copy_to_slice(&mut output[i * Simd::<f32, A>::LANES..]);
             }
         } else {
-            for (i, x) in self.into_iter().enumerate() {
-                let index = i * Simd::<f32, A>::LANES;
-                let cur = Simd::from_slice(&output[index..]);
+            let mut i = 0;
+            for x in self.into_iter() {
+                let cur = Simd::from_slice(&output[i..]);
                 let x = cur + x;
                 x.copy_to_slice(&mut output[i..]);
+                i += Simd::<f32, A>::LANES;
             }
         }
     });
