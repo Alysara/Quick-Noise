@@ -32,7 +32,7 @@ fn grid_benchmark(c: &mut Criterion) {
 
     let mut result = [0.0; 32768];
     for scale in SCALES {
-        let grid = Grid::<3>::new(32, 32, 32);
+        let grid = Grid::<3, A>::new(32, 32, 32);
 
         group.bench_function(format!("scale: {scale}"), |b| {
             b.iter(|| {
@@ -51,7 +51,7 @@ fn grid_benchmark(c: &mut Criterion) {
 
     let mut result = [0.0; 4096];
     for scale in SCALES {
-        let grid = Grid::<2>::new(64, 64);
+        let grid = Grid::<2, A>::new(64, 64);
 
         group.bench_function(format!("scale: {scale}"), |b| {
             b.iter(|| {
@@ -70,7 +70,7 @@ fn grid_benchmark(c: &mut Criterion) {
 
     let mut result = [0.0; 32768];
     for scale in SCALES {
-        let grid = Grid::<3>::new(32, 32, 32);
+        let grid = Grid::<3, A>::new(32, 32, 32);
 
         group.bench_function(format!("scale: {scale}"), |b| {
             b.iter(|| {

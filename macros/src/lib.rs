@@ -1,5 +1,6 @@
 use proc_macro::TokenStream;
-use proc_macro2::TokenStream as TokenStream2;
+use proc_macro_crate::{FoundCrate, crate_name};
+use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::{format_ident, quote};
 use syn::parse::{Parse, ParseStream};
 use syn::{FnArg, Ident, ItemFn, PatType, Token, parse_macro_input};
@@ -29,6 +30,18 @@ pub fn dispatch_simd(args: TokenStream, item: TokenStream) -> TokenStream {
 
 #[proc_macro_attribute]
 pub fn enable_targets(args: TokenStream, item: TokenStream) -> TokenStream {
+    // panic!("{}", enable_targets::enable_targets_entry(args, item));
     enable_targets::enable_targets_entry(args, item)
+}
+
+pub(crate) fn quick_noise_path() -> TokenStream2 {
+    match crate_name("quick-noise") {
+        Ok(FoundCrate::Itself) => quote! { quick_noise },
+        Ok(FoundCrate::Name(name)) => {
+            let ident = Ident::new(&name, Span::call_site());
+            quote! { ::#ident }
+        }
+        Err(_) => quote! { ::bongos },
+    }
 }
 

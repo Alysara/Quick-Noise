@@ -1,5 +1,7 @@
 use std::f32::consts::SQRT_2;
 
+use quick_noise_macros::enable_targets;
+
 use crate::api::batch::interface::BatchGenerator;
 use crate::noise::generators::Simplex;
 use crate::simd::{Arch, Simd};
@@ -17,6 +19,7 @@ const C: f32 = 0.0;
 pub const X_GRADIENTS_2D: [f32; 8] = [A, B, C, -B, -A, -B, C, B];
 pub const Y_GRADIENTS_2D: [f32; 8] = [C, B, A, B, C, -B, -A, -B];
 
+#[enable_targets(A)]
 impl BatchGenerator<2> for Simplex {
     fn sample_batch<A: Arch>(
         seed: u32,

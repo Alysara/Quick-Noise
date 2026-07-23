@@ -54,6 +54,7 @@ pub struct RowIter<A: Arch> {
 }
 
 impl<A: Arch> RowIter<A> {
+    #[inline(always)]
     fn new(row_size: usize, num_rows: usize, start_val: f32) -> Self {
         Self {
             row_size,
@@ -131,6 +132,7 @@ impl<A: Arch> Iterator for RowIter<A> {
         None
     }
 
+    #[inline(always)]
     fn size_hint(&self) -> (usize, Option<usize>) {
         let left = self.left_in_row + self.rows_left * self.row_size;
         let chunks_left = left.div_ceil(Simd::<f32, A>::LANES);
@@ -151,6 +153,7 @@ pub struct SliceIter<A: Arch> {
 }
 
 impl<A: Arch> SliceIter<A> {
+    #[inline(always)]
     pub fn new(row_size: usize, slice_size: usize, num_slices: usize, start_val: f32) -> Self {
         Self {
             row_size,
@@ -239,6 +242,7 @@ impl<A: Arch> Iterator for SliceIter<A> {
         None
     }
 
+    #[inline(always)]
     fn size_hint(&self) -> (usize, Option<usize>) {
         let left_in_slice = self.left_in_row + self.left_in_slice * self.row_size;
         let left_after_slice = self.slices_left * self.row_size * self.slice_size;

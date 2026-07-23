@@ -43,6 +43,7 @@ impl<A: Arch> DimTuple<A, 5> for (S<A>, S<A>, S<A>, S<A>, S<A>) {
 }
 
 pub trait DimIter<A: Arch, const D: usize>: Iterator<Item: DimTuple<A, D>> {}
+
 impl<A: Arch, const D: usize, T: DimTuple<A, D>, I: Iterator<Item = T>> DimIter<A, D> for I {}
 
 pub trait BatchGenerator<const D: usize> {

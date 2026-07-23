@@ -1,5 +1,7 @@
 use std::f32::consts::SQRT_2;
 
+use quick_noise_macros::enable_targets;
+
 use crate::api::batch::interface::BatchGenerator;
 use crate::noise::generators::Perlin;
 use crate::simd::{Arch, Simd};
@@ -26,6 +28,7 @@ pub const Y_GRADIENTS_2D: [f32; 8] = [
     -1.0000000000000000,
 ];
 
+#[enable_targets(A)]
 impl BatchGenerator<2> for Perlin {
     fn sample_batch<A: Arch>(
         seed: u32,

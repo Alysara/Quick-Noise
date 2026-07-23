@@ -1,7 +1,10 @@
+use quick_noise_macros::enable_targets;
+
 use crate::api::batch::interface::BatchGenerator;
 use crate::noise::generators::Cellular;
 use crate::simd::{Arch, Simd};
 
+#[enable_targets(A)]
 impl BatchGenerator<2> for Cellular {
     fn sample_batch<A: Arch>(
         seed: u32,

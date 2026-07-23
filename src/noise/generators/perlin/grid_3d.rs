@@ -3,6 +3,8 @@ use std::fmt;
 use std::mem::MaybeUninit;
 use std::ops::Range;
 
+use quick_noise_macros::enable_targets;
+
 use crate::api::grid::interface::GridNoiseParams;
 use crate::noise::combiners::{Combiner, CombinerState};
 use crate::noise::util::grid_data::{GridData, Lerp};
@@ -87,6 +89,7 @@ impl<'a> fmt::Debug for PerlinGradients3D<'a> {
 }
 
 const LERP: u8 = Lerp::Quintic as u8;
+#[enable_targets(A)]
 impl GridGenerator<3> for Perlin {
     fn sample_grid<A: Arch, C: Combiner, const INIT: bool, const FINAL: bool>(
         params: GridNoiseParams<3>,

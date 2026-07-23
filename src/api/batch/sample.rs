@@ -1,5 +1,7 @@
 use std::array::from_fn;
 
+use quick_noise_macros::enable_targets;
+
 use crate::noise::combiners::Combiner;
 use crate::api::batch::interface::{BatchNoise, BatchGenerator, DimIter, DimTuple};
 use crate::api::configs::*;

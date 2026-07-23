@@ -1,7 +1,10 @@
+use quick_noise_macros::enable_targets;
+
 use crate::api::batch::interface::BatchGenerator;
 use crate::noise::generators::Perlin;
 use crate::simd::{Arch, Simd};
 
+#[enable_targets(A)]
 impl BatchGenerator<3> for Perlin {
     fn sample_batch<A: Arch>(seed: u32, input: [Simd<f32, A>; 3], freq: [Simd<f32, A>; 3]) -> Simd<f32, A> {
         // Constants.
