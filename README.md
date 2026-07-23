@@ -339,6 +339,10 @@ parameters from its impl block, the macro will not have enough information to te
 associated function and requires an additional flag: `#[dispatch_simd(A, associated)]`.
 For the majority of cases, this flag can be omitted.
 
+Unfortunately, these restrictions make it impossible to ensure other functions that you do not own
+use the dispatched target. As a result, adapaters on iterators do not work with dynamic dispatch
+and result in non-inlined intrinsics.
+
 ## Loading Simd
 
 `simd_iter` and `simd_iter_mut` are exposed by the `SimdSliceIterExt` to create these iters from slices.
