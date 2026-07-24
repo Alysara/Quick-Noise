@@ -3,11 +3,10 @@ use std::marker::PhantomData;
 use std::mem::MaybeUninit;
 use std::ops::Range;
 
+use simply_simd::{Arch, Simd, SimdElement};
+
 use crate::api::grid::interface::GridNoiseParams;
 use crate::noise::combiners::{Combiner, CombinerState};
-use crate::simd::Arch;
-use crate::simd::register::Simd;
-use crate::simd::traits::SimdElement;
 
 const STACK_SIZE: usize = 8192;
 pub struct ArenaBuffer<F: Arch> {

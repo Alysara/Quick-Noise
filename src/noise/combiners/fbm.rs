@@ -1,5 +1,6 @@
-use crate::combiners::{Combiner, CombinerArray};
-use crate::simd::{Arch, Simd};
+use simply_simd::{Arch, Simd};
+
+use crate::{Combiner, CombinerArray};
 
 #[derive(Default, Copy, Clone, PartialEq, Debug)]
 pub struct Fbm {}

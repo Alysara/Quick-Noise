@@ -1,18 +1,16 @@
 use std::hint::black_box;
 use std::time::Instant;
 
-use quick_noise::simd::array_trait::Array;
-use quick_noise::simd::register::Simd;
-use quick_noise::simd::{Arch, StaticSimd, dispatch_simd};
 use quick_noise::{BatchNoise, Fbm, Grid, Perlin};
+use quick_noise::simd::{dispatch_simd};
 
 // #[cfg(feature = "image")]
 fn main() {
-    simd_work(100);
+    simd_work();
 }
 
 #[dispatch_simd(A)]
-fn simd_work(val: usize) {
+fn simd_work() {
     let grid = Grid::<2, A>::new(1024, 1024);
 
     // grid.builder::<Fbm, Perlin>()
@@ -29,14 +27,15 @@ fn simd_work(val: usize) {
     let mut result = vec![0.0; GRID_2D_AREA];
     const NUM_RUNS: usize = 100;
     for _ in 0..NUM_RUNS {
-        let iter = BatchNoise::<2, Fbm, Perlin>::builder(grid.x_iter(), grid.y_iter())
+        BatchNoise::<2, Fbm, Perlin>::builder(grid.x_iter(), grid.y_iter())
             .octaves(OCTAVES_2D)
             .frequency(BASE_FREQ_2D as f32)
-            .into_iter();
+            .fill(result.as_mut_slice());
 
 
-        black_box(&iter);
+        // black_box(&iter);
     }
+    black_box(&result);
     let elapsed = start.elapsed();
     println!(
         "Batch 2D Perlin Results\n---------------------------\nTotal: {:?}\nAvg: {:?}",

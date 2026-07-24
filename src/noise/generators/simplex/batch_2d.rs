@@ -1,10 +1,9 @@
 use std::f32::consts::SQRT_2;
 
-use quick_noise_macros::enable_targets;
+use simply_simd::{Arch, Simd, enable_targets};
 
 use crate::api::batch::interface::BatchGenerator;
 use crate::noise::generators::Simplex;
-use crate::simd::{Arch, Simd};
 
 const SQRT_3: f32 = 1.732_050_8;
 const SKEW_2D: f32 = (SQRT_3 - 1.0) / 2.0;

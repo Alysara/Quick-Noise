@@ -1,8 +1,8 @@
 use std::marker::PhantomData;
 
+use simply_simd::{Arch, Mask, Simd, SimdToArray, enable_targets};
+
 use crate::Grid;
-use crate::simd::{Arch, Mask, Simd};
-use crate::simd::array_trait::Array;
 
 impl<A: Arch> Grid<2, A> {
     #[inline(always)]
@@ -67,11 +67,11 @@ impl<A: Arch> RowIter<A> {
     }
 }
 
+#[enable_targets(A)]
 impl<A: Arch> Iterator for RowIter<A> {
     type Item = Simd<f32, A>;
 
-    #[inline(always)]
-    fn next(&mut self) -> Option<Self::Item> {
+    fn next(&mut self) -> Option<Simd<f32, A>> {
         // Scalar case.
         if self.row_size < Simd::<f32, A>::LANES {
             if self.left_in_row == 0 && self.rows_left == 0 {
@@ -81,7 +81,7 @@ impl<A: Arch> Iterator for RowIter<A> {
             let mut cur = self.cur_vec.to_array()[0];
             let start = self.start_vec.to_array()[0];
 
-            let array = A::Array32::<f32>::from_fn(|_| {
+            let array = <A as Arch>::Array32::<f32>::from_fn(|_| {
                 if self.left_in_row > 0 {
                     let next = cur;
                     cur += 1.0;
@@ -132,7 +132,6 @@ impl<A: Arch> Iterator for RowIter<A> {
         None
     }
 
-    #[inline(always)]
     fn size_hint(&self) -> (usize, Option<usize>) {
         let left = self.left_in_row + self.rows_left * self.row_size;
         let chunks_left = left.div_ceil(Simd::<f32, A>::LANES);
@@ -168,18 +167,19 @@ impl<A: Arch> SliceIter<A> {
     }
 }
 
+#[enable_targets(A)]
 impl<A: Arch> Iterator for SliceIter<A> {
     type Item = Simd<f32, A>;
 
     #[inline(always)]
-    fn next(&mut self) -> Option<Self::Item> {
+    fn next(&mut self) -> Option<Simd<f32, A>> {
         // Scalar case.
         if self.row_size < Simd::<f32, A>::LANES {
             if self.left_in_row == 0 && self.left_in_slice == 0 && self.slices_left == 0 {
                 return None;
             }
 
-            let array = A::Array32::<f32>::from_fn(|_| {
+            let array = <A as Arch>::Array32::<f32>::from_fn(|_| {
                 if self.left_in_row > 0 {
                     self.left_in_row -= 1;
                     self.cur_val

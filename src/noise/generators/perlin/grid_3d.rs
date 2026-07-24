@@ -3,7 +3,7 @@ use std::fmt;
 use std::mem::MaybeUninit;
 use std::ops::Range;
 
-use quick_noise_macros::enable_targets;
+use simply_simd::{Arch, Simd, enable_targets};
 
 use crate::api::grid::interface::GridNoiseParams;
 use crate::noise::combiners::{Combiner, CombinerState};
@@ -12,7 +12,6 @@ use crate::noise::util::grid_helpers::{
     Arena, ArenaBuffer, InterpolationConfig, MaybeUninitSliceSimdExt, assume_init_slice,
     maybe_tail_load, maybe_tail_store, pad_grid_size, validate_grid_size, validate_state_size,
 };
-use crate::simd::{Arch, Simd};
 use crate::{GridGenerator, Perlin};
 
 pub const GRADIENTS_3D: [[f32; 3]; 16] = [

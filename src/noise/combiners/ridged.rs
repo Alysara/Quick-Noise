@@ -1,4 +1,6 @@
-use crate::{Combiner, CombinerArray, simd::{Arch, Simd}};
+use simply_simd::{Arch, Simd};
+
+use crate::{Combiner, CombinerArray};
 
 #[derive(Copy, Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -59,7 +61,11 @@ impl Combiner for Ridged {
     }
 
     #[inline(always)]
-    fn finalize_sample<A: Arch>(_config: &RidgedConfig, _state: Self::State<A>, last: Simd<f32, A>) -> Simd<f32, A> {
+    fn finalize_sample<A: Arch>(
+        _config: &RidgedConfig,
+        _state: Self::State<A>,
+        last: Simd<f32, A>,
+    ) -> Simd<f32, A> {
         last
     }
 }

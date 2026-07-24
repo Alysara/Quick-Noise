@@ -30,4 +30,4 @@ pub use noise::combiners::{
     Terrace,
 };
 pub use noise::generators::{Cellular, Perlin, Simplex, Value};
-pub use noise::*;
+// pub use noise::*;

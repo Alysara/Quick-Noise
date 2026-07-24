@@ -1,5 +1,5 @@
-use crate::simd::Arch;
-use crate::simd::Simd;
+use simply_simd::{Arch, Simd};
+
 use crate::{Combiner, CombinerArray};
 
 #[derive(Default, Copy, Clone, PartialEq, Debug)]

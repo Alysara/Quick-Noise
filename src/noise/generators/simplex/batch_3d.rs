@@ -1,8 +1,7 @@
-use quick_noise_macros::enable_targets;
+use simply_simd::{Arch, Simd, enable_targets};
 
 use crate::api::batch::interface::BatchGenerator;
 use crate::noise::generators::Simplex;
-use crate::simd::{Arch, Simd};
 
 const SKEW_3D: f32 = 1.0 / 3.0;
 const UNSKEW_3D: f32 = 1.0 / 6.0;

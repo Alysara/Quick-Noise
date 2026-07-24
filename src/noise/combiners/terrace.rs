@@ -1,4 +1,6 @@
-use crate::{combiners::{Combiner, CombinerArray}, simd::{Arch, Simd}};
+use simply_simd::{Arch, Simd};
+
+use crate::{Combiner, CombinerArray};
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

@@ -13,7 +13,6 @@
 macro_rules! declare_build {
     ($self:ident, $body:tt) => {
         /// Allocates a Vec and fills it with the noise result.
-        #[inline(always)]
         pub fn build($self) -> Vec<f32> $body
     };
 }
@@ -24,7 +23,6 @@ macro_rules! declare_into_iter {
         /// Returns an iterator containing chunks of the noise output.
         /// Ideal for managing streams of noise without unnecessary read/writes.
         #[allow(clippy::should_implement_trait)]
-        #[inline(always)]
         pub fn into_iter($self) -> impl Iterator<Item = crate::simd::Simd<f32, $arch>> $body
     };
 }

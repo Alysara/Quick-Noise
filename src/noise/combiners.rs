@@ -1,7 +1,6 @@
 use std::ops::{Index, IndexMut};
 
-use crate::simd::Arch;
-use crate::simd::register::Simd;
+use simply_simd::{Arch, Simd};
 
 pub mod billow;
 pub mod fbm;

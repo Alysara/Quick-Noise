@@ -1,9 +1,8 @@
 
-use quick_noise_macros::enable_targets;
+use simply_simd::{Arch, Simd, enable_targets};
 
 use crate::api::batch::interface::BatchGenerator;
 use crate::noise::generators::Value;
-use crate::simd::{Arch, Simd};
 
 #[enable_targets(A)]
 impl BatchGenerator<2> for Value {

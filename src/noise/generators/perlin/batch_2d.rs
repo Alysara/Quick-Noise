@@ -1,10 +1,9 @@
 use std::f32::consts::SQRT_2;
 
-use quick_noise_macros::enable_targets;
+use simply_simd::{Arch, Simd, enable_targets};
 
 use crate::api::batch::interface::BatchGenerator;
 use crate::noise::generators::Perlin;
-use crate::simd::{Arch, Simd};
 
 pub const X_GRADIENTS_2D: [f32; 8] = [
     SQRT_2,

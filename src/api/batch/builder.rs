@@ -1,14 +1,22 @@
 use std::marker::PhantomData;
 
-use itertools::{Zip, multizip};
+use itertools::{Zip};
+use simply_simd::{Arch, Simd};
 
 use crate::api::batch::interface::{BatchGenerator, BatchNoise, DimIter};
 use crate::api::configs::*;
 use crate::api::parameters::*;
 use crate::math::random::Random;
 use crate::noise::combiners::Combiner;
-use crate::simd::{Arch, Simd};
 use crate::{HybridMulti, PingPong, Ridged, Terrace};
+
+#[inline(always)]
+pub fn multizip<T, U>(t: U) -> Zip<T>
+where
+    Zip<T>: From<U> + Iterator,
+{
+    Zip::from(t)
+}
 
 pub struct BatchNoiseBuilder<
     const D: usize,
@@ -161,3 +169,38 @@ impl<const D: usize, F: Combiner, S: BatchGenerator<D>, A: Arch, I: DimIter<A, D
         BatchNoise::<D, F, S>::sample(self.noise_config, self.combiner_config, self.iters)
     });
 }
+
+// #[enable_targets(A)]
+// impl<const D: usize, F: Combiner, S: BatchGenerator<D>, A: Arch, I: DimIter<A, D>>
+//     BatchNoiseBuilder<D, F, S, A, I>
+// {
+//     /// Creates the noise and puts the result in a given slice.
+//     pub fn fill(self, output: &mut [f32]) {
+//         if self.noise_config.initialize {
+//             for (i, x) in self.into_iter().enumerate() {
+//                 x.copy_to_slice(&mut output[i * Simd::<f32, A>::LANES..]);
+//             }
+//         } else {
+//             let mut i = 0;
+//             for x in self.into_iter() {
+//                 let cur = Simd::from_slice(&output[i..]);
+//                 let x = cur + x;
+//                 x.copy_to_slice(&mut output[i..]);
+//                 i += Simd::<f32, A>::LANES;
+//             }
+//         }
+//     }
+//
+//
+//     /// Allocates a Vec and fills it with the noise result.
+//     pub fn build(self) -> Vec<f32> {
+//         self.into_iter.collect()
+//     }
+//
+//     /// Returns an iterator containing chunks of the noise output.
+//     /// Ideal for managing streams of noise without unnecessary read/writes.
+//     #[allow(clippy::should_implement_trait)]
+//     pub fn into_iter(self) -> impl Iterator<Item = crate::simd::Simd<f32, A>> {
+//         BatchNoise::<D, F, S>::sample(self.noise_config, self.combiner_config, self.iters)
+//     }
+// }
