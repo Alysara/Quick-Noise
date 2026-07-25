@@ -2,9 +2,9 @@ name: Coverage
 
 on:
   push:
-    branches: [ "dynamic-dispatch" ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ "dynamic-dispatch" ]
+    branches: [ "main" ]
 
 env:
   CARGO_TERM_COLOR: always
