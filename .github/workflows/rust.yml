@@ -18,25 +18,42 @@ jobs:
         include:
           - name: scalar
             rustflags: ""
-            run_tests: true
           - name: sse
             rustflags: "-C target-feature=+sse,+sse2,+sse3,+sse4.1,+sse4.2"
-            run_tests: true
           - name: avx2
             rustflags: "-C target-feature=+avx,+avx2,+fma"
-            run_tests: true
           - name: avx512
             rustflags: "-C target-feature=+avx512f,+avx512bw,+avx512vl,+avx512dq"
-            run_tests: false 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install target
+        run: rustup target add x86_64-unknown-linux-gnu
+
       - name: Build (${{ matrix.name }})
-        run: cargo build --verbose --features="image"
+        run: cargo build -p quick_noise --features="image" --verbose --target x86_64-unknown-linux-gnu
         env:
           RUSTFLAGS: ${{ matrix.rustflags }}
+
+      - name: Check AVX-512 support
+        if: matrix.name == 'avx512'
+        id: cpu
+        run: |
+          if grep -qm1 avx512f /proc/cpuinfo; then
+            echo "has_avx512=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_avx512=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Test (${{ matrix.name }})
-        if: matrix.run_tests
-        run: cargo test --verbose --features="image"
+        if: matrix.name != 'avx512'
+        run: cargo test -p quick_noise --features="image" --verbose --target x86_64-unknown-linux-gnu
+        env:
+          RUSTFLAGS: ${{ matrix.rustflags }}
+
+      - name: Test (avx512)
+        if: matrix.name == 'avx512' && steps.cpu.outputs.has_avx512 == 'true'
+        run: cargo test -p quick_noise --features="image" --verbose --target x86_64-unknown-linux-gnu
         env:
           RUSTFLAGS: ${{ matrix.rustflags }}
 
@@ -44,11 +61,16 @@ jobs:
     runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install target
+        run: rustup target add aarch64-unknown-linux-gnu
+
       - name: Build (neon)
-        run: cargo build --verbose --features="image"
+        run: cargo build -p quick_noise --features="image" --verbose --target aarch64-unknown-linux-gnu
         env:
           RUSTFLAGS: "-C target-feature=+neon"
+
       - name: Test (neon)
-        run: cargo test --verbose --features="image"
+        run: cargo test -p quick_noise --features="image" --verbose --target aarch64-unknown-linux-gnu
         env:
           RUSTFLAGS: "-C target-feature=+neon"
