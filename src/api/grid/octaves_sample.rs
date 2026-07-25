@@ -1,3 +1,5 @@
+use simply_simd::enable_targets;
+
 use crate::api::configs::*;
 use crate::api::grid::interface::{GridNoise, GridNoiseParams};
 use crate::api::octave::Octave;
@@ -11,8 +13,8 @@ fn get_max<const D: usize>(array: [f32; D]) -> f32 {
     array.iter().cloned().fold(f32::NEG_INFINITY, f32::max)
 }
 
+#[enable_targets(A)]
 impl<const D: usize, C: Combiner, G: GridGenerator<D>> GridNoise<D, C, G> {
-    #[inline(always)]
     pub fn sample_with_octaves<A: Arch>(
         grid_config: &GridConfig<D>,
         noise_config: &NoiseConfig<D>,

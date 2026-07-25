@@ -1,3 +1,5 @@
+use simply_simd::enable_targets;
+
 use crate::api::configs::*;
 use crate::api::grid::interface::{GridGenerator, GridNoise, GridNoiseParams};
 use crate::api::seed::gen_octave_seed;
@@ -6,8 +8,8 @@ use crate::noise::util::grid_helpers::{Arena, ArenaBuffer};
 use crate::simd::Arch;
 use crate::{Combiner, CombinerState};
 
+#[enable_targets(A)]
 impl<const D: usize, C: Combiner, G: GridGenerator<D>> GridNoise<D, C, G> {
-    #[inline(always)]
     pub fn sample<A: Arch>(
         grid_config: &GridConfig<D>,
         noise_config: &NoiseConfig<D>,

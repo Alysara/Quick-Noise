@@ -1,7 +1,7 @@
 #![doc = include_str!("../README.md")]
 
 //! Blazingly fast SIMD procedural noise library for batch and uniform grid 
-//! sampling with runtime feature detection on stable Rust.
+//! sampling with runtime feature detection on stable Rust
 
 extern crate self as quick_noise;
 pub mod api;

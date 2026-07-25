@@ -4,7 +4,6 @@ use std::time::Instant;
 use quick_noise::{BatchNoise, Fbm, Grid, Perlin};
 use quick_noise::simd::{dispatch_simd};
 
-// #[cfg(feature = "image")]
 fn main() {
     simd_work();
 }
@@ -12,11 +11,6 @@ fn main() {
 #[dispatch_simd(A)]
 fn simd_work() {
     let grid = Grid::<2, A>::new(1024, 1024);
-
-    // grid.builder::<Fbm, Perlin>()
-    //     .octaves(6)
-    //     .into_iter()
-    //     .to_grayscale_image(1024, 1024, "noise_images/dispatch.png");
 
     const GRID_2D: usize = 1024;
     const GRID_2D_AREA: usize = GRID_2D * GRID_2D;
@@ -31,11 +25,9 @@ fn simd_work() {
             .octaves(OCTAVES_2D)
             .frequency(BASE_FREQ_2D as f32)
             .fill(result.as_mut_slice());
-
-
-        // black_box(&iter);
     }
     black_box(&result);
+
     let elapsed = start.elapsed();
     println!(
         "Batch 2D Perlin Results\n---------------------------\nTotal: {:?}\nAvg: {:?}",
@@ -46,24 +38,3 @@ fn simd_work() {
     black_box(&result);
 }
 
-// #[enable_targets(A)]
-// fn simd_work_inner<A: Arch>(val: usize, depth: usize) -> f32 {
-//     let simd = Simd::<f32, A>::splat(val as f32);
-//     let doubled = simd + simd;
-//     let scaled = doubled * Simd::<f32, A>::splat(1.0001);
-//     let reduced = scaled.to_array().iter().sum();
-//
-//     black_box(&simd);
-//
-//     if depth == 0 {
-//         return reduced;
-//     }
-//
-//     let next = if (reduced as usize).is_multiple_of(2) {
-//         simd_work_inner::<A>(val.wrapping_add(1), depth - 1)
-//     } else {
-//         simd_work_inner::<A>(val.wrapping_mul(3).wrapping_add(1), depth - 1)
-//     };
-//
-//     black_box(next) + reduced
-// }
