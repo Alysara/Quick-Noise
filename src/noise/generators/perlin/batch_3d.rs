@@ -1,19 +1,21 @@
+use simply_simd::{Arch, Simd, enable_targets};
+
 use crate::api::batch::interface::BatchGenerator;
-use crate::simd::arch_simd::ArchSimd;
 use crate::noise::generators::Perlin;
 
+#[enable_targets(A)]
 impl BatchGenerator<3> for Perlin {
-    fn sample_batch(seed: u32, input: [ArchSimd<f32>; 3], freq: [ArchSimd<f32>; 3]) -> ArchSimd<f32> {
+    fn sample_batch<A: Arch>(seed: u32, input: [Simd<f32, A>; 3], freq: [Simd<f32, A>; 3]) -> Simd<f32, A> {
         // Constants.
-        let six: ArchSimd<f32> = ArchSimd::splat(6.0);
-        let ten: ArchSimd<f32> = ArchSimd::splat(10.0);
-        let fifteen: ArchSimd<f32> = ArchSimd::splat(15.0);
-        let one: ArchSimd<f32> = ArchSimd::splat(1.0);
-        let three_int: ArchSimd<u32> = ArchSimd::splat(3);
+        let six: Simd<f32, A> = Simd::splat(6.0);
+        let ten: Simd<f32, A> = Simd::splat(10.0);
+        let fifteen: Simd<f32, A> = Simd::splat(15.0);
+        let one: Simd<f32, A> = Simd::splat(1.0);
+        let three_int: Simd<u32, A> = Simd::splat(3);
 
-        let c1: ArchSimd<u32> = ArchSimd::splat(0x90A5A500);
-        let c2: ArchSimd<u32> = ArchSimd::splat(0xA59900A5);
-        let c3: ArchSimd<u32> = ArchSimd::splat(0x09009999);
+        let c1: Simd<u32, A> = Simd::splat(0x90A5A500);
+        let c2: Simd<u32, A> = Simd::splat(0xA59900A5);
+        let c3: Simd<u32, A> = Simd::splat(0x09009999);
 
         // Hash constants.
         const BYTE_SHUFFLE: [u8; 64] = [
@@ -32,9 +34,9 @@ impl BatchGenerator<3> for Perlin {
         // Y: A59900A5
         // Z: 90A5A500
 
-        let shuffle_indices = ArchSimd::<u8>::from_slice(&BYTE_SHUFFLE[..]);
-        let channel_seed = ArchSimd::splat(seed);
-        let prime = ArchSimd::splat(0x85ebca6b_u32);
+        let shuffle_indices = Simd::<u8, A>::from_slice(&BYTE_SHUFFLE[..]);
+        let channel_seed = Simd::splat(seed);
+        let prime = Simd::splat(0x85ebca6b_u32);
 
         // Scale: 3
         let x_scaled = input[0] * freq[0];
@@ -66,9 +68,9 @@ impl BatchGenerator<3> for Perlin {
         let z_lerp = u * u * u * u.mul_add(u.mul_sub(six, fifteen), ten);
 
         // Hash: 26
-        let x1: ArchSimd<u32> = x_grid_lo.raw_cast() * channel_seed;
-        let y1: ArchSimd<u32> = y_grid_lo.raw_cast() * channel_seed;
-        let z1: ArchSimd<u32> = z_grid_lo.raw_cast() * channel_seed;
+        let x1: Simd<u32, A> = x_grid_lo.raw_cast() * channel_seed;
+        let y1: Simd<u32, A> = y_grid_lo.raw_cast() * channel_seed;
+        let z1: Simd<u32, A> = z_grid_lo.raw_cast() * channel_seed;
         let x2 = x1 + channel_seed;
         let y2 = y1 + channel_seed;
         let z2 = z1 + channel_seed;

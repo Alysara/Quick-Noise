@@ -1,10 +1,12 @@
 use std::marker::PhantomData;
 
+use crate::Combiner;
 use crate::api::configs::GridConfig;
 use crate::api::grid::builder::GridNoiseBuilder;
 use crate::api::grid::octaves_builder::OctaveGridNoiseBuilder;
+use crate::api::octave::Octave;
 use crate::math::random::Random;
-use crate::{Combiner, Octave};
+use crate::simd::{Arch, StaticArch};
 
 /// Handles raw parameters for grid noise generators
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -36,7 +38,7 @@ pub trait GridGenerator<const D: usize>: Default + Copy + Clone + PartialEq {
     /// - `combiner_config`: Config specifying combiner parameters
     /// - `state`: Buffer containing sample information across octaves
     /// - `dst`: Buffer to insert the results into
-    fn sample_grid<C: Combiner, const INIT: bool, const FINAL: bool>(
+    fn sample_grid<F: Arch, C: Combiner, const INIT: bool, const FINAL: bool>(
         params: GridNoiseParams<D>,
         combiner_config: C::Config,
         state: &mut [f32],
@@ -45,8 +47,8 @@ pub trait GridGenerator<const D: usize>: Default + Copy + Clone + PartialEq {
 }
 
 /// Static struct for sampling grid noise.
-pub struct GridNoise<const D: usize, F: Combiner, S: GridGenerator<D>> {
-    _fractal: PhantomData<F>,
+pub struct GridNoise<const D: usize, C: Combiner, S: GridGenerator<D>> {
+    _fractal: PhantomData<C>,
     _sampler: PhantomData<S>,
 }
 
@@ -66,11 +68,12 @@ pub struct GridNoise<const D: usize, F: Combiner, S: GridGenerator<D>> {
 /// ```
 
 #[derive(Default, Clone, Copy, Debug, PartialEq)]
-pub struct Grid<const D: usize> {
+pub struct Grid<const D: usize, A: Arch = StaticArch> {
     pub(crate) config: GridConfig<D>,
+    pub(crate) _arch: PhantomData<A>,
 }
 
-impl<const D: usize> Grid<D> {
+impl<const D: usize, A: Arch> Grid<D, A> {
     /// Determines the psuedo-random values used in noise generation called
     /// on this grid. Different seeds produce different noise.
     pub fn seed(mut self, seed: i64) -> Self {
@@ -79,7 +82,7 @@ impl<const D: usize> Grid<D> {
     }
 }
 
-impl Grid<2> {
+impl<A: Arch> Grid<2, A> {
     /// Creates an anchor for a grid region that can be used for call noise.
     ///
     /// # Parameters
@@ -90,7 +93,10 @@ impl Grid<2> {
             grid_size: [x, y],
             ..Default::default()
         };
-        Self { config }
+        Self {
+            config,
+            _arch: PhantomData::<A>,
+        }
     }
 
     /// Determines the position values provided to noise calls. This value represents
@@ -132,7 +138,7 @@ impl Grid<2> {
     }
 }
 
-impl Grid<3> {
+impl<A: Arch> Grid<3, A> {
     /// Creates an anchor for a grid region that can be used for call noise.
     ///
     /// # Parameters
@@ -144,7 +150,10 @@ impl Grid<3> {
             grid_size: [x, y, z],
             ..Default::default()
         };
-        Self { config }
+        Self {
+            config,
+            _arch: PhantomData::<A>,
+        }
     }
 
     /// Determines the position values provided to noise calls. This value represents
@@ -191,14 +200,17 @@ impl Grid<3> {
     }
 }
 
-impl<const D: usize> Grid<D> {
+impl<const D: usize, A: Arch> Grid<D, A> {
     /// Loads a config a config to create a grid.
     pub fn from_config(config: GridConfig<D>) -> Self {
-        Self { config }
+        Self {
+            config,
+            _arch: PhantomData::<A>,
+        }
     }
 
     /// Creates a new builder to easily configure a grid region of noise.
-    pub fn builder<F: Combiner, T: GridGenerator<D>>(&self) -> GridNoiseBuilder<D, F, T> {
+    pub fn builder<F: Combiner, T: GridGenerator<D>>(&self) -> GridNoiseBuilder<D, F, T, A> {
         GridNoiseBuilder::from_config(self.config)
     }
 
@@ -207,7 +219,7 @@ impl<const D: usize> Grid<D> {
     pub fn builder_with_octaves<'a, F: Combiner, T: GridGenerator<D>>(
         &self,
         octave_list: &'a [Octave<D>],
-    ) -> OctaveGridNoiseBuilder<'a, D, F, T> {
+    ) -> OctaveGridNoiseBuilder<'a, D, F, T, A> {
         OctaveGridNoiseBuilder::new(self.config, octave_list)
     }
 }

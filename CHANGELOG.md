@@ -2,6 +2,16 @@ All changes in `quick-noise` are documented here.
 
 ## Unreleased
 
+## 0.2.0 - In-development | Subject to change
+
+### Added
+- Runtime feature selection support.
+
+### Changed
+- Breaking change: Combiner implementations now use generics for SIMD features.
+- Breaking change: ArchSimd changed to StaticSimd, and other SIMD changes.
+- Simd module split into the simply-simd crate. Simd can still be used like before through quick-noise.
+
 ## 0.1.1 - 2026-07-19
 
 ### Added

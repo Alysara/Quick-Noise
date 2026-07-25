@@ -1,31 +1,38 @@
-use crate::combiners::{Combiner, CombinerArray};
-use crate::simd::arch_simd::ArchSimd;
+use simply_simd::{Arch, Simd};
+
+use crate::{Combiner, CombinerArray};
 
 #[derive(Default, Copy, Clone, PartialEq, Debug)]
 pub struct Multi {}
 impl Combiner for Multi {
     const WEIGHT_DECAY: bool = false;
-    type State = CombinerArray<0>;
+    type State<A: Arch> = CombinerArray<A, 0>;
     type Config = ();
 
     #[inline(always)]
-    fn apply_sample(
+    fn apply_sample<A: Arch>(
         _config: &(),
-        state: Self::State,
-        cur_result: ArchSimd<f32>,
-        new_sample: ArchSimd<f32>,
-    ) -> (Self::State, ArchSimd<f32>) {
-        (state, cur_result * (new_sample + ArchSimd::splat(1.0)))
+        state: Self::State<A>,
+        cur_result: Simd<f32, A>,
+        new_sample: Simd<f32, A>,
+    ) -> (Self::State<A>, Simd<f32, A>) {
+        (state, cur_result * (new_sample + Simd::splat(1.0)))
     }
 
     #[inline(always)]
-    fn initialize_sample(_config: &(), new_sample: ArchSimd<f32>) -> (Self::State, ArchSimd<f32>) {
-        (Self::State::default(), new_sample + ArchSimd::splat(1.0))
+    fn initialize_sample<A: Arch>(
+        _config: &(),
+        new_sample: Simd<f32, A>,
+    ) -> (Self::State<A>, Simd<f32, A>) {
+        (Default::default(), new_sample + Simd::splat(1.0))
     }
 
     #[inline(always)]
-    fn finalize_sample(_config: &(), _state: Self::State, last: ArchSimd<f32>) -> ArchSimd<f32> {
+    fn finalize_sample<A: Arch>(
+        _config: &(),
+        _state: Self::State<A>,
+        last: Simd<f32, A>,
+    ) -> Simd<f32, A> {
         last
     }
 }
-

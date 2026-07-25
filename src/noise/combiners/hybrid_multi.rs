@@ -1,4 +1,6 @@
-use crate::{Combiner, CombinerArray, simd::arch_simd::ArchSimd};
+use simply_simd::{Arch, Simd};
+
+use crate::{Combiner, CombinerArray};
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -20,37 +22,37 @@ impl Default for HybridMultiConfig {
 pub struct HybridMulti {}
 impl Combiner for HybridMulti {
     const WEIGHT_DECAY: bool = false;
-    type State = CombinerArray<1>;
+    type State<A: Arch> = CombinerArray<A, 1>;
     type Config = HybridMultiConfig;
 
     #[inline(always)]
-    fn apply_sample(
+    fn apply_sample<A: Arch>(
         config: &HybridMultiConfig,
-        state: Self::State,
-        cur_result: ArchSimd<f32>,
-        new_sample: ArchSimd<f32>,
-    ) -> (Self::State, ArchSimd<f32>) {
-        let zero = ArchSimd::splat(0.0);
-        let one = ArchSimd::splat(1.0);
-        let signal = new_sample + ArchSimd::splat(config.offset);
+        state: Self::State<A>,
+        cur_result: Simd<f32, A>,
+        new_sample: Simd<f32, A>,
+    ) -> (Self::State<A>, Simd<f32, A>) {
+        let zero = Simd::splat(0.0);
+        let one = Simd::splat(1.0);
+        let signal = new_sample + Simd::splat(config.offset);
         let weighted_signal = state[0] * signal;
 
         let result = cur_result + weighted_signal;
-        let weight = (weighted_signal * ArchSimd::splat(config.gain)).clamp(zero, one);
+        let weight = (weighted_signal * Simd::splat(config.gain)).clamp(zero, one);
 
         ([weight], result)
     }
 
     #[inline(always)]
-    fn initialize_sample(
+    fn initialize_sample<A: Arch>(
         config: &HybridMultiConfig,
-        new_sample: ArchSimd<f32>,
-    ) -> (Self::State, ArchSimd<f32>) {
-        let zero = ArchSimd::splat(0.0);
-        let one = ArchSimd::splat(1.0);
+        new_sample: Simd<f32, A>,
+    ) -> (Self::State<A>, Simd<f32, A>) {
+        let zero = Simd::splat(0.0);
+        let one = Simd::splat(1.0);
 
-        let signal = new_sample + ArchSimd::splat(config.offset);
-        let weight = (signal * ArchSimd::splat(config.gain)).clamp(zero, one);
+        let signal = new_sample + Simd::splat(config.offset);
+        let weight = (signal * Simd::splat(config.gain)).clamp(zero, one);
 
         ([weight], signal)
     }

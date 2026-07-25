@@ -1,8 +1,9 @@
 use std::f32::consts::SQRT_2;
 
+use simply_simd::{Arch, Simd, enable_targets};
+
 use crate::api::batch::interface::BatchGenerator;
 use crate::noise::generators::Simplex;
-use crate::simd::arch_simd::ArchSimd;
 
 const SQRT_3: f32 = 1.732_050_8;
 const SKEW_2D: f32 = (SQRT_3 - 1.0) / 2.0;
@@ -17,21 +18,22 @@ const C: f32 = 0.0;
 pub const X_GRADIENTS_2D: [f32; 8] = [A, B, C, -B, -A, -B, C, B];
 pub const Y_GRADIENTS_2D: [f32; 8] = [C, B, A, B, C, -B, -A, -B];
 
+#[enable_targets(A)]
 impl BatchGenerator<2> for Simplex {
-    fn sample_batch(
+    fn sample_batch<A: Arch>(
         seed: u32,
-        input: [ArchSimd<f32>; 2],
-        freq: [ArchSimd<f32>; 2],
-    ) -> ArchSimd<f32> {
+        input: [Simd<f32, A>; 2],
+        freq: [Simd<f32, A>; 2],
+    ) -> Simd<f32, A> {
         // Constants.
-        let skew: ArchSimd<f32> = ArchSimd::splat(SKEW_2D);
-        let unskew: ArchSimd<f32> = ArchSimd::splat(UNSKEW_2D);
-        let subbed_unskew: ArchSimd<f32> = ArchSimd::splat(UNSKEW_2D - 1.0);
-        let hi_skew_offset: ArchSimd<f32> = ArchSimd::splat(2.0 * UNSKEW_2D - 1.0);
-        let half: ArchSimd<f32> = ArchSimd::splat(0.5);
-        let zero: ArchSimd<f32> = ArchSimd::splat(0.0);
-        let t_hi_coef = ArchSimd::splat(2.0 * SQRT_3 / 3.0);
-        let neg_two_thirds = ArchSimd::splat(-2.0 / 3.0);
+        let skew: Simd<f32, A> = Simd::splat(SKEW_2D);
+        let unskew: Simd<f32, A> = Simd::splat(UNSKEW_2D);
+        let subbed_unskew: Simd<f32, A> = Simd::splat(UNSKEW_2D - 1.0);
+        let hi_skew_offset: Simd<f32, A> = Simd::splat(2.0 * UNSKEW_2D - 1.0);
+        let half: Simd<f32, A> = Simd::splat(0.5);
+        let zero: Simd<f32, A> = Simd::splat(0.0);
+        let t_hi_coef = Simd::splat(2.0 * SQRT_3 / 3.0);
+        let neg_two_thirds = Simd::splat(-2.0 / 3.0);
 
         // Hash constants.
         const BYTE_SHUFFLE: [u8; 64] = [
@@ -40,9 +42,9 @@ impl BatchGenerator<2> for Simplex {
             1, 7, 4, 6, 5, 11, 8, 10, 9, 15, 12, 14, 13,
         ];
 
-        let shuffle_indices = ArchSimd::<u8>::from_slice(&BYTE_SHUFFLE[..]);
-        let channel_seed = ArchSimd::splat(seed);
-        let prime = ArchSimd::splat(0x85ebca6b_u32);
+        let shuffle_indices = Simd::<u8, A>::from_slice(&BYTE_SHUFFLE[..]);
+        let channel_seed = Simd::splat(seed);
+        let prime = Simd::splat(0x85ebca6b_u32);
 
         let x_scaled = input[0] * freq[0];
         let y_scaled = input[1] * freq[1];
@@ -66,8 +68,8 @@ impl BatchGenerator<2> for Simplex {
         let y_dist_hi = y_dist_lo + hi_skew_offset;
 
         // Hash: 22
-        let x1: ArchSimd<u32> = x_grid.cast_int_trunc().raw_cast() * channel_seed;
-        let y1: ArchSimd<u32> = y_grid.cast_int_trunc().raw_cast() * channel_seed;
+        let x1: Simd<u32, A> = x_grid.cast_int_trunc().raw_cast() * channel_seed;
+        let y1: Simd<u32, A> = y_grid.cast_int_trunc().raw_cast() * channel_seed;
         let x2 = x1 + channel_seed;
         let y2 = y1 + channel_seed;
 

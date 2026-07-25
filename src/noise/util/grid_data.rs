@@ -3,7 +3,8 @@ use std::mem::MaybeUninit;
 
 use crate::api::grid::interface::GridNoiseParams;
 use crate::noise::util::grid_helpers::{Arena, configure_tiling, fill_grid_indices};
-use crate::simd::arch_simd::ArchSimd;
+use crate::simd::Arch;
+use crate::simd::register::Simd;
 
 pub(crate) struct GridData<'a, const D: usize> {
     pub total_size: usize,
@@ -35,15 +36,15 @@ impl Lerp {
     }
 }
 
-const LANES: usize = ArchSimd::<f32>::LANES;
 impl<'a, const D: usize> GridData<'a, D> {
     #[inline(always)]
-    pub fn new<const LERP: u8>(
+    pub fn new<A: Arch, const LERP: u8>(
         params: &GridNoiseParams<D>,
         arena: &mut Arena<'a>,
         padded_size: &[usize; D],
     ) -> Self {
         let lerp_type = Lerp::from_u8(LERP);
+        let lanes = Simd::<f32, A>::LANES;
 
         let total_size = params.grid_size.iter().product();
         let increment = from_fn(|i| params.frequency[i] * params.magnification);
@@ -61,12 +62,13 @@ impl<'a, const D: usize> GridData<'a, D> {
 
         // Get the distances from the gradient gridpoints.
         let mut cur_dist: [_; D] = from_fn(|i| {
-            ArchSimd::iota(0.0) * ArchSimd::splat(increment[i]) + ArchSimd::splat(frac_start[i])
+            Simd::<f32, A>::iota(0.0) * Simd::<f32, A>::splat(increment[i])
+                + Simd::<f32, A>::splat(frac_start[i])
         });
-        let chunk_increment: [_; D] = from_fn(|i| ArchSimd::splat(increment[i] * LANES as f32));
+        let chunk_increment: [_; D] = from_fn(|i| Simd::<f32, A>::splat(increment[i] * lanes as f32));
 
         for axis in 0..D {
-            for i in (0..params.grid_size[axis]).step_by(LANES) {
+            for i in (0..params.grid_size[axis]).step_by(lanes) {
                 let fract_dist = cur_dist[axis].fract();
                 let cur_lerp = match lerp_type {
                     Lerp::Cubic => fract_dist.cubic_lerp(),
@@ -87,7 +89,7 @@ impl<'a, const D: usize> GridData<'a, D> {
 
         // Identify the cutoff points between frequency-based grid boundaries .
         let mut grid_indices = from_fn(|i| arena.allocate(padded_size[i]));
-        let num_loops = fill_grid_indices(&mut grid_indices, &distances, params.grid_size);
+        let num_loops = fill_grid_indices::<A, D>(&mut grid_indices, &distances, params.grid_size);
 
         // Adjust the tiling.
         let octave_tiling = configure_tiling(params);

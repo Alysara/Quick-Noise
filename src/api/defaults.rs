@@ -1,5 +1,5 @@
 use crate::api::configs::*;
-use crate::simd::arch_simd::ArchSimd;
+use crate::simd::StaticSimd;
 
 impl<const D: usize> Default for NoiseConfig<D> {
     fn default() -> Self {
@@ -49,7 +49,7 @@ impl<const D: usize> Default for GridConfig<D> {
 pub struct EmptyIter;
 
 impl Iterator for EmptyIter {
-    type Item = ArchSimd<f32>;
+    type Item = StaticSimd<f32>;
 
     fn next(&mut self) -> Option<Self::Item> {
         None
@@ -63,20 +63,20 @@ pub struct ZeroIter<const N: usize> {
 }
 
 impl<const N: usize> Iterator for ZeroIter<N> {
-    type Item = ArchSimd<f32>;
+    type Item = StaticSimd<f32>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.index < N {
-            self.index += ArchSimd::<f32>::LANES;
-            Some(ArchSimd::zero())
+            self.index += StaticSimd::<f32>::LANES;
+            Some(StaticSimd::zero())
         } else {
             None
         }
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        const LANES: usize = ArchSimd::<f32>::LANES;
-        let left = (N - self.index + LANES - 1) / ArchSimd::<f32>::LANES;
+        const LANES: usize = StaticSimd::<f32>::LANES;
+        let left = (N - self.index + LANES - 1) / StaticSimd::<f32>::LANES;
         (left, Some(left))
     }
 }

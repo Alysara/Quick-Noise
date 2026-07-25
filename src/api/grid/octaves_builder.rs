@@ -1,35 +1,36 @@
 use std::marker::PhantomData;
 
-use crate::{Combiner, GridGenerator, HybridMulti, PingPong, Ridged, Terrace};
 use crate::api::configs::*;
 use crate::api::grid::interface::GridNoise;
 use crate::api::octave::Octave;
 use crate::api::parameters::*;
-use crate::simd::arch_simd::ArchSimd;
-use crate::simd::register::iters::IntoSimdIterator;
 use crate::math::random::Random;
+use crate::simd::{Arch, StaticArch};
+use crate::simd::register::iters::IntoSimdIterator;
+use crate::{Combiner, GridGenerator, HybridMulti, PingPong, Ridged, Terrace};
 
 /// A struct for creating 2D Perlin noise set on a uniform grid with
 /// a custom list of octaves. Uses the performant perlin algorithm.
 #[derive(Default)]
-pub struct OctaveGridNoiseBuilder<'a, const D: usize, C: Combiner, G: GridGenerator<D>> {
+pub struct OctaveGridNoiseBuilder<'a, const D: usize, C: Combiner, G: GridGenerator<D>, A: Arch = StaticArch> {
     grid_config: GridConfig<D>,
     noise_config: NoiseConfig<D>,
     combiner_config: C::Config,
     octave_list: &'a [Octave<D>],
     _noise_type: PhantomData<G>,
+    _arch: PhantomData<A>,
 }
 
-params_noise_builder!(OctaveGridNoiseBuilder, ['a, const D: usize, C: Combiner, G: GridGenerator<D>], ['a, D, C, G]);
-params_combiner_builder!(OctaveGridNoiseBuilder, ['a, const D: usize, C: Combiner<Config: Sized>, G: GridGenerator<D>], ['a, D, C, G]);
-params_ridged_builder!(OctaveGridNoiseBuilder, ['a, const D: usize, G: GridGenerator<D>], ['a, D, Ridged, G]);
-params_ping_pong_builder!(OctaveGridNoiseBuilder, ['a, const D: usize, G: GridGenerator<D>], ['a, D, PingPong, G]);
-params_terrace_builder!(OctaveGridNoiseBuilder, ['a, const D: usize, G: GridGenerator<D>], ['a, D, Terrace, G]);
-params_hybrid_multi_builder!(OctaveGridNoiseBuilder, ['a, const D: usize, G: GridGenerator<D>], ['a, D, HybridMulti, G]);
-params_noise_scaling_2d!(OctaveGridNoiseBuilder, ['a, C: Combiner, G: GridGenerator<2>], ['a, 2, C, G]);
-params_noise_scaling_3d!(OctaveGridNoiseBuilder, ['a, C: Combiner, G: GridGenerator<3>], ['a, 3, C, G]);
+params_noise_builder!(OctaveGridNoiseBuilder, ['a, const D: usize, C: Combiner, G: GridGenerator<D>, A: Arch], ['a, D, C, G, A]);
+params_combiner_builder!(OctaveGridNoiseBuilder, ['a, const D: usize, C: Combiner<Config: Sized>, G: GridGenerator<D>, A: Arch], ['a, D, C, G, A]);
+params_ridged_builder!(OctaveGridNoiseBuilder, ['a, const D: usize, G: GridGenerator<D>, A: Arch], ['a, D, Ridged, G, A]);
+params_ping_pong_builder!(OctaveGridNoiseBuilder, ['a, const D: usize, G: GridGenerator<D>, A: Arch], ['a, D, PingPong, G, A]);
+params_terrace_builder!(OctaveGridNoiseBuilder, ['a, const D: usize, G: GridGenerator<D>, A: Arch], ['a, D, Terrace, G, A]);
+params_hybrid_multi_builder!(OctaveGridNoiseBuilder, ['a, const D: usize, G: GridGenerator<D>, A: Arch], ['a, D, HybridMulti, G, A]);
+params_noise_scaling_2d!(OctaveGridNoiseBuilder, ['a, C: Combiner, G: GridGenerator<2>, A: Arch], ['a, 2, C, G, A]);
+params_noise_scaling_3d!(OctaveGridNoiseBuilder, ['a, C: Combiner, G: GridGenerator<3>, A: Arch], ['a, 3, C, G, A]);
 
-impl<'a, const D: usize, C: Combiner, G: GridGenerator<D>> OctaveGridNoiseBuilder<'a, D, C, G> {
+impl<'a, const D: usize, C: Combiner, G: GridGenerator<D>, A: Arch> OctaveGridNoiseBuilder<'a, D, C, G, A> {
     pub(crate) fn new(grid_config: GridConfig<D>, octave_list: &'a [Octave<D>]) -> Self {
         Self {
             grid_config,
@@ -41,7 +42,7 @@ impl<'a, const D: usize, C: Combiner, G: GridGenerator<D>> OctaveGridNoiseBuilde
     declare_build!(self, {
         let size = self.grid_config.grid_size.iter().product();
         let mut result = vec![0.0; size];
-        GridNoise::<D, C, G>::sample_with_octaves(
+        GridNoise::<D, C, G>::sample_with_octaves::<StaticArch>(
             &self.grid_config,
             &self.noise_config,
             &self.combiner_config,
@@ -52,7 +53,7 @@ impl<'a, const D: usize, C: Combiner, G: GridGenerator<D>> OctaveGridNoiseBuilde
     });
 
     declare_fill!(self, result, {
-        GridNoise::<D, C, G>::sample_with_octaves(
+        GridNoise::<D, C, G>::sample_with_octaves::<StaticArch>(
             &self.grid_config,
             &self.noise_config,
             &self.combiner_config,
@@ -61,5 +62,5 @@ impl<'a, const D: usize, C: Combiner, G: GridGenerator<D>> OctaveGridNoiseBuilde
         );
     });
 
-    declare_into_iter!(self, { self.build().into_simd_iter() });
+    declare_into_iter!(StaticArch, self, { self.build().into_simd_iter() });
 }

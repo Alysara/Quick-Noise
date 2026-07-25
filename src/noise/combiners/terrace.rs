@@ -1,5 +1,6 @@
-use crate::combiners::{Combiner, CombinerArray};
-use crate::simd::arch_simd::ArchSimd;
+use simply_simd::{Arch, Simd};
+
+use crate::{Combiner, CombinerArray};
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -21,33 +22,33 @@ impl Default for TerraceConfig {
 pub struct Terrace {}
 impl Combiner for Terrace {
     const WEIGHT_DECAY: bool = true;
-    type State = CombinerArray<0>;
+    type State<A: Arch> = CombinerArray<A, 0>;
     type Config = TerraceConfig;
 
     #[inline(always)]
-    fn apply_sample(
+    fn apply_sample<A: Arch>(
         _config: &TerraceConfig,
-        state: Self::State,
-        cur_result: ArchSimd<f32>,
-        new_sample: ArchSimd<f32>,
-    ) -> (Self::State, ArchSimd<f32>) {
+        state: Self::State<A>,
+        cur_result: Simd<f32, A>,
+        new_sample: Simd<f32, A>,
+    ) -> (Self::State<A>, Simd<f32, A>) {
         (state, cur_result + new_sample)
     }
 
     #[inline(always)]
-    fn initialize_sample(
+    fn initialize_sample<A: Arch>(
         _config: &TerraceConfig,
-        new_sample: ArchSimd<f32>,
-    ) -> (Self::State, ArchSimd<f32>) {
-        (Self::State::default(), new_sample)
+        new_sample: Simd<f32, A>,
+    ) -> (Self::State<A>, Simd<f32, A>) {
+        (Default::default(), new_sample)
     }
 
     #[inline(always)]
-    fn finalize_sample(
+    fn finalize_sample<A: Arch>(
         config: &TerraceConfig,
-        _state: Self::State,
-        last: ArchSimd<f32>,
-    ) -> ArchSimd<f32> {
-        (last * ArchSimd::splat(config.steps)).round() * ArchSimd::splat(config.step_size)
+        _state: Self::State<A>,
+        last: Simd<f32, A>,
+    ) -> Simd<f32, A> {
+        (last * Simd::splat(config.steps)).round() * Simd::splat(config.step_size)
     }
 }

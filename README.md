@@ -1,4 +1,11 @@
-Blazingly fast SIMD procedural noise library for batch and uniform grid sampling. Works on stable Rust.
+[![Crates.io](https://img.shields.io/crates/v/quick-noise.svg)](https://crates.io/crates/quick-noise)
+[![Documentation](https://img.shields.io/docsrs/quick-noise)](https://docs.rs/quick-noise)
+[![License](https://img.shields.io/crates/l/quick-noise.svg)](https://github.com/Alysara/quick-noise#license)
+[![Build Status](https://github.com/Alysara/quick-noise/actions/workflows/rust.yml/badge.svg)](https://github.com/Alysara/quick-noise/actions/workflows/rust.yml)
+[![codecov](https://codecov.io/gh/Alysara/quick-noise/branch/main/graph/badge.svg)](https://codecov.io/gh/Alysara/quick-noise)
+[![MSRV](https://img.shields.io/badge/MSRV-1.95-orange.svg)](https://www.rust-lang.org)
+
+Blazingly fast SIMD procedural noise library for batch and uniform grid sampling with runtime feature detection on stable Rust.
 
 # Performance
 
@@ -125,7 +132,7 @@ let noise = grid.builder_with_octaves::<Billow, Value>(octave_list.as_slice())
 	.fill(result.as_mut_slice());
 ```
 
-quick-noise makes FBM warped noise convenient through a dedicated grid method.
+quick-noise makes warped noise convenient through a dedicated grid method.
 It internally adds the values of the grid to the offset iterators you provide it.
 This can be chained together for complex warp configurations. Since it uses batch noise,
 Perlin, Value, Simplex, and Cellular can all be used here.
@@ -204,17 +211,6 @@ In this example, a uniform grid is being generated manually for demonstration pu
 Since simplex and cellular do not currently support grid noise, this method can be used to generate
 them on a grid. Batch noise also supports custom octaves.
 
-## Feature Flags
-
-quick-noise offers a couple of utility features. These are disabled by default to keep compilation lean.
-
-### image
-The image feature flag uses the `image` crate and enables the usage of `to_grayscale_image` for generating
-grayscale images of your noise.
-
-### serde
-The serde feature flag dervies `Serialize` and `Deserialize` for config structs.
-
 ## Simd
 
 quick-noise uses a custom simd module purpose-built for noise. Unlike std::simd, it works on stable.
@@ -225,7 +221,7 @@ This simd module can support most basic operations, and can be used directly to 
 
 ```rust
 use quick_noise::{Grid, BatchNoise, Ridged, Cellular};
-use quick_noise::simd::ArchSimd;
+use quick_noise::simd::StaticSimd;
 use std::iter::zip;
 
 let grid = Grid::<2>::new(128, 128).grid_position(0, 0);
@@ -239,49 +235,195 @@ let iter_2 = BatchNoise::<2, Ridged, Cellular>::builder(grid.x_iter(), grid.y_it
     .into_iter();
 
 let iter_3 = zip(iter_1, iter_2).map(|(x, y)| x * y);
+
+// You also get access to simd registers directly.
+let simd = StaticSimd::<f32>::splat(1.0);
 ```
 
 Using these iterators can fuse operations and avoid multiple vertical passes, particularly for batch noise.
-`ArchSimd` represents a raw simd register for a given architecture. Unlike std::simd which abstracts these architecture details,
+`Simd` represents a raw simd register for a given architecture. Unlike std::simd which abstracts these architecture details,
 this simd module offers you the ability to explicitly control loops that work best for your CPU.
 
-`simd_iter` and `simd_iter_mut` are exposed by the `SimdSliceIterExt` to create these iters from slices.
+## Dynamic Dispatch
 
-# Extensibility
+The examples shown so far use static dispatch, which identifies which simd feature set to use at compile time.
+This requires compiler flags up-front and reduces the portability of your program. However, quick-noise allows you
+to compile for multiple targets and identify which target to use at runtime. The primary method is with
+the attribute macro `dispatch_simd`:
+
+```rust
+use quick_noise::{Grid, Fbm, Perlin, BatchNoise};
+use quick_noise::simd::{Simd, dispatch_simd};
+
+#[dispatch_simd(A)]
+pub fn generate_noise() {
+    // Include A from the macro when specifying the grid.
+    let grid = Grid::<2, A>::new(128, 128);
+
+    // Now all grid methods and builders use that architecture.
+    let x_iter = grid.x_iter();
+    let y_iter = grid.y_iter();
+    let noise = grid.builder::<Fbm, Perlin>().build();
+
+    // Batch noise will infer that it's using the specified architecture.
+    let result = BatchNoise::<2, Fbm, Perlin>::builder(x_iter, y_iter).into_iter();
+
+    // You can use simd registers dynamically as well.
+    let simd = Simd::<f32, A>::splat(1.0);
+}
+
+fn main() {
+    // Function can be called like normal.
+    generate_noise()
+}
+```
+
+Since the dispatch requires branching at runtime,
+it is best to do this outside of hot loops.
+
+Rust will not emit SIMD instructions inline if it does not have
+the associated feature flags. Functions with generic type `A: Arch`
+must either inline or use the `enable_targets` macro. If neither
+of these are done, Rust may not inline the SIMD instructions and
+performance will significantly degrade, up to 50x times slower.
+
+```rust
+use quick_noise::simd::{Arch, dispatch_simd, enable_targets};
+
+// Dispatch simd here to avoid repeated dispatching
+// in every iteration.
+#[dispatch_simd(A)]
+pub fn simd_entry() {
+    for _ in 0..1024 {
+        simd_work_1::<A>();
+        simd_work_2::<A>();
+        broken_simd_work::<A>();
+    }
+}
+
+// Avoid using #[dispatch_simd(A)] again here.
+// Instead, use #[enable_targets(A)] with <A: Arch>.
+#[enable_targets(A)]
+pub fn simd_work_1<A: Arch>() {
+    // ...
+}
+
+// #[inline(always)] can be used as well.
+#[inline(always)]
+pub fn simd_work_2<A: Arch>() {
+    // ...
+}
+
+// No inline or enable_targets,
+// compiler may not optimize or inline 
+// SIMD instructions.
+pub fn broken_simd_work<A: Arch>() {
+    // ...
+}
+
+```
+
+`dispatch_simd` and `enable_targets` can both be used on impl blocks as well. This is necessary
+when `A: Arch` is generic across a struct. It will also apply to every function that contains
+a generic `A: Arch` (or other identifier you specify). This method must be used for trait implementations:
+
+```rust
+use quick_noise::simd::{Arch, enable_targets};
+
+trait SimdTask {
+    fn simd_work<A: Arch>();
+}
+struct SimdWorker {}
+
+#[enable_targets(A)]
+impl SimdTask for SimdWorker {
+    fn simd_work<A: Arch>() {}
+}
+```
+
+If `#[dispatch_simd(A)]` is applied to an associated function using generic
+parameters from its impl block, the macro will not have enough information to tell it's an
+associated function and requires an additional flag: `#[dispatch_simd(A, associated)]`.
+For the majority of cases, this flag can be omitted.
+
+Unfortunately, these restrictions make it impossible to ensure other functions that you do not own
+use the dispatched target. As a result, adapaters on iterators do not work with dynamic dispatch
+and result in non-inlined intrinsics.
+
+## Loading Simd
+
+`simd_iter` and `simd_iter_mut` are exposed by the `SimdSliceIterExt` to create these iters from slices.
+These require the architecture to be known. For static dispatch, `simd_iter_static` and `simd_iter_mut_static`
+mut be used.
+
+```rust
+use quick_noise::{Fbm, Perlin, BatchNoise};
+use quick_noise::simd::{SimdSliceIterExt, dispatch_simd};
+
+#[dispatch_simd(A)]
+pub fn generate_noise() {
+    // Say we have buffers of arbitrary inputs we want to query noise results.
+    let x_buffer: [f32; 1024] = std::array::from_fn(|i| i as f32);
+    let y_buffer: [f32; 1024] = std::array::from_fn(|i| i as f32);
+    let mut result: [f32; 1024] = [0.0; 1024];
+
+    // We can use the statically dispatched simd feature set, which does not require
+    // dynamic dispatch.
+    let x_iter = x_buffer.as_slice().simd_iter_static();
+    let y_iter = y_buffer.as_slice().simd_iter_static();
+    BatchNoise::<2, Fbm, Perlin>::builder(x_iter, y_iter).fill(result.as_mut_slice());
+
+    // We can also use dynamic dispatch.
+    let x_iter = x_buffer.as_slice().simd_iter::<A>();
+    let y_iter = y_buffer.as_slice().simd_iter::<A>();
+    BatchNoise::<2, Fbm, Perlin>::builder(x_iter, y_iter).fill(result.as_mut_slice());
+
+    // BatchNoise is the same in both cases.
+}
+
+```
+
+## Extensibility
 
 quick-noise allows you to implement your own custom combiners and generators.
 They are defined once in one place and work for both grid and batch noise.
 For example, the Fbm combiner is defined as:
 
 ```rust
+use quick_noise::{Combiner, CombinerArray};
+use quick_noise::simd::{Arch, Simd};
+
 #[derive(Default, Copy, Clone, PartialEq, Debug)]
 pub struct Fbm {}
-use quick_noise::{Combiner, CombinerArray};
-use quick_noise::simd::ArchSimd;
 impl Combiner for Fbm {
     const WEIGHT_DECAY: bool = true;
-
-    // Array of values carried across octaves; unnecessary for Fbm.
-    type State = CombinerArray<0>;
+    type State<A: Arch> = CombinerArray<A, 0>;
     type Config = ();
 
     #[inline(always)]
-    fn apply_sample(
+    fn apply_sample<A: Arch>(
         _config: &(),
-        state: Self::State,
-        cur_result: ArchSimd<f32>,
-        new_sample: ArchSimd<f32>,
-    ) -> (Self::State, ArchSimd<f32>) {
+        state: Self::State<A>,
+        cur_result: Simd<f32, A>,
+        new_sample: Simd<f32, A>,
+    ) -> (Self::State<A>, Simd<f32, A>) {
         (state, cur_result + new_sample)
     }
 
     #[inline(always)]
-    fn initialize_sample(_config: &(), new_sample: ArchSimd<f32>) -> (Self::State, ArchSimd<f32>) {
-        (Self::State::default(), new_sample)
+    fn initialize_sample<A: Arch>(
+        _config: &(),
+        new_sample: Simd<f32, A>,
+    ) -> (Self::State<A>, Simd<f32, A>) {
+        (Default::default(), new_sample)
     }
 
     #[inline(always)]
-    fn finalize_sample(_config: &(), _state: Self::State, last: ArchSimd<f32>) -> ArchSimd<f32> {
+    fn finalize_sample<A: Arch>(
+        _config: &(),
+        _state: Self::State<A>,
+        last: Simd<f32, A>,
+    ) -> Simd<f32, A> {
         last
     }
 }
@@ -293,6 +435,18 @@ traits.
 
 To sample directly, `GridNoise` and `BatchNoise` both have `sample` and `sample_with_octaves`.
 Structs that implement `GridGenerator` and `BatchGenerator` support `sample_grid` and `sample_batch`.
+
+## Feature Flags
+
+quick-noise offers a couple of utility features. These are disabled by default to keep compilation lean.
+
+### image
+The image feature flag uses the `image` crate and enables the usage of `to_grayscale_image` for generating
+grayscale images of your noise.
+
+### serde
+The serde feature flag dervies `Serialize` and `Deserialize` for config structs.
+
 
 # Detailed Performance
 
