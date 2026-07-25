@@ -1,3 +1,10 @@
+[![Crates.io](https://img.shields.io/crates/v/quick-noise.svg)](https://crates.io/crates/quick-noise)
+[![Documentation](https://img.shields.io/docsrs/quick-noise)](https://docs.rs/quick-noise)
+[![License](https://img.shields.io/crates/l/quick-noise.svg)](https://github.com/Alysara/quick-noise#license)
+[![Build Status](https://github.com/Alysara/quick-noise/actions/workflows/rust.yml/badge.svg)](https://github.com/Alysara/quick-noise/actions/workflows/rust.yml)
+[![codecov](https://codecov.io/gh/Alysara/quick-noise/branch/main/graph/badge.svg)](https://codecov.io/gh/Alysara/quick-noise)
+[![MSRV](https://img.shields.io/badge/MSRV-1.95-orange.svg)](https://www.rust-lang.org)
+
 Blazingly fast SIMD procedural noise library for batch and uniform grid sampling with runtime feature detection on stable Rust.
 
 # Performance

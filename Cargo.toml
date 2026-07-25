@@ -42,3 +42,7 @@ serde = ["dep:serde", "dep:serde_arrays"]
 [[example]]
 name = "basic"
 required-features = ["image"]
+
+[[example]]
+name = "test_images"
+required-features = ["image"]

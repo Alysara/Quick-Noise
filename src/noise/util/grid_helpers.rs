@@ -104,7 +104,7 @@ impl<F: Arch> InterpolationConfig<F> {
             tail_size: x_dim % block_lanes,
             block_tail_size: (x_dim % block_lanes).div_ceil(lanes),
             block_tail_start: (x_dim / block_lanes) * block_lanes,
-            _family: PhantomData::<F>
+            _family: PhantomData::<F>,
         }
     }
 }
@@ -166,9 +166,7 @@ impl<T: SimdElement, F: Arch> MaybeUninitSliceSimdExt<T, F> for [MaybeUninit<T>]
     }
 
     unsafe fn load_simd_aligned(&self, index: usize) -> Simd<T, F> {
-        unsafe {
-            Simd::from_aligned_slice_unchecked(self.get_unchecked(index..).assume_init_ref())
-        }
+        unsafe { Simd::from_aligned_slice_unchecked(self.get_unchecked(index..).assume_init_ref()) }
     }
 
     unsafe fn write_simd(&mut self, index: usize, simd: Simd<T, F>) {
@@ -193,7 +191,10 @@ pub fn validate_grid_size<const D: usize>(grid_size: [usize; D], slice_len: usiz
 }
 
 #[inline(always)]
-pub fn validate_state_size<C: Combiner, F: Arch, const D: usize>(grid_size: [usize; D], slice_len: usize) {
+pub fn validate_state_size<C: Combiner, F: Arch, const D: usize>(
+    grid_size: [usize; D],
+    slice_len: usize,
+) {
     if C::State::<F>::STATE_SIZE > 0 {
         let total_size: usize = grid_size.iter().product();
         let required_size = total_size * C::State::<F>::STATE_SIZE;
@@ -295,7 +296,8 @@ pub(crate) fn configure_tiling<const D: usize>(params: &GridNoiseParams<D>) -> [
             let nearness = (float - float.round()).abs();
             assert!(
                 nearness < 0.001,
-                "Frequency does not align with the tiling!"
+                "frequency does not align with the tiling of {val} (frequency={}, nearness={nearness})!",
+                params.frequency[i]
             );
             Some(float.round() as u32)
         } else {
