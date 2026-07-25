@@ -31,7 +31,7 @@ jobs:
         run: rustup target add x86_64-unknown-linux-gnu
 
       - name: Build (${{ matrix.name }})
-        run: cargo build -p quick_noise --features="image" --verbose --target x86_64-unknown-linux-gnu
+        run: cargo build -p quick-noise --features="image" --verbose --target x86_64-unknown-linux-gnu
         env:
           RUSTFLAGS: ${{ matrix.rustflags }}
 
@@ -47,13 +47,13 @@ jobs:
 
       - name: Test (${{ matrix.name }})
         if: matrix.name != 'avx512'
-        run: cargo test -p quick_noise --features="image" --verbose --target x86_64-unknown-linux-gnu
+        run: cargo test -p quick-noise --features="image" --verbose --target x86_64-unknown-linux-gnu
         env:
           RUSTFLAGS: ${{ matrix.rustflags }}
 
       - name: Test (avx512)
         if: matrix.name == 'avx512' && steps.cpu.outputs.has_avx512 == 'true'
-        run: cargo test -p quick_noise --features="image" --verbose --target x86_64-unknown-linux-gnu
+        run: cargo test -p quick-noise --features="image" --verbose --target x86_64-unknown-linux-gnu
         env:
           RUSTFLAGS: ${{ matrix.rustflags }}
 
@@ -66,11 +66,11 @@ jobs:
         run: rustup target add aarch64-unknown-linux-gnu
 
       - name: Build (neon)
-        run: cargo build -p quick_noise --features="image" --verbose --target aarch64-unknown-linux-gnu
+        run: cargo build -p quick-noise --features="image" --verbose --target aarch64-unknown-linux-gnu
         env:
           RUSTFLAGS: "-C target-feature=+neon"
 
       - name: Test (neon)
-        run: cargo test -p quick_noise --features="image" --verbose --target aarch64-unknown-linux-gnu
+        run: cargo test -p quick-noise --features="image" --verbose --target aarch64-unknown-linux-gnu
         env:
           RUSTFLAGS: "-C target-feature=+neon"
