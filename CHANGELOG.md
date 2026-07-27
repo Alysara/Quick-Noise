@@ -2,7 +2,7 @@ All changes in `quick-noise` are documented here.
 
 ## Unreleased
 
-## 0.2.0 - In-development | Subject to change
+## 0.2.0 - 2026-07-25
 
 ### Added
 - Runtime feature selection support.

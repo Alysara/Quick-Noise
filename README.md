@@ -40,6 +40,9 @@ Time taken to produce 3 octaves of FBM noise for 128x128x128 (2,097,152) samples
 frequencies >= 1.0. Grid noise. However, it can generate 10+ billion samples per second
 at smaller grid sizes (64x64, 32x32x32) where memory transfer is a smaller barrier.
 More detailed benchmarks below.
+* This performance is achieved with static dispatch using the `target-cpu=native` flag.
+Without this flag, runtime feature detection (dynamic dispatch) is needed to achieve similar performance. See below
+for guidance on runtime feature detection.
 
 
 # Usage
@@ -519,15 +522,13 @@ Height maps can be generated in `examples/basic.rs`. To run these examples, use:
 > cargo run --example basic --release --features="image"
 
 It is important that `RUSTFLAGS='-C target-cpu=native'` and `--release` is used for the best performance.
-`target-cpu=native` is specified by default in this project, but if you use it in your project and use other flags
-you may achieve worse performance.
+If this flag is not used, runtime feature detection (dynamic dispatch) can be used to achieve
+similar performance.
 
 Criterion benches can be run with:
 
-> cargo bench
+> cargo bench -p quick-noise-benches
 
 Test modules can be run with:
 
 > cargo test --features="image" --release
-
-macOS users may have to comment out the simdnoise dev-dependency due to a Sse4.1 target error.
