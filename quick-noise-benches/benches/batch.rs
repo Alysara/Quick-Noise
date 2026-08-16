@@ -1,7 +1,9 @@
 use std::hint::black_box;
 
 use criterion::{Criterion, Throughput, criterion_group, criterion_main};
-use fastnoise2::generator::{DistanceFunction, cellular::CellularDistanceReturnType, prelude::*};
+use fastnoise2::generator::DistanceFunction;
+use fastnoise2::generator::cellular::CellularDistanceReturnType;
+use fastnoise2::generator::prelude::*;
 use quick_noise::{BatchNoise, Cellular, Fbm, Grid, Perlin, Simplex, Value};
 const FREQ: f32 = 1.0 / 32.0;
 
@@ -103,7 +105,9 @@ fn batch_benchmark(c: &mut Criterion) {
         0,
         1,
         CellularDistanceReturnType::Index0,
-    ).fbm(0.5, 0.0, 1, 2.0).build();
+    )
+    .fbm(0.5, 0.0, 1, 2.0)
+    .build();
     group.bench_function("cellular", |b| {
         b.iter(|| {
             node.gen_uniform_grid_2d(&mut result, 0.0, 0.0, 64, 64, FREQ, FREQ, 100);
@@ -118,19 +122,55 @@ fn batch_benchmark(c: &mut Criterion) {
     let node = perlin().fbm(0.5, 0.0, 1, 2.0).build();
     group.bench_function("perlin", |b| {
         b.iter(|| {
-            node.gen_uniform_grid_3d(&mut result, 0.0, 0.0, 0.0, 32, 32, 32, FREQ, FREQ, FREQ, 100);
+            node.gen_uniform_grid_3d(
+                &mut result,
+                0.0,
+                0.0,
+                0.0,
+                32,
+                32,
+                32,
+                FREQ,
+                FREQ,
+                FREQ,
+                100,
+            );
         });
     });
     let node = value().fbm(0.5, 0.0, 1, 2.0).build();
     group.bench_function("value", |b| {
         b.iter(|| {
-            node.gen_uniform_grid_3d(&mut result, 0.0, 0.0, 0.0, 32, 32, 32, FREQ, FREQ, FREQ, 100);
+            node.gen_uniform_grid_3d(
+                &mut result,
+                0.0,
+                0.0,
+                0.0,
+                32,
+                32,
+                32,
+                FREQ,
+                FREQ,
+                FREQ,
+                100,
+            );
         });
     });
     let node = simplex().fbm(0.5, 0.0, 1, 2.0).build();
     group.bench_function("simplex", |b| {
         b.iter(|| {
-            node.gen_uniform_grid_3d(&mut result, 0.0, 0.0, 0.0, 32, 32, 32, FREQ, FREQ, FREQ, 100);
+            node.gen_uniform_grid_3d(
+                &mut result,
+                0.0,
+                0.0,
+                0.0,
+                32,
+                32,
+                32,
+                FREQ,
+                FREQ,
+                FREQ,
+                100,
+            );
         });
     });
     let node = cellular_distance(
@@ -139,10 +179,24 @@ fn batch_benchmark(c: &mut Criterion) {
         0,
         1,
         CellularDistanceReturnType::Index0,
-    ).fbm(0.5, 0.0, 1, 2.0).build();
+    )
+    .fbm(0.5, 0.0, 1, 2.0)
+    .build();
     group.bench_function("cellular", |b| {
         b.iter(|| {
-            node.gen_uniform_grid_3d(&mut result, 0.0, 0.0, 0.0, 32, 32, 32, FREQ, FREQ, FREQ, 100);
+            node.gen_uniform_grid_3d(
+                &mut result,
+                0.0,
+                0.0,
+                0.0,
+                32,
+                32,
+                32,
+                FREQ,
+                FREQ,
+                FREQ,
+                100,
+            );
         });
     });
     black_box(&result);

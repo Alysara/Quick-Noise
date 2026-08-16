@@ -4,14 +4,15 @@ use crate::api::configs::*;
 use crate::api::grid::interface::{GridGenerator, GridNoise};
 use crate::api::parameters::*;
 use crate::math::random::Random;
-use crate::simd::{Arch, StaticArch};
 use crate::simd::register::iters::IntoSimdIterator;
+use crate::simd::{Arch, StaticArch};
 use crate::{Combiner, HybridMulti, PingPong, Ridged, Terrace};
 
 /// A struct for creating FBM noise set on a uniform grid.
 /// The most performant way to generate Perlin noise.
 #[derive(Default, Copy, Clone)]
-pub struct GridNoiseBuilder<const D: usize, C: Combiner, G: GridGenerator<D>, A: Arch = StaticArch> {
+pub struct GridNoiseBuilder<const D: usize, C: Combiner, G: GridGenerator<D>, A: Arch = StaticArch>
+{
     grid_config: GridConfig<D>,
     noise_config: NoiseConfig<D>,
     combiner_config: C::Config,

@@ -79,7 +79,8 @@ fn create_test_images_grid_2d() {
         .to_grayscale_image(1000, 1000, "test_images/grid_2d_perlin.png");
 
     grid_2d
-        .builder::<Fbm, Value>() .octaves(6)
+        .builder::<Fbm, Value>()
+        .octaves(6)
         .into_iter()
         .to_grayscale_image(1000, 1000, "test_images/grid_2d_value.png");
 

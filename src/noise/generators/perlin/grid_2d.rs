@@ -12,7 +12,6 @@ use crate::noise::util::grid_helpers::{
     Arena, ArenaBuffer, InterpolationConfig, MaybeUninitSliceSimdExt, assume_init_slice,
     maybe_tail_load, maybe_tail_store, pad_grid_size, validate_grid_size, validate_state_size,
 };
-
 use crate::{GridGenerator, Perlin};
 
 pub const GRADIENTS_2D: [[f32; 2]; 8] = [

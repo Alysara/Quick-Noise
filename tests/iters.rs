@@ -1,9 +1,8 @@
 use quick_noise::Grid;
 
-
 fn is_approx_eq(left: f32, right: f32, epsilon: f32) -> bool {
     let dif = left - right;
-    dif.abs() <= epsilon 
+    dif.abs() <= epsilon
 }
 
 fn validate_iter_output(slice: &[f32], start: f32, stride: usize, rows: usize, slices: usize) {
@@ -23,7 +22,10 @@ fn validate_iter_output(slice: &[f32], start: f32, stride: usize, rows: usize, s
     }
 
     if !matches {
-        panic!("Iter does not match!\nReceived: {:?}\n\nExpected: {:?}", slice, vec);
+        panic!(
+            "Iter does not match!\nReceived: {:?}\n\nExpected: {:?}",
+            slice, vec
+        );
     }
 }
 

@@ -72,4 +72,3 @@ impl<const D: usize> NoiseConfig<D> {
         amplitude / sum
     }
 }
-

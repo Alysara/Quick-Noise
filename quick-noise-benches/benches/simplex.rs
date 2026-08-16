@@ -94,10 +94,12 @@ fn simplex_2d_octaves_benchmark(c: &mut Criterion) {
         use noiz::prelude::*;
 
         let noise = Noise::<
-            LayeredNoise::<
+            LayeredNoise<
                 Normed<f32>,
                 Persistence,
-                FractalLayers<Octave<BlendCellGradients<SimplexGrid, SimplecticBlend, QuickGradients>>>,
+                FractalLayers<
+                    Octave<BlendCellGradients<SimplexGrid, SimplecticBlend, QuickGradients>>,
+                >,
             >,
         >::from(LayeredNoise::new(
             Normed::default(),
@@ -156,14 +158,15 @@ fn simplex_2d_octaves_benchmark(c: &mut Criterion) {
             b.iter(|| {
                 for y in 0..GRID_2D {
                     for x in 0..GRID_2D {
-                        result[y * GRID_2D + x] = Simplex.fbm(OCTAVES_2D as u32, 0.5, 2.0).sample2([y as f32, x as f32]);
+                        result[y * GRID_2D + x] = Simplex
+                            .fbm(OCTAVES_2D as u32, 0.5, 2.0)
+                            .sample2([y as f32, x as f32]);
                     }
                 }
             });
         });
         black_box(&result);
     }
-
 
     group.finish();
 
@@ -216,7 +219,8 @@ fn simplex_2d_octaves_benchmark(c: &mut Criterion) {
                 for z in 0..GRID_3D {
                     for y in 0..GRID_3D {
                         for x in 0..GRID_3D {
-                            result[z * GRID_3D * GRID_3D + y * GRID_3D + x] = fbm.get([x as f64, y as f64, z as f64]);
+                            result[z * GRID_3D * GRID_3D + y * GRID_3D + x] =
+                                fbm.get([x as f64, y as f64, z as f64]);
                         }
                     }
                 }
@@ -236,7 +240,8 @@ fn simplex_2d_octaves_benchmark(c: &mut Criterion) {
                 for z in 0..GRID_3D {
                     for y in 0..GRID_3D {
                         for x in 0..GRID_3D {
-                            result[z * GRID_3D * GRID_3D + y * GRID_3D + x] = generator.sample([x as f64, y as f64, z as f64]);
+                            result[z * GRID_3D * GRID_3D + y * GRID_3D + x] =
+                                generator.sample([x as f64, y as f64, z as f64]);
                         }
                     }
                 }
@@ -251,10 +256,12 @@ fn simplex_2d_octaves_benchmark(c: &mut Criterion) {
         use noiz::prelude::*;
 
         let noise = Noise::<
-            LayeredNoise::<
+            LayeredNoise<
                 Normed<f32>,
                 Persistence,
-                FractalLayers<Octave<BlendCellGradients<SimplexGrid, SimplecticBlend, QuickGradients>>>,
+                FractalLayers<
+                    Octave<BlendCellGradients<SimplexGrid, SimplecticBlend, QuickGradients>>,
+                >,
             >,
         >::from(LayeredNoise::new(
             Normed::default(),
@@ -265,7 +272,6 @@ fn simplex_2d_octaves_benchmark(c: &mut Criterion) {
                 amount: OCTAVES_3D as u32,
             },
         ));
-
 
         let mut result = vec![0.0f32; GRID_3D_VOLUME];
         group.bench_function("noiz", |b| {

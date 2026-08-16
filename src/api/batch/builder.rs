@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use itertools::{Zip};
+use itertools::Zip;
 use simply_simd::{Arch, Simd};
 
 use crate::api::batch::interface::{BatchGenerator, BatchNoise, DimIter};
@@ -45,7 +45,10 @@ params_noise_scaling_3d!(BatchNoiseBuilder, [C: Combiner, G: BatchGenerator<3>, 
 
 impl<C: Combiner, G: BatchGenerator<2>> BatchNoise<2, C, G> {
     /// Creates a new builder to easily configure batches of noise.
-    pub fn builder<A: Arch, X, Y>(x_iter: X, y_iter: Y) -> BatchNoiseBuilder<2, C, G, A, Zip<(X, Y)>>
+    pub fn builder<A: Arch, X, Y>(
+        x_iter: X,
+        y_iter: Y,
+    ) -> BatchNoiseBuilder<2, C, G, A, Zip<(X, Y)>>
     where
         X: Iterator<Item = Simd<f32, A>>,
         Y: Iterator<Item = Simd<f32, A>>,
@@ -111,7 +114,7 @@ impl<S, F, A, X, Y, Z> BatchNoiseBuilder<3, F, S, A, Zip<(X, Y, Z)>>
 where
     S: BatchGenerator<3>,
     F: Combiner,
-    A: Arch, 
+    A: Arch,
     X: Iterator<Item = Simd<f32, A>>,
     Y: Iterator<Item = Simd<f32, A>>,
     Z: Iterator<Item = Simd<f32, A>>,

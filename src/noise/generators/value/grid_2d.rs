@@ -6,8 +6,8 @@ use simply_simd::{Arch, Simd, enable_targets};
 
 use crate::GridGenerator;
 use crate::api::grid::interface::GridNoiseParams;
-use crate::noise::generators::Value;
 use crate::noise::combiners::{Combiner, CombinerState};
+use crate::noise::generators::Value;
 use crate::noise::util::grid_data::{GridData, Lerp};
 use crate::noise::util::grid_helpers::{
     Arena, ArenaBuffer, InterpolationConfig, MaybeUninitSliceSimdExt, assume_init_slice,

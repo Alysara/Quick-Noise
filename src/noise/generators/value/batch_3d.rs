@@ -5,7 +5,11 @@ use crate::noise::generators::Value;
 
 #[enable_targets(A)]
 impl BatchGenerator<3> for Value {
-    fn sample_batch<A: Arch>(seed: u32, input: [Simd<f32, A>; 3], freq: [Simd<f32, A>; 3]) -> Simd<f32, A> {
+    fn sample_batch<A: Arch>(
+        seed: u32,
+        input: [Simd<f32, A>; 3],
+        freq: [Simd<f32, A>; 3],
+    ) -> Simd<f32, A> {
         // Constants.
         let neg_two: Simd<f32, A> = Simd::splat(-2.0);
         let three: Simd<f32, A> = Simd::splat(3.0);

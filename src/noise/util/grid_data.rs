@@ -65,7 +65,8 @@ impl<'a, const D: usize> GridData<'a, D> {
             Simd::<f32, A>::iota(0.0) * Simd::<f32, A>::splat(increment[i])
                 + Simd::<f32, A>::splat(frac_start[i])
         });
-        let chunk_increment: [_; D] = from_fn(|i| Simd::<f32, A>::splat(increment[i] * lanes as f32));
+        let chunk_increment: [_; D] =
+            from_fn(|i| Simd::<f32, A>::splat(increment[i] * lanes as f32));
 
         for axis in 0..D {
             for i in (0..params.grid_size[axis]).step_by(lanes) {

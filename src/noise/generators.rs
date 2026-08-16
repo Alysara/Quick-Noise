@@ -28,4 +28,5 @@ pub struct Cellular {}
 pub mod cellular {
     pub mod batch_2d;
     pub mod batch_3d;
+    pub mod grid_2d;
 }

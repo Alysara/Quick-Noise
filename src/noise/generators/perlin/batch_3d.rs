@@ -5,7 +5,11 @@ use crate::noise::generators::Perlin;
 
 #[enable_targets(A)]
 impl BatchGenerator<3> for Perlin {
-    fn sample_batch<A: Arch>(seed: u32, input: [Simd<f32, A>; 3], freq: [Simd<f32, A>; 3]) -> Simd<f32, A> {
+    fn sample_batch<A: Arch>(
+        seed: u32,
+        input: [Simd<f32, A>; 3],
+        freq: [Simd<f32, A>; 3],
+    ) -> Simd<f32, A> {
         // Constants.
         let six: Simd<f32, A> = Simd::splat(6.0);
         let ten: Simd<f32, A> = Simd::splat(10.0);
