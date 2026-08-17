@@ -177,13 +177,13 @@ mod tests {
         let max_diff = compare_batch(octave_seed, FREQ, W, H, (-5, 3));
         assert!(
             max_diff < 1e-4,
-            "Batch cellular diverges from the brute-force Voronoi by {max_diff}"
+            "Batch cellular diverges from the brute-force Cellular by {max_diff}"
         );
 
         let max_diff = compare_batch(octave_seed, FREQ, 32, 96, (-5, 3));
         assert!(
             max_diff < 1e-4,
-            "Tall batch cellular diverges from the brute-force Voronoi by {max_diff}"
+            "Tall batch cellular diverges from the brute-force Cellular by {max_diff}"
         );
     }
 

@@ -2,16 +2,23 @@ use std::fmt;
 use std::mem::MaybeUninit;
 use std::ops::Range;
 
-use simply_simd::{Arch, Simd, enable_targets};
+use simply_simd::{ Arch, Simd, enable_targets };
 
 use crate::api::grid::interface::GridNoiseParams;
-use crate::noise::combiners::Combiner;
-use crate::noise::util::grid_data::{GridData, Lerp};
+use crate::noise::combiners::{ Combiner, CombinerState };
+use crate::noise::util::grid_data::{ GridData, Lerp };
 use crate::noise::util::grid_helpers::{
-    Arena, ArenaBuffer, MaybeUninitSliceSimdExt, assume_init_slice, pad_grid_size,
-    validate_grid_size, validate_state_size,
+    Arena,
+    ArenaBuffer,
+    MaybeUninitSliceSimdExt,
+    assume_init_slice,
+    maybe_tail_load,
+    maybe_tail_store,
+    pad_grid_size,
+    validate_grid_size,
+    validate_state_size,
 };
-use crate::{Cellular, GridGenerator};
+use crate::{ Cellular, GridGenerator };
 
 struct CellularCandidates2D<'a> {
     xpart: [&'a mut [MaybeUninit<f32>]; 12],
@@ -49,11 +56,11 @@ const RING: [(i32, i32); 8] = [
     (-1, 0), // ttl
     (0, -1), // tll
     (-1, 1), // ttr
-    (0, 2),  // trr
-    (2, 0),  // bbl
+    (0, 2), // trr
+    (2, 0), // bbl
     (1, -1), // bll
-    (2, 1),  // bbr
-    (1, 2),  // brr
+    (2, 1), // bbr
+    (1, 2), // brr
 ];
 
 #[enable_targets(A)]
@@ -62,15 +69,17 @@ impl GridGenerator<2> for Cellular {
         params: GridNoiseParams<2>,
         combiner: C::Config,
         state: &mut [f32],
-        dst: &mut [f32],
+        dst: &mut [f32]
     ) {
         validate_grid_size(params.grid_size, dst.len());
         validate_state_size::<C, A, _>(params.grid_size, state.len());
         let padded_size = pad_grid_size::<A, _>(params.grid_size);
+        let total_size = params.grid_size.iter().product::<usize>();
 
         // Both the x and y candidate buffers must fit the larger axis.
         let candidate_size = padded_size[0].max(padded_size[1]);
-        let required_cache = padded_size[1] * 3 + padded_size[0] * 3 + candidate_size * 24;
+        let required_cache =
+            padded_size[1] * 3 + padded_size[0] * 3 + candidate_size * 24 + total_size;
         let mut cache = ArenaBuffer::<A>::with_capacity(required_cache);
         let mut arena = Arena::with_cache(&mut cache);
 
@@ -78,17 +87,22 @@ impl GridGenerator<2> for Cellular {
 
         let mut grid_data = GridData::new::<A, LERP>(&params, &mut sub_arena, &padded_size);
 
+        // Scratch buffer for the raw cellular min and combiner pass
+        let raw = unsafe { arena.allocate(total_size).assume_init_mut() };
+
         let mut candidates = CellularCandidates2D::new(&mut arena, candidate_size);
 
         // per-cell setup pass, driven by the cell x/y indices
         let mut y_idx = 0;
         for y_it in 0..grid_data.num_loops[1] {
-            let y_next_idx =
-                unsafe { grid_data.grid_indices[1].get_unchecked(y_it).assume_init() as usize };
+            let y_next_idx = unsafe {
+                grid_data.grid_indices[1].get_unchecked(y_it).assume_init() as usize
+            };
             let mut x_idx = 0;
             for x_it in 0..grid_data.num_loops[0] {
-                let x_next_idx =
-                    unsafe { grid_data.grid_indices[0].get_unchecked(x_it).assume_init() as usize };
+                let x_next_idx = unsafe {
+                    grid_data.grid_indices[0].get_unchecked(x_it).assume_init() as usize
+                };
 
                 grid_cellular_hash::<A>(
                     &params,
@@ -98,7 +112,7 @@ impl GridGenerator<2> for Cellular {
                     x_it,
                     x_idx,
                     y_it,
-                    y_idx,
+                    y_idx
                 );
 
                 let x_sample_range = x_idx..x_next_idx;
@@ -110,10 +124,10 @@ impl GridGenerator<2> for Cellular {
                     &mut candidates.ypart,
                     &x_sample_range,
                     &y_sample_range,
-                    (state, dst),
+                    raw
                 );
 
-                // Only hash the 12-cell ring if any sample in this cell tripped the threshold
+                // Only hash the 8-cell ring if any sample in this cell tripped the threshold
                 if any_far {
                     grid_cellular_hash_ring::<A>(
                         &params,
@@ -123,22 +137,33 @@ impl GridGenerator<2> for Cellular {
                         x_it,
                         x_idx,
                         y_it,
-                        y_idx,
+                        y_idx
                     );
 
-                    grid_cellular_fill_ring::<A, C, INIT, FINAL>(
+                    grid_cellular_fill_ring::<A>(
                         &mut grid_data,
                         &mut candidates.xpart,
                         &mut candidates.ypart,
                         &x_sample_range,
                         &y_sample_range,
-                        &combiner,
-                        (state, dst),
+                        raw
                     );
                 }
 
-                x_idx =
-                    unsafe { grid_data.grid_indices[0].get_unchecked(x_it).assume_init() as usize };
+                // Apply the combiner
+                grid_cellular_combine::<A, C, INIT, FINAL>(
+                    &grid_data,
+                    raw,
+                    dst,
+                    state,
+                    &x_sample_range,
+                    &y_sample_range,
+                    &combiner
+                );
+
+                x_idx = unsafe {
+                    grid_data.grid_indices[0].get_unchecked(x_it).assume_init() as usize
+                };
             }
             y_idx = unsafe { grid_data.grid_indices[1].get_unchecked(y_it).assume_init() as usize };
         }
@@ -150,17 +175,19 @@ impl GridGenerator<2> for Cellular {
 pub(super) fn hash_cell<A: Arch>(x: u32, y: u32, seed: u32) -> u32 {
     const BYTE_SHUFFLE: [u8; 64] = [
         3, 0, 2, 1, 7, 4, 6, 5, 11, 8, 10, 9, 15, 12, 14, 13, 3, 0, 2, 1, 7, 4, 6, 5, 11, 8, 10, 9,
-        15, 12, 14, 13, 3, 0, 2, 1, 7, 4, 6, 5, 11, 8, 10, 9, 15, 12, 14, 13, 3, 0, 2, 1, 7, 4, 6,
-        5, 11, 8, 10, 9, 15, 12, 14, 13,
+        15, 12, 14, 13, 3, 0, 2, 1, 7, 4, 6, 5, 11, 8, 10, 9, 15, 12, 14, 13, 3, 0, 2, 1, 7, 4, 6, 5,
+        11, 8, 10, 9, 15, 12, 14, 13,
     ];
     let shuffle_indices = unsafe { Simd::<u8, A>::from_slice_unchecked(&BYTE_SHUFFLE[..]) };
     let prime = Simd::<u32, A>::splat(0x85ebca6b_u32);
 
-    let x_shuf = (Simd::<u32, A>::splat(x.wrapping_mul(seed)).permute_8(shuffle_indices) ^ prime)
-        .to_array()[0];
-    let y_shuf = (Simd::<u32, A>::splat(y.wrapping_mul(seed)).permute_8(shuffle_indices) ^ prime)
-        .to_array()[0];
-    (x_shuf.wrapping_mul(y_shuf)) ^ x_shuf
+    let x_shuf = (
+        Simd::<u32, A>::splat(x.wrapping_mul(seed)).permute_8(shuffle_indices) ^ prime
+    ).to_array()[0];
+    let y_shuf = (
+        Simd::<u32, A>::splat(y.wrapping_mul(seed)).permute_8(shuffle_indices) ^ prime
+    ).to_array()[0];
+    x_shuf.wrapping_mul(y_shuf) ^ x_shuf
 }
 
 /// Split a hash into the per-axis jitter offsets. The lower 23 bits
@@ -168,8 +195,8 @@ pub(super) fn hash_cell<A: Arch>(x: u32, y: u32, seed: u32) -> u32 {
 /// unform values in the range `[1, 2)`
 #[inline(always)]
 pub(super) fn split_hash(hash: u32) -> (f32, f32) {
-    let exp_bits = 0x3F800000;
-    let hash_mask = 0x007FFFFF;
+    let exp_bits = 0x3f800000;
+    let hash_mask = 0x007fffff;
     let tx = 1.5 - f32::from_bits((hash & hash_mask) | exp_bits);
     let ty = 1.5 - f32::from_bits((hash >> 9) | exp_bits);
     (tx, ty)
@@ -187,13 +214,13 @@ pub(super) fn grid_cellular_hash<'a, A: Arch>(
     x_it: usize,
     x_idx: usize,
     y_it: usize,
-    y_idx: usize,
+    y_idx: usize
 ) {
     let lanes = Simd::<f32, A>::LANES;
 
     // Candidate order: 0=(cx,cy), 1=(cx+1,cy), 2=(cx,cy+1), 3=(cx+1,cy+1).
-    let cx = grid_data.grid_start[0] + x_it as i32;
-    let cy = grid_data.grid_start[1] + y_it as i32;
+    let cx = grid_data.grid_start[0] + (x_it as i32);
+    let cy = grid_data.grid_start[1] + (y_it as i32);
     let cx0 = grid_data.octave_tiling[0].map_or(cx, |t| cx.rem_euclid(t as i32));
     let cx1 = grid_data.octave_tiling[0].map_or(cx + 1, |t| (cx + 1).rem_euclid(t as i32));
     let cy0 = grid_data.octave_tiling[1].map_or(cy, |t| cy.rem_euclid(t as i32));
@@ -215,8 +242,8 @@ pub(super) fn grid_cellular_hash<'a, A: Arch>(
     tx3 += 1.0;
     ty3 += 1.0;
 
-    let x_next = unsafe { grid_data.grid_indices[0].get_unchecked(x_it).assume_init() } as usize;
-    let y_next = unsafe { grid_data.grid_indices[1].get_unchecked(y_it).assume_init() } as usize;
+    let x_next = (unsafe { grid_data.grid_indices[0].get_unchecked(x_it).assume_init() }) as usize;
+    let y_next = (unsafe { grid_data.grid_indices[1].get_unchecked(y_it).assume_init() }) as usize;
     let tx0v = Simd::<f32, A>::splat(tx0);
     let tx1v = Simd::<f32, A>::splat(tx1);
     let tx2v = Simd::<f32, A>::splat(tx2);
@@ -267,17 +294,17 @@ pub(super) fn grid_cellular_hash<'a, A: Arch>(
 
 /// For each row in the cell's y-range, broadcasts the per-candidate
 /// `ypart[c][y]` and adds it to the splatted `xpart[c][x]`, then
-/// find min over the 4 candidates and writes `sqrt(min_dist)` to dst.
+/// find min over the 4 candidates and writes `sqrt(min_dist)` to `raw`.
+#[inline(always)]
 pub(super) fn grid_cellular_fill<'a, A: Arch>(
     grid_data: &mut GridData<2>,
     xpart: &mut [&'a mut [MaybeUninit<f32>]; 12],
     ypart: &mut [&'a mut [MaybeUninit<f32>]; 12],
     x_range: &Range<usize>,
     y_range: &Range<usize>,
-    output: (&mut [f32], &mut [f32]),
+    raw: &mut [f32]
 ) -> bool {
     let lanes = Simd::<f32, A>::LANES;
-    let (_state, dst) = output;
     let row_width = grid_data.grid_size[0];
     let mut any_far = false;
 
@@ -308,10 +335,10 @@ pub(super) fn grid_cellular_fill<'a, A: Arch>(
             let threshold = closest_edge * closest_edge;
 
             let dist_sq = (xp0 + yp0)
-            .min(xp1 + yp1)
-            .min(xp2 + yp2)
-            .min(xp3 + yp3);
-            
+                .min(xp1 + yp1)
+                .min(xp2 + yp2)
+                .min(xp3 + yp3);
+
             let is_far = dist_sq.simd_gt(threshold).to_bits() != 0;
             any_far |= is_far;
 
@@ -319,7 +346,7 @@ pub(super) fn grid_cellular_fill<'a, A: Arch>(
             // Writes are clamped to the row end so a SIMD block can overshoot the last
             // cell boundary without running past the end of the row.
             min_dist.copy_to_slice(
-                &mut dst[row_start + index..(row_start + index + lanes).min(row_end)],
+                &mut raw[row_start + index..(row_start + index + lanes).min(row_end)]
             );
             index += lanes;
         }
@@ -328,7 +355,7 @@ pub(super) fn grid_cellular_fill<'a, A: Arch>(
     any_far
 }
 
-/// Hash the 12-cell ring around the cell
+/// Hash the 8-cell ring around the 2x2 base cells
 /// once per cell, split each hash into `(jx, jy)` jitters (cell offset folded in),
 /// and splat `xpart_ext`/`ypart_ext` into buffers 4..12 over the cell's runs
 #[inline(always)]
@@ -340,28 +367,26 @@ pub(super) fn grid_cellular_hash_ring<'a, A: Arch>(
     x_it: usize,
     x_idx: usize,
     y_it: usize,
-    y_idx: usize,
+    y_idx: usize
 ) {
     let lanes = Simd::<f32, A>::LANES;
 
-    let cx = grid_data.grid_start[0] + x_it as i32;
-    let cy = grid_data.grid_start[1] + y_it as i32;
+    let cx = grid_data.grid_start[0] + (x_it as i32);
+    let cy = grid_data.grid_start[1] + (y_it as i32);
     let tile_x = |x: i32| grid_data.octave_tiling[0].map_or(x, |t| x.rem_euclid(t as i32));
     let tile_y = |y: i32| grid_data.octave_tiling[1].map_or(y, |t| y.rem_euclid(t as i32));
 
     let jitters = RING.map(|(ox, oy)| {
-        let (mut jx, mut jy) = split_hash(hash_cell::<A>(
-            tile_x(cx + ox) as u32,
-            tile_y(cy + oy) as u32,
-            params.seed,
-        ));
+        let (mut jx, mut jy) = split_hash(
+            hash_cell::<A>(tile_x(cx + ox) as u32, tile_y(cy + oy) as u32, params.seed)
+        );
         jx += ox as f32;
         jy += oy as f32;
         (jx, jy)
     });
 
-    let x_next = unsafe { grid_data.grid_indices[0].get_unchecked(x_it).assume_init() } as usize;
-    let y_next = unsafe { grid_data.grid_indices[1].get_unchecked(y_it).assume_init() } as usize;
+    let x_next = (unsafe { grid_data.grid_indices[0].get_unchecked(x_it).assume_init() }) as usize;
+    let y_next = (unsafe { grid_data.grid_indices[1].get_unchecked(y_it).assume_init() }) as usize;
 
     let mut x_cur_idx = x_idx;
     let mut amount = (x_next - x_idx) as isize;
@@ -396,23 +421,22 @@ pub(super) fn grid_cellular_hash_ring<'a, A: Arch>(
 
 /// For each row in the cell's y-range, broadcasts the per-candidate
 /// `ypart[c][y]` and adds it to the splatted `xpart[c][x]`, then
-/// find min over the 12 ring candidates (first 4 already compared by grid_cellular_fill) 
-/// and writes `sqrt(min_dist)` to dst.
-pub(super) fn grid_cellular_fill_ring<'a, A: Arch, C: Combiner, const INIT: bool, const FINAL: bool>(
+/// narrows the minimum over the 8 ring candidates (first 4 already
+/// compared by grid_cellular_fill) and writes the result to `raw`.
+#[inline(always)]
+pub(super) fn grid_cellular_fill_ring<'a, A: Arch>(
     grid_data: &mut GridData<2>,
     xpart: &mut [&'a mut [MaybeUninit<f32>]; 12],
     ypart: &mut [&'a mut [MaybeUninit<f32>]; 12],
     x_range: &Range<usize>,
     y_range: &Range<usize>,
-    combiner: &C::Config,
-    output: (&mut [f32], &mut [f32]),
+    raw: &mut [f32]
 ) {
     let lanes = Simd::<f32, A>::LANES;
-    let (_state, dst) = output;
     let row_width = grid_data.grid_size[0];
 
     for y in y_range.clone() {
-        let mut yp = [Simd::<f32, A>::splat(0.0); 12];
+        let mut yp = [Simd::<f32, A>::splat(0.0); 8];
         for (i, c) in (4..12).enumerate() {
             yp[i] = Simd::<f32, A>::splat(unsafe { ypart[c].get_unchecked(y).assume_init() });
         }
@@ -429,17 +453,124 @@ pub(super) fn grid_cellular_fill_ring<'a, A: Arch, C: Combiner, const INIT: bool
             let outer_min = outer_min.sqrt();
 
             let existing: Simd<f32, A> = Simd::<f32, A>::from_slice(
-                &dst[row_start + index..(row_start + index + lanes).min(row_end)],
+                &raw[row_start + index..(row_start + index + lanes).min(row_end)]
             );
 
             let final_min = outer_min.min(existing);
 
             final_min.copy_to_slice(
-                &mut dst[row_start + index..(row_start + index + lanes).min(row_end)],
+                &mut raw[row_start + index..(row_start + index + lanes).min(row_end)]
             );
 
             index += lanes;
         }
+    }
+}
+
+/// Reads the finished raw cellular min from `raw`, combines
+/// it with the accumulated value in `dst` (from previous octaves), and
+/// writes the result back to `dst`
+#[inline(always)]
+pub(super) fn grid_cellular_combine<A: Arch, C: Combiner, const INIT: bool, const FINAL: bool>(
+    grid_data: &GridData<2>,
+    raw: &[f32],
+    dst: &mut [f32],
+    state: &mut [f32],
+    x_range: &Range<usize>,
+    y_range: &Range<usize>,
+    combiner_config: &C::Config
+) {
+    let lanes = Simd::<f32, A>::LANES;
+    let row_width = grid_data.grid_size[0];
+
+    for y in y_range.clone() {
+        let row_start = y * row_width;
+        let mut index = x_range.start;
+
+        while index + lanes <= x_range.end {
+            let sample_start = row_start + index;
+            grid_cellular_combine_block::<A, C, INIT, FINAL, false>(
+                grid_data,
+                raw,
+                dst,
+                state,
+                sample_start,
+                lanes,
+                combiner_config
+            );
+            index += lanes;
+        }
+        if index < x_range.end {
+            let sample_start = row_start + index;
+            let tail_len = x_range.end - index;
+            grid_cellular_combine_block::<A, C, INIT, FINAL, true>(
+                grid_data,
+                raw,
+                dst,
+                state,
+                sample_start,
+                tail_len,
+                combiner_config
+            );
+        }
+    }
+}
+
+#[inline(always)]
+fn grid_cellular_combine_block<
+    A: Arch,
+    C: Combiner,
+    const INIT: bool,
+    const FINAL: bool,
+    const IS_TAIL: bool
+>(
+    grid_data: &GridData<2>,
+    raw: &[f32],
+    dst: &mut [f32],
+    state: &mut [f32],
+    sample_start: usize,
+    len: usize,
+    combiner_config: &C::Config
+) {
+    let sample_end = sample_start + len;
+
+    let raw_val: Simd<f32, A> = unsafe {
+        maybe_tail_load::<A, IS_TAIL>(sample_start..sample_end, raw)
+    } * Simd::<f32, A>::splat(grid_data.weight);
+
+    let (cur_state, mut result) = if INIT {
+        C::initialize_sample(combiner_config, raw_val)
+    } else {
+        let mut cur_state = C::State::<A>::default();
+        for i in 0..C::State::<A>::STATE_SIZE {
+            let offset = i * grid_data.total_size;
+            cur_state[i] = unsafe {
+                maybe_tail_load::<A, IS_TAIL>(sample_start + offset..sample_end + offset, state)
+            };
+        }
+        let cur_result = unsafe { maybe_tail_load::<A, IS_TAIL>(sample_start..sample_end, dst) };
+        C::apply_sample(combiner_config, cur_state, cur_result, raw_val)
+    };
+
+    if !FINAL {
+        for i in 0..C::State::<A>::STATE_SIZE {
+            let offset = i * grid_data.total_size;
+            unsafe {
+                maybe_tail_store::<A, IS_TAIL>(
+                    sample_start + offset..sample_end + offset,
+                    cur_state[i],
+                    state
+                );
+            }
+        }
+    }
+
+    if FINAL {
+        result = C::finalize_sample(combiner_config, cur_state, result);
+    }
+
+    unsafe {
+        maybe_tail_store::<A, IS_TAIL>(sample_start..sample_end, result, dst);
     }
 }
 
@@ -449,7 +580,7 @@ mod tests {
     use crate::api::seed::gen_octave_seed;
     use crate::math::random::Random;
     use crate::simd::StaticArch;
-    use crate::{Cellular, Fbm, Grid};
+    use crate::{ Cellular, Fbm, Grid };
 
     #[test]
     fn ring_covers_all_neighbors() {
@@ -481,23 +612,19 @@ mod tests {
         const FREQ: f32 = 1.0 / 32.0;
         let seed = 123456789i64;
 
-        let grid = Grid::<2>::new(W, H)
-            .seed(seed)
-            .sample_position(-5, 3);
+        let grid = Grid::<2>::new(W, H).seed(seed).sample_position(-5, 3);
         let grid_seed = Random::mix_u64(seed as u64);
-        let base_seed = Random::mix_u64_pair(grid_seed, 0xD5E7B3C94F8A1E6B);
+        let base_seed = Random::mix_u64_pair(grid_seed, 0xd5e7b3c94f8a1e6b);
         let octave_seed = gen_octave_seed([FREQ, FREQ], base_seed);
 
         let mut result = [0.0; W * H];
-        grid.builder::<Fbm, Cellular>()
-            .frequency(FREQ)
-            .fill(result.as_mut_slice());
+        grid.builder::<Fbm, Cellular>().frequency(FREQ).fill(result.as_mut_slice());
 
         let mut max_diff = 0.0f32;
         for y in 0..H {
             for x in 0..W {
-                let px = (-5.0 + x as f32) * FREQ;
-                let py = (3.0 + y as f32) * FREQ;
+                let px = (-5.0 + (x as f32)) * FREQ;
+                let py = (3.0 + (y as f32)) * FREQ;
                 let reference = reference_cellular(octave_seed, px, py);
                 let actual = result[y * W + x];
                 max_diff = max_diff.max((actual - reference).abs());
@@ -505,22 +632,20 @@ mod tests {
         }
         assert!(
             max_diff < 1e-4,
-            "Grid cellular diverges from the brute-force Voronoi by {max_diff}"
+            "Grid cellular diverges from the brute-force Cellular by {max_diff}"
         );
 
         // Non-square (tall) grid, which must size its candidate buffers for the
         // larger y axis.
         let grid = Grid::<2>::new(32, 96).seed(seed).sample_position(-5, 3);
         let mut result = [0.0; 32 * 96];
-        grid.builder::<Fbm, Cellular>()
-            .frequency(FREQ)
-            .fill(result.as_mut_slice());
+        grid.builder::<Fbm, Cellular>().frequency(FREQ).fill(result.as_mut_slice());
 
         let mut max_diff = 0.0f32;
         for y in 0..96 {
             for x in 0..32 {
-                let px = (-5.0 + x as f32) * FREQ;
-                let py = (3.0 + y as f32) * FREQ;
+                let px = (-5.0 + (x as f32)) * FREQ;
+                let py = (3.0 + (y as f32)) * FREQ;
                 let reference = reference_cellular(octave_seed, px, py);
                 let actual = result[y * 32 + x];
                 max_diff = max_diff.max((actual - reference).abs());
@@ -528,7 +653,7 @@ mod tests {
         }
         assert!(
             max_diff < 1e-4,
-            "Tall grid cellular diverges from the brute-force Voronoi by {max_diff}"
+            "Tall grid cellular diverges from the brute-force Cellular by {max_diff}"
         );
     }
 
@@ -541,13 +666,11 @@ mod tests {
         let mut min_dist = f32::MAX;
         for ox in -3..=3 {
             for oy in -3..=3 {
-                let (jx, jy) = split_hash(hash_cell::<StaticArch>(
-                    (cell_x + ox) as u32,
-                    (cell_y + oy) as u32,
-                    seed,
-                ));
-                let dx = sx - (ox as f32 + jx);
-                let dy = sy - (oy as f32 + jy);
+                let (jx, jy) = split_hash(
+                    hash_cell::<StaticArch>((cell_x + ox) as u32, (cell_y + oy) as u32, seed)
+                );
+                let dx = sx - ((ox as f32) + jx);
+                let dy = sy - ((oy as f32) + jy);
                 min_dist = min_dist.min(dx * dx + dy * dy);
             }
         }
@@ -557,12 +680,11 @@ mod tests {
     #[test]
     #[cfg(feature = "image")]
     fn cellular_grid_2d_image() {
+        use crate::{Billow, HybridMulti, Multi, PingPong, Ridged, Terrace};
         use crate::emit::NoiseImageExt;
         use crate::simd::StaticSimd;
 
-        let grid = Grid::<2>::new(256, 256)
-            .seed(42)
-            .sample_position(-128, -128);
+        let grid = Grid::<2>::new(256, 256).seed(42).sample_position(-128, -128);
 
         grid.builder::<Fbm, Cellular>()
             .frequency(1.0 / 32.0)
@@ -576,6 +698,48 @@ mod tests {
             .into_iter()
             .map(|x| x * StaticSimd::splat(1.4) - StaticSimd::splat(1.0))
             .to_grayscale_image(256, 256, "test_images/cellular_grid_2d_fbm.png");
+
+        grid.builder::<PingPong, Cellular>()
+            .octaves(2)
+            .frequency(1.0 / 64.0)
+            .into_iter()
+            .map(|x| x * StaticSimd::splat(1.4) - StaticSimd::splat(1.0))
+            .to_grayscale_image(256, 256, "test_images/cellular_grid_2d_ping_pong.png");
+
+        grid.builder::<Ridged, Cellular>()
+            .octaves(2)
+            .frequency(1.0 / 64.0)
+            .into_iter()
+            .map(|x| x * StaticSimd::splat(1.4) - StaticSimd::splat(1.0))
+            .to_grayscale_image(256, 256, "test_images/cellular_grid_2d_ridged.png");
+
+        grid.builder::<Billow, Cellular>()
+            .octaves(2)
+            .frequency(1.0 / 64.0)
+            .into_iter()
+            .map(|x| x * StaticSimd::splat(1.4) - StaticSimd::splat(1.0))
+            .to_grayscale_image(256, 256, "test_images/cellular_grid_2d_billow.png");
+
+        grid.builder::<HybridMulti, Cellular>()
+            .octaves(1)
+            .frequency(1.0 / 64.0)
+            .into_iter()
+            .map(|x| x * StaticSimd::splat(1.4) - StaticSimd::splat(1.0))
+            .to_grayscale_image(256, 256, "test_images/cellular_grid_2d_hybrid_multi.png");
+
+        grid.builder::<Multi, Cellular>()
+            .octaves(1)
+            .frequency(1.0 / 64.0)
+            .into_iter()
+            .map(|x| x * StaticSimd::splat(1.4) - StaticSimd::splat(1.0))
+            .to_grayscale_image(256, 256, "test_images/cellular_grid_2d_multi.png");
+
+        grid.builder::<Terrace, Cellular>()
+            .octaves(1)
+            .frequency(1.0 / 64.0)
+            .into_iter()
+            .map(|x| x * StaticSimd::splat(1.4) - StaticSimd::splat(1.0))
+            .to_grayscale_image(256, 256, "test_images/cellular_grid_2d_terrace.png");
     }
 
     fn verify_slice(slice: &[f32]) {
