@@ -20,6 +20,26 @@ use crate::noise::util::grid_helpers::{
 };
 use crate::{ Cellular, GridGenerator };
 
+
+const LERP: u8 = Lerp::Quintic as u8;
+
+const RING: [(i32, i32); 8] = [
+    (-1, 0), // ttl
+    (0, -1), // tll
+    (-1, 1), // ttr
+    (0, 2), // trr
+    (2, 0), // bbl
+    (1, -1), // bll
+    (2, 1), // bbr
+    (1, 2), // brr
+];
+
+const BYTE_SHUFFLE: [u8; 64] = [
+    3, 0, 2, 1, 7, 4, 6, 5, 11, 8, 10, 9, 15, 12, 14, 13, 3, 0, 2, 1, 7, 4, 6, 5, 11, 8, 10, 9,
+    15, 12, 14, 13, 3, 0, 2, 1, 7, 4, 6, 5, 11, 8, 10, 9, 15, 12, 14, 13, 3, 0, 2, 1, 7, 4, 6, 5,
+    11, 8, 10, 9, 15, 12, 14, 13,
+];
+
 struct CellularCandidates2D<'a> {
     xpart: [&'a mut [MaybeUninit<f32>]; 12],
     ypart: [&'a mut [MaybeUninit<f32>]; 12],
@@ -51,15 +71,41 @@ impl<'a> fmt::Debug for CellularCandidates2D<'a> {
 }
 
 struct RowWindow {
-    top: Vec<(f32, f32)>,
-    bot: Vec<(f32, f32)>,
+    top: *mut f32,
+    bot: *mut f32,
+    width: usize,
 }
 
 impl RowWindow {
-    fn new(width: usize) -> Self {
-        Self { 
-            top: vec![(0.0, 0.0); width],
-            bot: vec![(0.0, 0.0); width],
+    fn new(arena: &mut Arena, width: usize) -> Self {
+        Self {
+            top: arena.allocate::<f32>(width * 2).as_mut_ptr().cast(),
+            bot: arena.allocate::<f32>(width * 2).as_mut_ptr().cast(),
+            width,
+        }
+    }
+
+    fn top(&self) -> &[(f32, f32)] {
+        unsafe { 
+            std::slice::from_raw_parts(self.top.cast::<(f32, f32)>(), self.width) 
+        }
+    }
+
+    fn bot(&self) -> &[(f32, f32)] {
+        unsafe { 
+            std::slice::from_raw_parts(self.bot.cast::<(f32, f32)>(), self.width) 
+        }
+    }
+
+    fn top_mut(&mut self) -> &mut [(f32, f32)] {
+        unsafe { 
+            std::slice::from_raw_parts_mut(self.top.cast::<(f32, f32)>(), self.width) 
+        }
+    }
+
+    fn bot_mut(&mut self) -> &mut [(f32, f32)] {
+        unsafe { 
+            std::slice::from_raw_parts_mut(self.bot.cast::<(f32, f32)>(), self.width) 
         }
     }
 
@@ -72,12 +118,35 @@ impl RowWindow {
         let cy = 
             grid_data.octave_tiling[1]
             .map_or(cy, |t| cy.rem_euclid(t as i32));
-        for (x_it, slot) in buff.iter_mut().enumerate() {
-            let cx = grid_data.grid_start[0] + x_it as i32;
+        let y_shuf = hash_cell_y::<A>(cy as u32, params.seed);
+        let y_shuf_v = Simd::<u32, A>::splat(y_shuf);
+        let lanes = Simd::<f32, A>::LANES;
+        let cx_start = grid_data.grid_start[0];
+
+        let mut x_it = 0;
+        while x_it + lanes <= buff.len() {
+            let cx_base = cx_start.wrapping_add(x_it as i32);
+            let cx_v = Simd::<i32, A>::splat(cx_base) + Simd::<i32, A>::iota(0);
+            let cx_v = if let Some(t) = grid_data.octave_tiling[0] {
+                simd_rem_euclid_i32::<A>(cx_v, t as i32)
+            } else {
+                cx_v
+            };
+            let hashes = hash_cells_row::<A>(cx_v.raw_cast(), y_shuf_v, params.seed);
+            let (tx, ty) = split_hash_batch::<A>(hashes);
+            let tx_arr = tx.to_array();
+            let ty_arr = ty.to_array();
+            for i in 0..lanes {
+                buff[x_it + i] = (tx_arr[i], ty_arr[i]);
+            }
+            x_it += lanes;
+        }
+        for i in x_it..buff.len() {
+            let cx = cx_start.wrapping_add(i as i32);
             let cx = 
                 grid_data.octave_tiling[0]
                 .map_or(cx, |t| cx.rem_euclid(t as i32));
-            *slot = split_hash(hash_cell::<A>(cx as u32, cy as u32, params.seed));
+            buff[i] = split_hash(hash_cell_with_y::<A>(cx as u32, y_shuf, params.seed));
         }
     }
 
@@ -87,18 +156,12 @@ impl RowWindow {
     }
 }
 
-const LERP: u8 = Lerp::Quintic as u8;
-
-const RING: [(i32, i32); 8] = [
-    (-1, 0), // ttl
-    (0, -1), // tll
-    (-1, 1), // ttr
-    (0, 2), // trr
-    (2, 0), // bbl
-    (1, -1), // bll
-    (2, 1), // bbr
-    (1, 2), // brr
-];
+#[inline(always)]
+fn simd_rem_euclid_i32<A: Arch>(x: Simd<i32, A>, t: i32) -> Simd<i32, A> {
+    let t_f = Simd::<f32, A>::splat(t as f32);
+    let x_f = x.cast_float();
+    (x_f - (x_f / t_f).floor() * t_f).cast_int_trunc()
+}
 
 #[enable_targets(A)]
 impl GridGenerator<2> for Cellular {
@@ -116,23 +179,22 @@ impl GridGenerator<2> for Cellular {
         // Both the x and y candidate buffers must fit the larger axis.
         let candidate_size = padded_size[0].max(padded_size[1]);
         let required_cache =
-            padded_size[1] * 3 + padded_size[0] * 3 + candidate_size * 24 + total_size;
+            padded_size[1] * 3 + padded_size[0] * 3 + candidate_size * 24 + total_size
+            + (padded_size[0] + 1) * 4;
         let mut cache = ArenaBuffer::<A>::with_capacity(required_cache);
         let mut arena = Arena::with_cache(&mut cache);
-
-        let mut sub_arena = arena.allocate_arena(padded_size[0] * 3 + padded_size[1] * 3);
+        let mut sub_arena = arena.allocate_arena(padded_size[0] * 3 + padded_size[1] * 3 );
 
         let mut grid_data = GridData::new::<A, LERP>(&params, &mut sub_arena, &padded_size);
 
         // Scratch buffer for the raw cellular min and combiner pass
         let raw = unsafe { arena.allocate(total_size).assume_init_mut() };
 
-        let mut candidates = CellularCandidates2D::new(&mut arena, candidate_size);
-
         // per-cell setup pass, driven by the cell x/y indices
-        let mut window  = RowWindow::new(grid_data.num_loops[0] + 1);
+        let mut window  = RowWindow::new(&mut arena, grid_data.num_loops[0] + 1);
+        let mut candidates = CellularCandidates2D::new(&mut arena, candidate_size);
         // Hash top row and cache
-        RowWindow::fill_row::<A>(&params, &grid_data, &mut window.top, grid_data.grid_start[1]);
+        RowWindow::fill_row::<A>(&params, &grid_data, window.top_mut(), grid_data.grid_start[1]);
 
         let mut y_idx = 0;
         for y_it in 0..grid_data.num_loops[1] {
@@ -140,7 +202,7 @@ impl GridGenerator<2> for Cellular {
                 grid_data.grid_indices[1].get_unchecked(y_it).assume_init() as usize
             };
             // Hash bottom row and cache
-            RowWindow::fill_row::<A>(&params, &grid_data, &mut window.bot, grid_data.grid_start[1] + y_it as i32 + 1);
+            RowWindow::fill_row::<A>(&params, &grid_data, window.bot_mut(), grid_data.grid_start[1] + y_it as i32 + 1);
 
             let mut x_idx = 0;
             for x_it in 0..grid_data.num_loops[0] {
@@ -148,29 +210,41 @@ impl GridGenerator<2> for Cellular {
                     grid_data.grid_indices[0].get_unchecked(x_it).assume_init() as usize
                 };
 
-                grid_cellular_hash::<A>(
-                    &mut grid_data,
-                    &mut candidates.xpart,
-                    &mut candidates.ypart,
-                    x_it,
-                    x_idx,
-                    y_it,
-                    y_idx,
-                    &window.top,
-                    &window.bot,
-                );
-
                 let x_sample_range = x_idx..x_next_idx;
                 let y_sample_range = y_idx..y_next_idx;
 
-                let any_far = grid_cellular_fill::<A>(
-                    &mut grid_data,
-                    &mut candidates.xpart,
-                    &mut candidates.ypart,
-                    &x_sample_range,
-                    &y_sample_range,
-                    raw
-                );
+                let any_far = if x_next_idx - x_idx <= Simd::<f32, A>::LANES {
+                    grid_cellular_hash_and_fill::<A>(
+                        &mut grid_data,
+                        x_it,
+                        x_idx,
+                        y_it,
+                        y_idx,
+                        window.top(),
+                        window.bot(),
+                        raw,
+                    )
+                } else {
+                    grid_cellular_hash::<A>(
+                        &mut grid_data,
+                        &mut candidates.xpart,
+                        &mut candidates.ypart,
+                        x_it,
+                        x_idx,
+                        y_it,
+                        y_idx,
+                        window.top(),
+                        window.bot(),
+                    );
+                    grid_cellular_fill::<A>(
+                        &mut grid_data,
+                        &mut candidates.xpart,
+                        &mut candidates.ypart,
+                        &x_sample_range,
+                        &y_sample_range,
+                        raw
+                    )
+                };
 
                 // Only hash the 8-cell ring if any sample in this cell tripped the threshold
                 if any_far {
@@ -218,22 +292,43 @@ impl GridGenerator<2> for Cellular {
     }
 }
 
-/// Hash of a single cell corner
+
 #[inline(always)]
 pub(super) fn hash_cell<A: Arch>(x: u32, y: u32, seed: u32) -> u32 {
-    const BYTE_SHUFFLE: [u8; 64] = [
-        3, 0, 2, 1, 7, 4, 6, 5, 11, 8, 10, 9, 15, 12, 14, 13, 3, 0, 2, 1, 7, 4, 6, 5, 11, 8, 10, 9,
-        15, 12, 14, 13, 3, 0, 2, 1, 7, 4, 6, 5, 11, 8, 10, 9, 15, 12, 14, 13, 3, 0, 2, 1, 7, 4, 6, 5,
-        11, 8, 10, 9, 15, 12, 14, 13,
-    ];
+    hash_cell_with_y::<A>(x, hash_cell_y::<A>(y, seed), seed)
+}
+
+/// Hashes `LANES` consecutive lattice columns from a pre-built `cx_v` vector
+/// at fixed y in one shot
+#[inline(always)]
+pub(super) fn hash_cells_row<A: Arch>(
+    cx_v: Simd<u32, A>,
+    y_shuf: Simd<u32, A>,
+    seed: u32,
+) -> Simd<u32, A> {
     let shuffle_indices = unsafe { Simd::<u8, A>::from_slice_unchecked(&BYTE_SHUFFLE[..]) };
     let prime = Simd::<u32, A>::splat(0x85ebca6b_u32);
+    let seed_v = Simd::<u32, A>::splat(seed);
 
+    let x_shuf = (cx_v * seed_v).permute_8(shuffle_indices) ^ prime;
+    x_shuf * y_shuf ^ x_shuf
+}
+
+pub(super) fn hash_cell_y<A: Arch>(y: u32, seed: u32) -> u32 {
+    let shuffle_indices = unsafe { Simd::<u8, A>::from_slice_unchecked(&BYTE_SHUFFLE[..]) };
+    let prime = Simd::<u32, A>::splat(0x85ebca6b_u32);
+    (
+        Simd::<u32, A>::splat(y.wrapping_mul(seed))
+        .permute_8(shuffle_indices) ^ prime
+    ).to_array()[0]
+}
+
+#[inline(always)]
+pub(super) fn hash_cell_with_y<A: Arch>(x: u32, y_shuf: u32, seed: u32) -> u32 {
+    let shuffle_indices = unsafe { Simd::<u8, A>::from_slice_unchecked(&BYTE_SHUFFLE[..]) };
+    let prime = Simd::<u32, A>::splat(0x85ebca6b_u32);
     let x_shuf = (
         Simd::<u32, A>::splat(x.wrapping_mul(seed)).permute_8(shuffle_indices) ^ prime
-    ).to_array()[0];
-    let y_shuf = (
-        Simd::<u32, A>::splat(y.wrapping_mul(seed)).permute_8(shuffle_indices) ^ prime
     ).to_array()[0];
     x_shuf.wrapping_mul(y_shuf) ^ x_shuf
 }
@@ -250,6 +345,17 @@ pub(super) fn split_hash(hash: u32) -> (f32, f32) {
     (tx, ty)
 }
 
+#[inline(always)]
+pub(super) fn split_hash_batch<A: Arch>(hash: Simd<u32, A>) -> (Simd<f32, A>, Simd<f32, A>) {
+    let exp_bits = Simd::<u32, A>::splat(0x3f800000);
+    let hash_mask = Simd::<u32, A>::splat(0x007fffff);
+    let one_halves = Simd::<f32, A>::splat(1.5);
+
+    let tx = one_halves - ((hash & hash_mask) | exp_bits).raw_cast::<f32>();
+    let ty = one_halves - ((hash >> Simd::<u32, A>::splat(9)) | exp_bits).raw_cast::<f32>();
+    (tx, ty)
+}
+
 /// Per-cell setup pass. Hashes the cell's four corners once, splits each
 /// hash into `(tx, ty)` jitter offsets (cell offset folded inside), and splats
 /// `xpart[c][x] = (sx - tx)^2` across every x sample in the cell's run
@@ -262,8 +368,8 @@ pub(super) fn grid_cellular_hash<'a, A: Arch>(
     x_idx: usize,
     y_it: usize,
     y_idx: usize,
-    top: &Vec<(f32, f32)>,
-    bot: &Vec<(f32, f32)>,
+    top: &[(f32, f32)],
+    bot: &[(f32, f32)],
 ) {
     let lanes = Simd::<f32, A>::LANES;
 
@@ -503,6 +609,83 @@ pub(super) fn grid_cellular_fill_ring<'a, A: Arch>(
             index += lanes;
         }
     }
+}
+
+/// Narrow-cell fast path: computes x-parts once into registers and folds
+/// the fill pass inline, never touching the xpart/ypart buffers.
+/// Only valid when the cell's x-range fits in a single SIMD block.
+#[inline(always)]
+pub(super) fn grid_cellular_hash_and_fill<'a, A: Arch>(
+    grid_data: &mut GridData<2>,
+    x_it: usize,
+    x_idx: usize,
+    y_it: usize,
+    y_idx: usize,
+    top: &[(f32, f32)],
+    bot: &[(f32, f32)],
+    raw: &mut [f32],
+) -> bool {
+    let lanes = Simd::<f32, A>::LANES;
+
+    let (tx0, ty0) = top[x_it];
+    let (tx1, ty1) = top[x_it + 1];
+    let (tx2, ty2) = bot[x_it];
+    let (tx3, ty3) = bot[x_it + 1];
+    let tx1 = tx1 + 1.0;
+    let ty2 = ty2 + 1.0;
+    let tx3 = tx3 + 1.0;
+    let ty3 = ty3 + 1.0;
+
+    let x_next = (unsafe { grid_data.grid_indices[0].get_unchecked(x_it).assume_init() }) as usize;
+    let y_next = (unsafe { grid_data.grid_indices[1].get_unchecked(y_it).assume_init() }) as usize;
+    let tx0v = Simd::<f32, A>::splat(tx0);
+    let tx1v = Simd::<f32, A>::splat(tx1);
+    let tx2v = Simd::<f32, A>::splat(tx2);
+    let tx3v = Simd::<f32, A>::splat(tx3);
+
+    debug_assert!(
+        x_next - x_idx <= lanes,
+        "grid_cellular_hash_and_fill called on a wide cell"
+    );
+
+    // Single x-block: compute xp0..xp3 once, they stay in registers across
+    // the entire y-loop.
+    let sx = unsafe { grid_data.distances[0].load_simd(x_idx) };
+    let xp0 = { let d = sx - tx0v; d * d };
+    let xp1 = { let d = sx - tx1v; d * d };
+    let xp2 = { let d = sx - tx2v; d * d };
+    let xp3 = { let d = sx - tx3v; d * d };
+
+    let row_width = grid_data.grid_size[0];
+    let mut any_far = false;
+
+    for y in y_idx..y_next {
+        let sy = unsafe { grid_data.distances[1].get_unchecked(y).assume_init() };
+        let yp0 = Simd::<f32, A>::splat({ let d = sy - ty0; d * d });
+        let yp1 = Simd::<f32, A>::splat({ let d = sy - ty1; d * d });
+        let yp2 = Simd::<f32, A>::splat({ let d = sy - ty2; d * d });
+        let yp3 = Simd::<f32, A>::splat({ let d = sy - ty3; d * d });
+
+        let x_edge_lo = sx + Simd::<f32, A>::splat(0.5);
+        let x_edge_hi = Simd::<f32, A>::splat(1.5) - sx;
+        let y_edge_lo = Simd::<f32, A>::splat(sy + 0.5);
+        let y_edge_hi = Simd::<f32, A>::splat(1.5 - sy);
+        let closest_edge = x_edge_lo.min(y_edge_lo).min(x_edge_hi.min(y_edge_hi));
+        let threshold = closest_edge * closest_edge;
+
+        let dist_sq = (xp0 + yp0).min(xp1 + yp1).min(xp2 + yp2).min(xp3 + yp3);
+        let is_far = dist_sq.simd_gt(threshold).to_bits() != 0;
+        any_far |= is_far;
+
+        let min_dist = dist_sq.sqrt();
+        let row_start = y * row_width;
+        let row_end = row_start + row_width;
+        min_dist.copy_to_slice(
+            &mut raw[row_start + x_idx..(row_start + x_idx + lanes).min(row_end)]
+        );
+    }
+
+    any_far
 }
 
 /// Reads the finished raw cellular min from `raw`, combines
