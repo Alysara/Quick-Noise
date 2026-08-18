@@ -50,6 +50,43 @@ impl<'a> fmt::Debug for CellularCandidates2D<'a> {
     }
 }
 
+struct RowWindow {
+    top: Vec<(f32, f32)>,
+    bot: Vec<(f32, f32)>,
+}
+
+impl RowWindow {
+    fn new(width: usize) -> Self {
+        Self { 
+            top: vec![(0.0, 0.0); width],
+            bot: vec![(0.0, 0.0); width],
+        }
+    }
+
+    fn fill_row<A: Arch>(
+        params: &GridNoiseParams<2>,
+        grid_data: &GridData<2>,
+        buff: &mut [(f32, f32)],
+        cy: i32,
+    ) {
+        let cy = 
+            grid_data.octave_tiling[1]
+            .map_or(cy, |t| cy.rem_euclid(t as i32));
+        for (x_it, slot) in buff.iter_mut().enumerate() {
+            let cx = grid_data.grid_start[0] + x_it as i32;
+            let cx = 
+                grid_data.octave_tiling[0]
+                .map_or(cx, |t| cx.rem_euclid(t as i32));
+            *slot = split_hash(hash_cell::<A>(cx as u32, cy as u32, params.seed));
+        }
+    }
+
+    #[inline(always)]
+    fn swap_top_bottom(&mut self) {
+        std::mem::swap(&mut self.top, &mut self.bot);
+    }
+}
+
 const LERP: u8 = Lerp::Quintic as u8;
 
 const RING: [(i32, i32); 8] = [
@@ -93,11 +130,18 @@ impl GridGenerator<2> for Cellular {
         let mut candidates = CellularCandidates2D::new(&mut arena, candidate_size);
 
         // per-cell setup pass, driven by the cell x/y indices
+        let mut window  = RowWindow::new(grid_data.num_loops[0] + 1);
+        // Hash top row and cache
+        RowWindow::fill_row::<A>(&params, &grid_data, &mut window.top, grid_data.grid_start[1]);
+
         let mut y_idx = 0;
         for y_it in 0..grid_data.num_loops[1] {
             let y_next_idx = unsafe {
                 grid_data.grid_indices[1].get_unchecked(y_it).assume_init() as usize
             };
+            // Hash bottom row and cache
+            RowWindow::fill_row::<A>(&params, &grid_data, &mut window.bot, grid_data.grid_start[1] + y_it as i32 + 1);
+
             let mut x_idx = 0;
             for x_it in 0..grid_data.num_loops[0] {
                 let x_next_idx = unsafe {
@@ -105,14 +149,15 @@ impl GridGenerator<2> for Cellular {
                 };
 
                 grid_cellular_hash::<A>(
-                    &params,
                     &mut grid_data,
                     &mut candidates.xpart,
                     &mut candidates.ypart,
                     x_it,
                     x_idx,
                     y_it,
-                    y_idx
+                    y_idx,
+                    &window.top,
+                    &window.bot,
                 );
 
                 let x_sample_range = x_idx..x_next_idx;
@@ -165,6 +210,9 @@ impl GridGenerator<2> for Cellular {
                     grid_data.grid_indices[0].get_unchecked(x_it).assume_init() as usize
                 };
             }
+            // Reuse caches
+            window.swap_top_bottom();
+
             y_idx = unsafe { grid_data.grid_indices[1].get_unchecked(y_it).assume_init() as usize };
         }
     }
@@ -207,40 +255,30 @@ pub(super) fn split_hash(hash: u32) -> (f32, f32) {
 /// `xpart[c][x] = (sx - tx)^2` across every x sample in the cell's run
 #[inline(always)]
 pub(super) fn grid_cellular_hash<'a, A: Arch>(
-    params: &GridNoiseParams<2>,
     grid_data: &mut GridData<2>,
     xpart: &mut [&'a mut [MaybeUninit<f32>]; 12],
     ypart: &mut [&'a mut [MaybeUninit<f32>]; 12],
     x_it: usize,
     x_idx: usize,
     y_it: usize,
-    y_idx: usize
+    y_idx: usize,
+    top: &Vec<(f32, f32)>,
+    bot: &Vec<(f32, f32)>,
 ) {
     let lanes = Simd::<f32, A>::LANES;
 
     // Candidate order: 0=(cx,cy), 1=(cx+1,cy), 2=(cx,cy+1), 3=(cx+1,cy+1).
-    let cx = grid_data.grid_start[0] + (x_it as i32);
-    let cy = grid_data.grid_start[1] + (y_it as i32);
-    let cx0 = grid_data.octave_tiling[0].map_or(cx, |t| cx.rem_euclid(t as i32));
-    let cx1 = grid_data.octave_tiling[0].map_or(cx + 1, |t| (cx + 1).rem_euclid(t as i32));
-    let cy0 = grid_data.octave_tiling[1].map_or(cy, |t| cy.rem_euclid(t as i32));
-    let cy1 = grid_data.octave_tiling[1].map_or(cy + 1, |t| (cy + 1).rem_euclid(t as i32));
-
-    let hash_tl = hash_cell::<A>(cx0 as u32, cy0 as u32, params.seed);
-    let hash_tr = hash_cell::<A>(cx1 as u32, cy0 as u32, params.seed);
-    let hash_bl = hash_cell::<A>(cx0 as u32, cy1 as u32, params.seed);
-    let hash_br = hash_cell::<A>(cx1 as u32, cy1 as u32, params.seed);
 
     // The +ox/+oy cell offsets are folded into the jitters so the same
     // dist calc covers every candidate
-    let (tx0, ty0) = split_hash(hash_tl);
-    let (mut tx1, ty1) = split_hash(hash_tr);
-    tx1 += 1.0;
-    let (tx2, mut ty2) = split_hash(hash_bl);
-    ty2 += 1.0;
-    let (mut tx3, mut ty3) = split_hash(hash_br);
-    tx3 += 1.0;
-    ty3 += 1.0;
+    let (tx0, ty0) = top[x_it];
+    let (tx1, ty1) = top[x_it + 1];
+    let (tx2, ty2) = bot[x_it];
+    let (tx3, ty3) = bot[x_it + 1];
+    let tx1 = tx1 + 1.0;
+    let ty2 = ty2 + 1.0;
+    let tx3 = tx3 + 1.0;
+    let ty3 = ty3 + 1.0;
 
     let x_next = (unsafe { grid_data.grid_indices[0].get_unchecked(x_it).assume_init() }) as usize;
     let y_next = (unsafe { grid_data.grid_indices[1].get_unchecked(y_it).assume_init() }) as usize;
@@ -740,6 +778,16 @@ mod tests {
             .into_iter()
             .map(|x| x * StaticSimd::splat(1.4) - StaticSimd::splat(1.0))
             .to_grayscale_image(256, 256, "test_images/cellular_grid_2d_terrace.png");
+
+        let grid_2d_tiled = Grid::<2>::new(1024, 1024).tiling(Some(128), Some(256));
+
+        grid_2d_tiled
+            .builder::<Fbm, Cellular>()
+            .octaves(4)
+            .frequency(1.0 / 64.0)
+            .into_iter()
+            .to_grayscale_image(1024, 1024, "test_images/grid_2d_cellular_tiled.png");
+
     }
 
     fn verify_slice(slice: &[f32]) {
