@@ -19,18 +19,28 @@ use crate::{ Cellular, GridGenerator };
 
 const LERP: u8 = Lerp::Quintic as u8;
 
+/// Candidate offsets for the 12 candidates (4 base + 8 ring). The ring is
+/// grouped by bounding edge and stay aligned with the near/far gate
+///        (0,-1) (1,-1)
+/// (-1,0) (0,0) (1,0) (2,0)
+/// (-1,1) (0,1) (1,1) (2,1)
+///        (0,2) (1,2)
 const NEIGHBORS_12: [(i32, i32); 12] = [
     (0, 0),
     (1, 0),
     (0, 1),
     (1, 1),
+
     (-1, 0),
-    (0, -1),
     (-1, 1),
-    (0, 2),
-    (2, 0),
+
+    (0, -1),
     (1, -1),
+
+    (2, 0),
     (2, 1),
+
+    (0, 2),
     (1, 2),
 ];
 
@@ -159,11 +169,7 @@ pub(super) fn hash_cell<A: Arch>(x: u32, y: u32, seed: u32) -> u32 {
 /// Hashes `LANES` consecutive lattice columns from a pre-built `cx_v` vector
 /// at fixed y in one shot
 #[inline(always)]
-pub(super) fn hash_cells_row<A: Arch>(
-    cx_v: Simd<u32, A>,
-    y_shuf: Simd<u32, A>,
-    seed: u32
-) -> Simd<u32, A> {
+fn hash_cells_row<A: Arch>(cx_v: Simd<u32, A>, y_shuf: Simd<u32, A>, seed: u32) -> Simd<u32, A> {
     let shuffle_indices = unsafe { Simd::<u8, A>::from_slice_unchecked(&BYTE_SHUFFLE[..]) };
     let prime = Simd::<u32, A>::splat(0x85ebca6b_u32);
     let seed_v = Simd::<u32, A>::splat(seed);
@@ -172,14 +178,14 @@ pub(super) fn hash_cells_row<A: Arch>(
     (x_shuf * y_shuf) ^ x_shuf
 }
 
-pub(super) fn hash_cell_y<A: Arch>(y: u32, seed: u32) -> u32 {
+fn hash_cell_y<A: Arch>(y: u32, seed: u32) -> u32 {
     let shuffle_indices = unsafe { Simd::<u8, A>::from_slice_unchecked(&BYTE_SHUFFLE[..]) };
     let prime = Simd::<u32, A>::splat(0x85ebca6b_u32);
     (Simd::<u32, A>::splat(y.wrapping_mul(seed)).permute_8(shuffle_indices) ^ prime).to_array()[0]
 }
 
 #[inline(always)]
-pub(super) fn hash_cell_with_y<A: Arch>(x: u32, y_shuf: u32, seed: u32) -> u32 {
+fn hash_cell_with_y<A: Arch>(x: u32, y_shuf: u32, seed: u32) -> u32 {
     let shuffle_indices = unsafe { Simd::<u8, A>::from_slice_unchecked(&BYTE_SHUFFLE[..]) };
     let prime = Simd::<u32, A>::splat(0x85ebca6b_u32);
     let x_shuf = (
@@ -201,7 +207,7 @@ pub(super) fn split_hash(hash: u32) -> (f32, f32) {
 }
 
 #[inline(always)]
-pub(super) fn split_hash_batch<A: Arch>(hash: Simd<u32, A>) -> (Simd<f32, A>, Simd<f32, A>) {
+fn split_hash_batch<A: Arch>(hash: Simd<u32, A>) -> (Simd<f32, A>, Simd<f32, A>) {
     let exp_bits = Simd::<u32, A>::splat(0x3f800000);
     let hash_mask = Simd::<u32, A>::splat(0x007fffff);
     let one_halves = Simd::<f32, A>::splat(1.5);
@@ -324,7 +330,13 @@ impl GridGenerator<2> for Cellular {
                     grid_data.grid_indices[0].get_unchecked(x_it).assume_init() as usize
                 };
 
-                cell_jitters.write::<A>(window.top(), window.mid(), window.bot(), window.extra(), x_it);
+                cell_jitters.write::<A>(
+                    window.top(),
+                    window.mid(),
+                    window.bot(),
+                    window.extra(),
+                    x_it
+                );
 
                 grid_cellular_fill::<A, C, INIT, FINAL>(
                     &grid_data,
@@ -450,12 +462,30 @@ fn grid_cellular_fill_block<
     let x_edge_hi = Simd::<f32, A>::splat(1.5) - sx;
     let y_edge_lo = Simd::<f32, A>::splat(sy + 0.5);
     let y_edge_hi = Simd::<f32, A>::splat(1.5 - sy);
-    let closest_edge = x_edge_lo.min(y_edge_lo).min(x_edge_hi.min(y_edge_hi));
-    let threshold = closest_edge * closest_edge;
-    let any_far = min_sq.simd_gt(threshold).to_bits() != 0;
+
+    let near_sq = {
+        let edge = x_edge_lo.min(y_edge_lo);
+        edge * edge
+    };
+    let far_sq = {
+        let edge = x_edge_hi.min(y_edge_hi);
+        edge * edge
+    };
+    let any_near = min_sq.simd_gt(near_sq).to_bits() != 0;
+    let any_far = min_sq.simd_gt(far_sq).to_bits() != 0;
+
+    if any_near {
+        for c in 4..8 {
+            let jx = Simd::<f32, A>::splat(unsafe { (*jit.parts.add(c * 2)).assume_init() });
+            let jy = Simd::<f32, A>::splat(unsafe { (*jit.parts.add(c * 2 + 1)).assume_init() });
+            let dx = sx - jx;
+            let dy = Simd::<f32, A>::splat(sy) - jy;
+            min_sq = min_sq.min(dx * dx + dy * dy);
+        }
+    }
 
     if any_far {
-        for c in 4..12 {
+        for c in 8..12 {
             let jx = Simd::<f32, A>::splat(unsafe { (*jit.parts.add(c * 2)).assume_init() });
             let jy = Simd::<f32, A>::splat(unsafe { (*jit.parts.add(c * 2 + 1)).assume_init() });
             let dx = sx - jx;
