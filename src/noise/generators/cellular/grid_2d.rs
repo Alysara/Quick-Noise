@@ -53,9 +53,9 @@ const BYTE_SHUFFLE: [u8; 64] = [
 
 struct RowWindow {
     top: *mut f32,
-    mid: *mut f32,
+    sec: *mut f32,
+    thi: *mut f32,
     bot: *mut f32,
-    extra: *mut f32,
     width: usize,
 }
 
@@ -66,7 +66,11 @@ impl RowWindow {
                 .allocate::<f32>(width * 2)
                 .as_mut_ptr()
                 .cast(),
-            mid: arena
+            sec: arena
+                .allocate::<f32>(width * 2)
+                .as_mut_ptr()
+                .cast(),
+            thi: arena
                 .allocate::<f32>(width * 2)
                 .as_mut_ptr()
                 .cast(),
@@ -74,14 +78,11 @@ impl RowWindow {
                 .allocate::<f32>(width * 2)
                 .as_mut_ptr()
                 .cast(),
-            extra: arena
-                .allocate::<f32>(width * 2)
-                .as_mut_ptr()
-                .cast(),
             width,
         }
     }
 
+    #[inline(always)]
     fn fill_row<A: Arch>(
         params: &GridNoiseParams<2>,
         grid_data: &GridData<2>,
@@ -123,41 +124,41 @@ impl RowWindow {
         unsafe { std::slice::from_raw_parts(self.top.cast::<(f32, f32)>(), self.width) }
     }
 
-    fn mid(&self) -> &[(f32, f32)] {
-        unsafe { std::slice::from_raw_parts(self.mid.cast::<(f32, f32)>(), self.width) }
+    fn sec(&self) -> &[(f32, f32)] {
+        unsafe { std::slice::from_raw_parts(self.sec.cast::<(f32, f32)>(), self.width) }
+    }
+
+    fn thi(&self) -> &[(f32, f32)] {
+        unsafe { std::slice::from_raw_parts(self.thi.cast::<(f32, f32)>(), self.width) }
     }
 
     fn bot(&self) -> &[(f32, f32)] {
         unsafe { std::slice::from_raw_parts(self.bot.cast::<(f32, f32)>(), self.width) }
     }
 
-    fn extra(&self) -> &[(f32, f32)] {
-        unsafe { std::slice::from_raw_parts(self.extra.cast::<(f32, f32)>(), self.width) }
-    }
-
     fn top_mut(&mut self) -> &mut [(f32, f32)] {
         unsafe { std::slice::from_raw_parts_mut(self.top.cast::<(f32, f32)>(), self.width) }
     }
 
-    fn mid_mut(&mut self) -> &mut [(f32, f32)] {
-        unsafe { std::slice::from_raw_parts_mut(self.mid.cast::<(f32, f32)>(), self.width) }
+    fn sec_mut(&mut self) -> &mut [(f32, f32)] {
+        unsafe { std::slice::from_raw_parts_mut(self.sec.cast::<(f32, f32)>(), self.width) }
+    }
+
+    fn thi_mut(&mut self) -> &mut [(f32, f32)] {
+        unsafe { std::slice::from_raw_parts_mut(self.thi.cast::<(f32, f32)>(), self.width) }
     }
 
     fn bot_mut(&mut self) -> &mut [(f32, f32)] {
         unsafe { std::slice::from_raw_parts_mut(self.bot.cast::<(f32, f32)>(), self.width) }
     }
 
-    fn extra_mut(&mut self) -> &mut [(f32, f32)] {
-        unsafe { std::slice::from_raw_parts_mut(self.extra.cast::<(f32, f32)>(), self.width) }
-    }
-
     #[inline(always)]
     fn swap(&mut self) {
         let tmp = self.top;
-        self.top = self.mid;
-        self.mid = self.bot;
-        self.bot = self.extra;
-        self.extra = tmp;
+        self.top = self.sec;
+        self.sec = self.thi;
+        self.thi = self.bot;
+        self.bot = tmp;
     }
 }
 
@@ -178,6 +179,7 @@ fn hash_cells_row<A: Arch>(cx_v: Simd<u32, A>, y_shuf: Simd<u32, A>, seed: u32) 
     (x_shuf * y_shuf) ^ x_shuf
 }
 
+#[inline(always)]
 fn hash_cell_y<A: Arch>(y: u32, seed: u32) -> u32 {
     let shuffle_indices = unsafe { Simd::<u8, A>::from_slice_unchecked(&BYTE_SHUFFLE[..]) };
     let prime = Simd::<u32, A>::splat(0x85ebca6b_u32);
@@ -241,17 +243,17 @@ impl CellJitters {
     fn write<A: Arch>(
         &mut self,
         top: &[(f32, f32)],
-        mid: &[(f32, f32)],
+        sec: &[(f32, f32)],
+        thi: &[(f32, f32)],
         bot: &[(f32, f32)],
-        extra: &[(f32, f32)],
         x_it: usize
     ) {
         for (i, &(ox, oy)) in NEIGHBORS_12.iter().enumerate() {
             let row: &[(f32, f32)] = match oy {
                 -1 => top,
-                0 => mid,
-                1 => bot,
-                2 => extra,
+                0 => sec,
+                1 => thi,
+                2 => bot,
                 _ => unreachable!(),
             };
             let (jx, jy) = row[x_it + ((ox + 1) as usize)];
@@ -276,7 +278,7 @@ impl GridGenerator<2> for Cellular {
         let padded_size = pad_grid_size::<A, _>(params.grid_size);
 
         let required_cache =
-            padded_size[1] * 3 + padded_size[0] * 3 + (padded_size[0] + 1) * 8 + 24; // +24 for cell jitter scratch
+            padded_size[1] * 3 + padded_size[0] * 3 + (padded_size[0] + 1) * 8 + 24;
         let mut cache = ArenaBuffer::<A>::with_capacity(required_cache);
         let mut arena = Arena::with_cache(&mut cache);
         let mut sub_arena = arena.allocate_arena(padded_size[0] * 3 + padded_size[1] * 3);
@@ -287,7 +289,7 @@ impl GridGenerator<2> for Cellular {
         let mut window = RowWindow::new(&mut arena, row_len);
         let mut cell_jitters = CellJitters::new(&mut arena);
 
-        // Pre-fill the 4 rows: top (y-1), mid (y=0), bot (y=1), extra (y=2)
+        // Pre-fill the 4 rows: top (y-1), sec (y=0), thi (y=1), bot (y=2)
         let cx_offset = grid_data.grid_start[0] - 1;
         RowWindow::fill_row::<A>(
             &params,
@@ -299,21 +301,21 @@ impl GridGenerator<2> for Cellular {
         RowWindow::fill_row::<A>(
             &params,
             &grid_data,
-            window.mid_mut(),
+            window.sec_mut(),
             grid_data.grid_start[1],
             cx_offset
         );
         RowWindow::fill_row::<A>(
             &params,
             &grid_data,
-            window.bot_mut(),
+            window.thi_mut(),
             grid_data.grid_start[1] + 1,
             cx_offset
         );
         RowWindow::fill_row::<A>(
             &params,
             &grid_data,
-            window.extra_mut(),
+            window.bot_mut(),
             grid_data.grid_start[1] + 2,
             cx_offset
         );
@@ -332,9 +334,9 @@ impl GridGenerator<2> for Cellular {
 
                 cell_jitters.write::<A>(
                     window.top(),
-                    window.mid(),
+                    window.sec(),
+                    window.thi(),
                     window.bot(),
-                    window.extra(),
                     x_it
                 );
 
@@ -353,14 +355,14 @@ impl GridGenerator<2> for Cellular {
                 x_idx = x_next_idx;
             }
 
-            // Swap rows: mid->top, bot->mid, extra->bot, old top->extra
+            // Swap rows: sec->top, thi->sec, bot->thi, old top->bot
             window.swap();
 
-            // Fill the new extra row
+            // Fill the new bot row
             RowWindow::fill_row::<A>(
                 &params,
                 &grid_data,
-                window.extra_mut(),
+                window.bot_mut(),
                 grid_data.grid_start[1] + (y_it as i32) + 3,
                 cx_offset
             );
@@ -391,11 +393,25 @@ fn grid_cellular_fill<A: Arch, C: Combiner, const INIT: bool, const FINAL: bool>
         let sy = unsafe { grid_data.distances[1].get_unchecked(y).assume_init() };
         let row_start = y * row_width;
 
+        // (sy - jy)^2` is identical for every block in this cell segment, 
+        // so they are computed once per row instead of once per block.
+        let mut dysq: [MaybeUninit<Simd<f32, A>>; 12] =
+            std::array::from_fn(|_| MaybeUninit::uninit());
+        for c in 0..12 {
+            let jy = unsafe { (*jit.parts.add(c * 2 + 1)).assume_init() };
+            let dy_sq =
+                (Simd::<f32, A>::splat(sy) - Simd::<f32, A>::splat(jy)) *
+                (Simd::<f32, A>::splat(sy) - Simd::<f32, A>::splat(jy));
+            dysq[c].write(dy_sq);
+        }
+        let dysq = &dysq;
+
         let mut index = x_idx;
         while index + lanes <= x_next {
             grid_cellular_fill_block::<A, C, INIT, FINAL, false>(
                 grid_data,
                 jit,
+                &dysq,
                 weight_vec,
                 sy,
                 row_start,
@@ -411,6 +427,7 @@ fn grid_cellular_fill<A: Arch, C: Combiner, const INIT: bool, const FINAL: bool>
             grid_cellular_fill_block::<A, C, INIT, FINAL, true>(
                 grid_data,
                 jit,
+                &dysq,
                 weight_vec,
                 sy,
                 row_start,
@@ -434,6 +451,7 @@ fn grid_cellular_fill_block<
 >(
     grid_data: &GridData<2>,
     jit: &CellJitters,
+    dysq: &[MaybeUninit<Simd<f32, A>>; 12],
     weight_vec: Simd<f32, A>,
     sy: f32,
     row_start: usize,
@@ -452,10 +470,9 @@ fn grid_cellular_fill_block<
     let mut min_sq = Simd::<f32, A>::splat(f32::MAX);
     for c in 0..4 {
         let jx = Simd::<f32, A>::splat(unsafe { (*jit.parts.add(c * 2)).assume_init() });
-        let jy = Simd::<f32, A>::splat(unsafe { (*jit.parts.add(c * 2 + 1)).assume_init() });
+        let dy_sq = unsafe { *dysq[c].assume_init_ref() };
         let dx = sx - jx;
-        let dy = Simd::<f32, A>::splat(sy) - jy;
-        min_sq = min_sq.min(dx * dx + dy * dy);
+        min_sq = min_sq.min(dx.mul_add(dx, dy_sq));
     }
 
     let x_edge_lo = sx + Simd::<f32, A>::splat(0.5);
@@ -477,20 +494,18 @@ fn grid_cellular_fill_block<
     if any_near {
         for c in 4..8 {
             let jx = Simd::<f32, A>::splat(unsafe { (*jit.parts.add(c * 2)).assume_init() });
-            let jy = Simd::<f32, A>::splat(unsafe { (*jit.parts.add(c * 2 + 1)).assume_init() });
+            let dy_sq = unsafe { *dysq[c].assume_init_ref() };
             let dx = sx - jx;
-            let dy = Simd::<f32, A>::splat(sy) - jy;
-            min_sq = min_sq.min(dx * dx + dy * dy);
+            min_sq = min_sq.min(dx.mul_add(dx, dy_sq));
         }
     }
 
     if any_far {
         for c in 8..12 {
             let jx = Simd::<f32, A>::splat(unsafe { (*jit.parts.add(c * 2)).assume_init() });
-            let jy = Simd::<f32, A>::splat(unsafe { (*jit.parts.add(c * 2 + 1)).assume_init() });
+            let dy_sq = unsafe { *dysq[c].assume_init_ref() };
             let dx = sx - jx;
-            let dy = Simd::<f32, A>::splat(sy) - jy;
-            min_sq = min_sq.min(dx * dx + dy * dy);
+            min_sq = min_sq.min(dx.mul_add(dx, dy_sq));
         }
     }
 
@@ -548,55 +563,70 @@ mod tests {
         verify_slice(result.as_slice());
     }
 
+    fn verify_slice(slice: &[f32]) {
+        let mut min = f32::MAX;
+        let mut max = f32::NEG_INFINITY;
+        let mut dif_total = 0.0;
+        let mut prev = slice[0];
+
+        for val in slice.iter() {
+            min = val.min(min);
+            max = val.max(max);
+
+            let dif = (*val - prev).abs();
+            dif_total += dif;
+            prev = *val;
+        }
+
+        assert!(min >= 0.0, "Cellular distance of {min} was negative!");
+        assert!(max < 10.0, "Maximum value of {max} was above 10!");
+        assert!(dif_total > 0.0, "Output is constant of {}!", slice[0]);
+    }
+
     #[test]
     fn cellular_grid_2d_reference() {
-        const W: usize = 64;
-        const H: usize = 64;
-        const FREQ: f32 = 1.0 / 32.0;
         let seed = 123456789i64;
 
-        let grid = Grid::<2>::new(W, H).seed(seed).sample_position(-5, 3);
+        for freq in [1.0 / 32.0, 1.0 / 8.0, 1.0 / 6.0, 1.0 / 4.0, 1.0 / 3.0, 1.0 / 2.0] {
+            check_reference(64, 64, seed, -5, 3, freq);
+        }
+
+        check_reference(32, 96, seed, -5, 3, 1.0 / 6.0);
+    }
+
+    fn check_reference(
+        w: usize,
+        h: usize,
+        seed: i64,
+        offset_x: i32,
+        offset_y: i32,
+        freq: f32
+    ) {
+        let grid = Grid::<2>::new(w, h)
+            .seed(seed)
+            .sample_position(offset_x, offset_y);
         let grid_seed = Random::mix_u64(seed as u64);
         let base_seed = Random::mix_u64_pair(grid_seed, 0xd5e7b3c94f8a1e6b);
-        let octave_seed = gen_octave_seed([FREQ, FREQ], base_seed);
+        let octave_seed = gen_octave_seed([freq, freq], base_seed);
 
-        let mut result = [0.0; W * H];
-        grid.builder::<Fbm, Cellular>().frequency(FREQ).fill(result.as_mut_slice());
+        let mut result = vec![0.0; w * h];
+        grid.builder::<Fbm, Cellular>()
+            .frequency(freq)
+            .fill(result.as_mut_slice());
 
         let mut max_diff = 0.0f32;
-        for y in 0..H {
-            for x in 0..W {
-                let px = (-5.0 + (x as f32)) * FREQ;
-                let py = (3.0 + (y as f32)) * FREQ;
+        for y in 0..h {
+            for x in 0..w {
+                let px = (offset_x as f32 + x as f32) * freq;
+                let py = (offset_y as f32 + y as f32) * freq;
                 let reference = reference_cellular(octave_seed, px, py);
-                let actual = result[y * W + x];
+                let actual = result[y * w + x];
                 max_diff = max_diff.max((actual - reference).abs());
             }
         }
         assert!(
             max_diff < 1e-4,
-            "Grid cellular diverges from the brute-force Cellular by {max_diff}"
-        );
-
-        // Non-square (tall) grid, which must size its candidate buffers for the
-        // larger y axis.
-        let grid = Grid::<2>::new(32, 96).seed(seed).sample_position(-5, 3);
-        let mut result = [0.0; 32 * 96];
-        grid.builder::<Fbm, Cellular>().frequency(FREQ).fill(result.as_mut_slice());
-
-        let mut max_diff = 0.0f32;
-        for y in 0..96 {
-            for x in 0..32 {
-                let px = (-5.0 + (x as f32)) * FREQ;
-                let py = (3.0 + (y as f32)) * FREQ;
-                let reference = reference_cellular(octave_seed, px, py);
-                let actual = result[y * 32 + x];
-                max_diff = max_diff.max((actual - reference).abs());
-            }
-        }
-        assert!(
-            max_diff < 1e-4,
-            "Tall grid cellular diverges from the brute-force Cellular by {max_diff}"
+            "Grid cellular at freq {freq} diverges from the brute-force Cellular by {max_diff}"
         );
     }
 
@@ -614,7 +644,7 @@ mod tests {
                 );
                 let dx = sx - ((ox as f32) + jx);
                 let dy = sy - ((oy as f32) + jy);
-                min_dist = min_dist.min(dx * dx + dy * dy);
+                min_dist = min_dist.min(dx.mul_add(dx, dy * dy));
             }
         }
         min_dist.sqrt()
@@ -692,25 +722,5 @@ mod tests {
             .frequency(1.0 / 64.0)
             .into_iter()
             .to_grayscale_image(1024, 1024, "test_images/grid_2d_cellular_tiled.png");
-    }
-
-    fn verify_slice(slice: &[f32]) {
-        let mut min = f32::MAX;
-        let mut max = f32::NEG_INFINITY;
-        let mut dif_total = 0.0;
-        let mut prev = slice[0];
-
-        for val in slice.iter() {
-            min = val.min(min);
-            max = val.max(max);
-
-            let dif = (*val - prev).abs();
-            dif_total += dif;
-            prev = *val;
-        }
-
-        assert!(min >= 0.0, "Cellular distance of {min} was negative!");
-        assert!(max < 10.0, "Maximum value of {max} was above 10!");
-        assert!(dif_total > 0.0, "Output is constant of {}!", slice[0]);
     }
 }
