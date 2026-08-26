@@ -663,56 +663,56 @@ mod tests {
             .frequency(1.0 / 32.0)
             .into_iter()
             .map(|x| x * StaticSimd::splat(1.4) - StaticSimd::splat(1.0))
-            .to_grayscale_image(256, 256, "test_images/cellular_grid_2d.png");
+            .to_grayscale_image(256, 256, "examples/test_images/cellular_grid_2d.png");
 
         grid.builder::<Fbm, Cellular>()
             .octaves(2)
             .frequency(1.0 / 64.0)
             .into_iter()
             .map(|x| x * StaticSimd::splat(1.4) - StaticSimd::splat(1.0))
-            .to_grayscale_image(256, 256, "test_images/cellular_grid_2d_fbm.png");
+            .to_grayscale_image(256, 256, "examples/test_images/cellular_grid_2d_fbm.png");
 
         grid.builder::<PingPong, Cellular>()
             .octaves(2)
             .frequency(1.0 / 64.0)
             .into_iter()
             .map(|x| x * StaticSimd::splat(1.4) - StaticSimd::splat(1.0))
-            .to_grayscale_image(256, 256, "test_images/cellular_grid_2d_ping_pong.png");
+            .to_grayscale_image(256, 256, "examples/test_images/cellular_grid_2d_ping_pong.png");
 
         grid.builder::<Ridged, Cellular>()
             .octaves(2)
             .frequency(1.0 / 64.0)
             .into_iter()
             .map(|x| x * StaticSimd::splat(1.4) - StaticSimd::splat(1.0))
-            .to_grayscale_image(256, 256, "test_images/cellular_grid_2d_ridged.png");
+            .to_grayscale_image(256, 256, "examples/test_images/cellular_grid_2d_ridged.png");
 
         grid.builder::<Billow, Cellular>()
             .octaves(2)
             .frequency(1.0 / 64.0)
             .into_iter()
             .map(|x| x * StaticSimd::splat(1.4) - StaticSimd::splat(1.0))
-            .to_grayscale_image(256, 256, "test_images/cellular_grid_2d_billow.png");
+            .to_grayscale_image(256, 256, "examples/test_images/cellular_grid_2d_billow.png");
 
         grid.builder::<HybridMulti, Cellular>()
             .octaves(1)
             .frequency(1.0 / 64.0)
             .into_iter()
             .map(|x| x * StaticSimd::splat(1.4) - StaticSimd::splat(1.0))
-            .to_grayscale_image(256, 256, "test_images/cellular_grid_2d_hybrid_multi.png");
+            .to_grayscale_image(256, 256, "examples/test_images/cellular_grid_2d_hybrid_multi.png");
 
         grid.builder::<Multi, Cellular>()
             .octaves(1)
             .frequency(1.0 / 64.0)
             .into_iter()
             .map(|x| x * StaticSimd::splat(1.4) - StaticSimd::splat(1.0))
-            .to_grayscale_image(256, 256, "test_images/cellular_grid_2d_multi.png");
+            .to_grayscale_image(256, 256, "examples/test_images/cellular_grid_2d_multi.png");
 
         grid.builder::<Terrace, Cellular>()
             .octaves(1)
             .frequency(1.0 / 64.0)
             .into_iter()
             .map(|x| x * StaticSimd::splat(1.4) - StaticSimd::splat(1.0))
-            .to_grayscale_image(256, 256, "test_images/cellular_grid_2d_terrace.png");
+            .to_grayscale_image(256, 256, "examples/test_images/cellular_grid_2d_terrace.png");
 
         let grid_2d_tiled = Grid::<2>::new(1024, 1024).tiling(Some(128), Some(256));
 
@@ -721,6 +721,6 @@ mod tests {
             .octaves(4)
             .frequency(1.0 / 64.0)
             .into_iter()
-            .to_grayscale_image(1024, 1024, "test_images/grid_2d_cellular_tiled.png");
+            .to_grayscale_image(1024, 1024, "examples/test_images/grid_2d_cellular_tiled.png");
     }
 }

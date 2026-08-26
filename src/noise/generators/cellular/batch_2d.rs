@@ -272,7 +272,7 @@ mod tests {
         batch
             .into_iter()
             .map(|x| x * StaticSimd::splat(1.4) - StaticSimd::splat(1.0))
-            .to_grayscale_image(256, 256, "test_images/cellular_batch_2d.png");
+            .to_grayscale_image(256, 256, "examples/test_images/cellular_batch_2d.png");
 
         let mut config = NoiseConfig::<2>::default();
         config.seed = base_seed;
@@ -287,6 +287,6 @@ mod tests {
         batch
             .into_iter()
             .map(|x| x * StaticSimd::splat(1.4) - StaticSimd::splat(1.0))
-            .to_grayscale_image(256, 256, "test_images/cellular_batch_2d_fbm.png");
+            .to_grayscale_image(256, 256, "examples/test_images/cellular_batch_2d_fbm.png");
     }
 }
