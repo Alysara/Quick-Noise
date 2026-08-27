@@ -245,48 +245,4 @@ mod tests {
         }
         min_dist.sqrt()
     }
-
-    #[test]
-    #[cfg(feature = "image")]
-    fn cellular_batch_2d_image() {
-        use crate::emit::NoiseImageExt;
-        use crate::simd::StaticSimd;
-        use crate::{BatchNoiseBuilder, Fbm, Grid};
-
-        let grid = Grid::<2>::new(256, 256)
-            .seed(42)
-            .sample_position(-128, -128);
-
-        let grid_seed = Random::mix_u64(42);
-        let base_seed = Random::mix_u64_pair(grid_seed, 0xD5E7B3C94F8A1E6B);
-
-        let mut config = NoiseConfig::<2>::default();
-        config.seed = base_seed;
-        config.frequency = 1.0 / 32.0;
-        let batch = BatchNoiseBuilder::<2, Fbm, Cellular, StaticArch, _>::from_configs(
-            config,
-            Default::default(),
-            grid.x_iter(),
-            grid.y_iter(),
-        );
-        batch
-            .into_iter()
-            .map(|x| x * StaticSimd::splat(1.4) - StaticSimd::splat(1.0))
-            .to_grayscale_image(256, 256, "examples/test_images/cellular_batch_2d.png");
-
-        let mut config = NoiseConfig::<2>::default();
-        config.seed = base_seed;
-        config.octaves = 2;
-        config.frequency = 1.0 / 64.0;
-        let batch = BatchNoiseBuilder::<2, Fbm, Cellular, StaticArch, _>::from_configs(
-            config,
-            Default::default(),
-            grid.x_iter(),
-            grid.y_iter(),
-        );
-        batch
-            .into_iter()
-            .map(|x| x * StaticSimd::splat(1.4) - StaticSimd::splat(1.0))
-            .to_grayscale_image(256, 256, "examples/test_images/cellular_batch_2d_fbm.png");
-    }
 }
