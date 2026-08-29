@@ -38,12 +38,7 @@ impl<const D: usize, C: Combiner, G: BatchGenerator<D>> BatchNoise<D, C, G> {
 
         #[allow(clippy::too_many_arguments)]
         #[enable_targets(A)]
-        fn process_batch<
-            const D: usize,
-            C: Combiner,
-            G: BatchGenerator<D>,
-            A: Arch,
-        >(
+        fn process_batch<const D: usize, C: Combiner, G: BatchGenerator<D>, A: Arch>(
             inputs: [Simd<f32, A>; D],
             octaves: usize,
             seeds: &[u32; 32],

@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use std::mem::MaybeUninit;
 use std::ops::Range;
 
-use simply_simd::{Arch, Simd, SimdElement};
+use simply_simd::{Arch, Mask, Simd, SimdElement};
 
 use crate::api::grid::interface::GridNoiseParams;
 use crate::noise::combiners::{Combiner, CombinerState};
@@ -116,7 +116,17 @@ pub(crate) unsafe fn maybe_tail_load<A: Arch, const IS_TAIL: bool>(
 ) -> Simd<f32, A> {
     unsafe {
         if IS_TAIL {
-            Simd::from_slice(slice.get_unchecked(range))
+            let lanes = Simd::<f32, A>::LANES;
+            let start = range.start;
+            if start + lanes <= slice.len() {
+                // Whole vector fits: plain unaligned load.
+                Simd::from_slice_unchecked(slice.get_unchecked(start..))
+            } else {
+                // End of buffer: masked load, fault-suppressed on inactive lanes.
+                let rem = range.end - start;
+                let mask = Mask::<f32, A>::first_n_true(rem as u32);
+                Simd::masked_load(slice.get_unchecked(start..), mask)
+            }
         } else {
             Simd::from_slice_unchecked(slice.get_unchecked(range.start..))
         }
@@ -131,7 +141,9 @@ pub(crate) unsafe fn maybe_tail_store<A: Arch, const IS_TAIL: bool>(
 ) {
     unsafe {
         if IS_TAIL {
-            simd.copy_to_slice(slice.get_unchecked_mut(range));
+            let rem = range.end - range.start;
+            let mask = Mask::<f32, A>::first_n_true(rem as u32);
+            simd.masked_store(slice.get_unchecked_mut(range.start..), mask);
         } else {
             simd.copy_to_slice_unchecked(slice.get_unchecked_mut(range.start..));
         }

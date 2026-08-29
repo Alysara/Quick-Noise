@@ -103,7 +103,7 @@ impl<F: Combiner, S: BatchGenerator<3>> BatchNoise<3, F, S> {
         z_iter: Z,
     ) -> OctaveBatchNoiseBuilder<'a, 3, F, S, A, Zip<(X, Y, Z)>>
     where
-        A: Arch, 
+        A: Arch,
         X: Iterator<Item = Simd<f32, A>>,
         Y: Iterator<Item = Simd<f32, A>>,
         Z: Iterator<Item = Simd<f32, A>>,
@@ -117,7 +117,7 @@ impl<'a, S, F, A, X, Y, Z> OctaveBatchNoiseBuilder<'a, 3, F, S, A, Zip<(X, Y, Z)
 where
     S: BatchGenerator<3>,
     F: Combiner,
-    A: Arch, 
+    A: Arch,
     X: Iterator<Item = Simd<f32, A>>,
     Y: Iterator<Item = Simd<f32, A>>,
     Z: Iterator<Item = Simd<f32, A>>,

@@ -1,4 +1,3 @@
-
 use simply_simd::{Arch, Simd, enable_targets};
 
 use crate::api::batch::interface::BatchGenerator;

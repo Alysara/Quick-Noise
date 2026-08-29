@@ -1,8 +1,8 @@
 use std::hint::black_box;
 use std::time::Instant;
 
+use quick_noise::simd::dispatch_simd;
 use quick_noise::{BatchNoise, Fbm, Grid, Perlin};
-use quick_noise::simd::{dispatch_simd};
 
 fn main() {
     simd_work();
@@ -37,4 +37,3 @@ fn simd_work() {
 
     black_box(&result);
 }
-

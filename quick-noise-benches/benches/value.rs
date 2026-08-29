@@ -95,7 +95,7 @@ fn value_2d_octaves_benchmark(c: &mut Criterion) {
         use noiz::prelude::*;
 
         let noise = Noise::<
-            LayeredNoise::<
+            LayeredNoise<
                 Normed<f32>,
                 Persistence,
                 FractalLayers<Octave<MixCellValues<OrthoGrid, Smoothstep, Random<SNorm, f32>>>>,
@@ -157,7 +157,9 @@ fn value_2d_octaves_benchmark(c: &mut Criterion) {
             b.iter(|| {
                 for y in 0..GRID_2D {
                     for x in 0..GRID_2D {
-                        result[y * GRID_2D + x] = Value.fbm(OCTAVES_2D as u32, 0.5, 2.0).sample2([y as f32, x as f32]);
+                        result[y * GRID_2D + x] = Value
+                            .fbm(OCTAVES_2D as u32, 0.5, 2.0)
+                            .sample2([y as f32, x as f32]);
                     }
                 }
             });
@@ -165,10 +167,7 @@ fn value_2d_octaves_benchmark(c: &mut Criterion) {
         black_box(&result);
     }
 
-
-
     group.finish();
-
 
     let mut group = c.benchmark_group("value_noise_3d_3octaves_128x128x128");
     group.throughput(Throughput::Elements(GRID_3D_VOLUME as u64));
@@ -220,7 +219,8 @@ fn value_2d_octaves_benchmark(c: &mut Criterion) {
                 for z in 0..GRID_3D {
                     for y in 0..GRID_3D {
                         for x in 0..GRID_3D {
-                            result[z * GRID_3D * GRID_3D + y * GRID_3D + x] = fbm.get([x as f64, y as f64, z as f64]);
+                            result[z * GRID_3D * GRID_3D + y * GRID_3D + x] =
+                                fbm.get([x as f64, y as f64, z as f64]);
                         }
                     }
                 }
@@ -240,7 +240,8 @@ fn value_2d_octaves_benchmark(c: &mut Criterion) {
                 for z in 0..GRID_3D {
                     for y in 0..GRID_3D {
                         for x in 0..GRID_3D {
-                            result[z * GRID_3D * GRID_3D + y * GRID_3D + x] = generator.sample([x as f64, y as f64, z as f64]);
+                            result[z * GRID_3D * GRID_3D + y * GRID_3D + x] =
+                                generator.sample([x as f64, y as f64, z as f64]);
                         }
                     }
                 }
@@ -255,7 +256,7 @@ fn value_2d_octaves_benchmark(c: &mut Criterion) {
         use noiz::prelude::*;
 
         let noise = Noise::<
-            LayeredNoise::<
+            LayeredNoise<
                 Normed<f32>,
                 Persistence,
                 FractalLayers<Octave<MixCellValues<OrthoGrid, Smoothstep, Random<SNorm, f32>>>>,
@@ -269,7 +270,6 @@ fn value_2d_octaves_benchmark(c: &mut Criterion) {
                 amount: OCTAVES_3D as u32,
             },
         ));
-
 
         let mut result = vec![0.0f32; GRID_3D_VOLUME];
         group.bench_function("noiz", |b| {

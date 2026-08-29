@@ -4,8 +4,8 @@ use crate::api::configs::*;
 use crate::api::grid::interface::{GridNoise, GridNoiseParams};
 use crate::api::octave::Octave;
 use crate::api::seed::gen_octave_seed;
-use crate::noise::util::grid_helpers::{Arena, ArenaBuffer};
 use crate::math::random::Random;
+use crate::noise::util::grid_helpers::{Arena, ArenaBuffer};
 use crate::simd::Arch;
 use crate::{Combiner, CombinerState, GridGenerator};
 
@@ -69,7 +69,9 @@ impl<const D: usize, C: Combiner, G: GridGenerator<D>> GridNoise<D, C, G> {
                 (true, true) => G::sample_grid::<A, C, true, true>(params, f_config, state, dst),
                 (false, true) => G::sample_grid::<A, C, false, true>(params, f_config, state, dst),
                 (true, false) => G::sample_grid::<A, C, true, false>(params, f_config, state, dst),
-                (false, false) => G::sample_grid::<A, C, false, false>(params, f_config, state, dst),
+                (false, false) => {
+                    G::sample_grid::<A, C, false, false>(params, f_config, state, dst)
+                }
             }
         }
 
